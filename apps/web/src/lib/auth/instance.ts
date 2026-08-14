@@ -445,6 +445,10 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
     account: {
       encryptOAuthTokens: true,
       updateAccountOnSignIn: true,
+      accountLinking: {
+        trustedProviders: ['google'],
+        requireLocalEmailVerified: false,
+      },
       additionalFields: {
         workspaceId: { type: 'string', required: false, input: false },
         status: { type: 'string', required: false, input: false },

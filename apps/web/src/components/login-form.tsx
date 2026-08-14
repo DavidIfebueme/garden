@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 import { Button } from '@garden/ui/components/ui/button'
 import { Card, CardContent } from '@garden/ui/components/ui/card'
@@ -11,7 +11,8 @@ import {
 } from '@garden/ui/components/ui/field'
 import { Input } from '@garden/ui/components/ui/input'
 import { BrandIcon } from '@garden/ui/components/common/brand-icon'
-import { GoogleIcon } from '@garden/ui/components/common/google-icon'
+import BrandGoogleIcon from '@/components/icons/brand-google-icon'
+import type { AnimatedIconHandle } from '@/components/icons/types'
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react'
 
 export function LoginForm({
@@ -49,6 +50,7 @@ export function LoginForm({
   onGoogleSignIn: () => void
 }) {
   const [showPassword, setShowPassword] = useState(false)
+  const googleIconRef = useRef<AnimatedIconHandle>(null)
   const isSignup = mode === 'signup'
   const title = isSignup
     ? 'Create your workspace account'
@@ -99,8 +101,14 @@ export function LoginForm({
                     className="w-full"
                     disabled={loading}
                     onClick={onGoogleSignIn}
+                    onMouseEnter={() => void googleIconRef.current?.startAnimation()}
+                    onMouseLeave={() => void googleIconRef.current?.stopAnimation()}
                   >
-                    <GoogleIcon className="size-4" />
+                    <BrandGoogleIcon
+                      ref={googleIconRef}
+                      size={20}
+                      className="size-5 shrink-0"
+                    />
                     Continue with Google
                   </Button>
                   <div className="flex items-center gap-3">

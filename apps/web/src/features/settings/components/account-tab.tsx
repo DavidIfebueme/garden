@@ -21,7 +21,7 @@ import { useFileUpload } from '@garden/app-state/hooks/use-file-upload'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { useNavigation } from '@/features/navigation'
 import { authClient } from '@/lib/auth/client'
-import { GoogleIcon } from '@garden/ui/components/common/google-icon'
+import BrandGoogleIcon from '@/components/icons/brand-google-icon'
 
 const sessionQueryKey = ['account', 'sessions']
 
@@ -462,7 +462,7 @@ export function AccountTab() {
         </header>
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 p-4">
           <div className="flex items-center gap-3">
-            <GoogleIcon className="size-5" />
+            <BrandGoogleIcon size={20} className="size-5 shrink-0" />
             <div>
               <p className="text-sm font-medium">Google</p>
               <p className="text-xs text-muted-foreground">
