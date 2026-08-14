@@ -432,6 +432,16 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
         })
       },
     },
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          socialProviders: {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+            },
+          },
+        }
+      : {}),
     account: {
       encryptOAuthTokens: true,
       updateAccountOnSignIn: true,

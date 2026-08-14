@@ -7,6 +7,7 @@ import { LoginPage } from './login-page'
 
 const mockSignIn = vi.hoisted(() => vi.fn())
 const mockSignUp = vi.hoisted(() => vi.fn())
+const mockSignInSocial = vi.hoisted(() => vi.fn())
 const mockToastSuccess = vi.hoisted(() => vi.fn())
 const mockToastError = vi.hoisted(() => vi.fn())
 
@@ -14,6 +15,7 @@ vi.mock('@/lib/auth/client', () => ({
   authClient: {
     signIn: {
       email: mockSignIn,
+      social: mockSignInSocial,
     },
     signUp: {
       email: mockSignUp,
@@ -136,6 +138,26 @@ describe('LoginPage', () => {
       'href',
       '/forgot-password?email=ada%2Bgarden%40example.com',
     )
+  })
+
+  it('signs in with Google via the social provider', async () => {
+    const user = userEvent.setup()
+    renderLoginPage()
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    expect(mockSignInSocial).toHaveBeenCalledWith({
+      provider: 'google',
+      callbackURL: '/',
+    })
+  })
+
+  it('hides the Google button when the invite email is locked', () => {
+    renderLoginPage({ lockedEmail: true })
+
+    expect(
+      screen.queryByRole('button', { name: /continue with google/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the auth error when Better Auth rejects the request', async () => {

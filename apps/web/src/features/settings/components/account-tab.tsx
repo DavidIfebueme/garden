@@ -21,6 +21,7 @@ import { useFileUpload } from '@garden/app-state/hooks/use-file-upload'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { useNavigation } from '@/features/navigation'
 import { authClient } from '@/lib/auth/client'
+import { GoogleIcon } from '@garden/ui/components/common/google-icon'
 
 const sessionQueryKey = ['account', 'sessions']
 
@@ -79,6 +80,25 @@ export function AccountTab() {
       return result.data ?? []
     },
   })
+
+  const {
+    data: linkedAccounts = [],
+    isPending: accountsPending,
+    refetch: refetchAccounts,
+  } = useQuery({
+    queryKey: ['account', 'linked'],
+    queryFn: async () => {
+      const result = await authClient.listAccounts()
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to load accounts')
+      }
+      return result.data ?? []
+    },
+  })
+
+  const googleLinked = linkedAccounts.some(
+    (account) => account.providerId === 'google',
+  )
 
   useEffect(() => {
     setProfileName(user?.name ?? '')
@@ -217,6 +237,28 @@ export function AccountTab() {
       toast.error(error instanceof Error ? error.message : 'Failed to sign out')
     } finally {
       setSigningOut(false)
+    }
+  }
+
+  const handleLinkGoogle = () => {
+    void authClient.linkSocial({
+      provider: 'google',
+      callbackURL: window.location.href,
+    })
+  }
+
+  const handleUnlinkGoogle = async () => {
+    try {
+      const result = await authClient.unlinkAccount({ providerId: 'google' })
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to unlink Google')
+      }
+      toast.success('Google account unlinked')
+      await Promise.all([refetch(), refetchAccounts()])
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to unlink Google',
+      )
     }
   }
 
@@ -408,6 +450,44 @@ export function AccountTab() {
             </p>
           </div>
         </form>
+      </section>
+
+      {/* Linked accounts */}
+      <section className="space-y-5">
+        <header>
+          <h2 className="text-base font-semibold">Linked accounts</h2>
+          <p className="text-sm text-muted-foreground">
+            Connect your Google account to sign in without a password.
+          </p>
+        </header>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 p-4">
+          <div className="flex items-center gap-3">
+            <GoogleIcon className="size-5" />
+            <div>
+              <p className="text-sm font-medium">Google</p>
+              <p className="text-xs text-muted-foreground">
+                {accountsPending
+                  ? 'Checking...'
+                  : googleLinked
+                    ? 'Connected'
+                    : 'Not connected'}
+              </p>
+            </div>
+          </div>
+          {googleLinked ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleUnlinkGoogle()}
+            >
+              Unlink
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleLinkGoogle}>
+              Link Google
+            </Button>
+          )}
+        </div>
       </section>
 
       {/* Sessions */}

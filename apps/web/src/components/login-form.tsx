@@ -11,6 +11,7 @@ import {
 } from '@garden/ui/components/ui/field'
 import { Input } from '@garden/ui/components/ui/input'
 import { BrandIcon } from '@garden/ui/components/common/brand-icon'
+import { GoogleIcon } from '@garden/ui/components/common/google-icon'
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react'
 
 export function LoginForm({
@@ -29,6 +30,7 @@ export function LoginForm({
   onEmailChange,
   onPasswordChange,
   onToggleMode,
+  onGoogleSignIn,
 }: React.ComponentProps<'div'> & {
   mode: 'signin' | 'signup'
   name: string
@@ -44,6 +46,7 @@ export function LoginForm({
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
   onToggleMode: () => void
+  onGoogleSignIn: () => void
 }) {
   const [showPassword, setShowPassword] = useState(false)
   const isSignup = mode === 'signup'
@@ -87,6 +90,28 @@ export function LoginForm({
                   ) : null}
                 </div>
               </div>
+
+              {emailReadonly ? null : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loading}
+                    onClick={onGoogleSignIn}
+                  >
+                    <GoogleIcon className="size-4" />
+                    Continue with Google
+                  </Button>
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border/70" />
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                      or
+                    </span>
+                    <div className="h-px flex-1 bg-border/70" />
+                  </div>
+                </>
+              )}
 
               {isSignup ? (
                 <Field>

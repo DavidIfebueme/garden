@@ -30,6 +30,14 @@ export function LoginPage({
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const handleGoogleSignIn = () => {
+    setError('')
+    void authClient.signIn.social({
+      provider: 'google',
+      callbackURL: '/',
+    })
+  }
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
@@ -95,6 +103,7 @@ export function LoginPage({
         invitationWorkspaceName={invitationWorkspaceName}
         onEmailChange={lockedEmail ? () => undefined : setEmail}
         onPasswordChange={setPassword}
+        onGoogleSignIn={handleGoogleSignIn}
         onToggleMode={() =>
           setMode((current) => (current === 'signin' ? 'signup' : 'signin'))
         }
