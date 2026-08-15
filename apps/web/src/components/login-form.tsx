@@ -26,6 +26,7 @@ export function LoginForm({
   password,
   error,
   loading,
+  googleLoading,
   onSubmit,
   onNameChange,
   onEmailChange,
@@ -42,6 +43,7 @@ export function LoginForm({
   password: string
   error?: string
   loading?: boolean
+  googleLoading?: boolean
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   onNameChange: (value: string) => void
   onEmailChange: (value: string) => void
@@ -99,7 +101,7 @@ export function LoginForm({
                     type="button"
                     variant="outline"
                     className="w-full"
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     onClick={onGoogleSignIn}
                     onMouseEnter={() => void googleIconRef.current?.startAnimation()}
                     onMouseLeave={() => void googleIconRef.current?.stopAnimation()}
@@ -109,7 +111,7 @@ export function LoginForm({
                       size={20}
                       className="size-5 shrink-0"
                     />
-                    Continue with Google
+                    {googleLoading ? 'Connecting...' : 'Continue with Google'}
                   </Button>
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-border/70" />

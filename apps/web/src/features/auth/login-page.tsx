@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Result } from 'better-result'
 import { GARDEN_ANALYTICS_EVENTS } from '@garden/observability/analytics/events'
 import { toast } from 'sonner'
 import { LoginForm } from '@/components/login-form'
@@ -15,6 +16,7 @@ export function LoginPage({
   invitationStatusMessage,
   invitationWorkspaceName,
   lockedEmail = false,
+  callbackURL = '/',
 }: {
   onSuccess: () => void
   initialEmail?: string
@@ -22,6 +24,7 @@ export function LoginPage({
   invitationStatusMessage?: string
   invitationWorkspaceName?: string
   lockedEmail?: boolean
+  callbackURL?: string
 }) {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode)
   const [name, setName] = useState('')
@@ -29,12 +32,23 @@ export function LoginPage({
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const handleGoogleSignIn = () => {
     setError('')
-    void authClient.signIn.social({
-      provider: 'google',
-      callbackURL: '/',
+    setGoogleLoading(true)
+    void Result.tryPromise(() =>
+      authClient.signIn.social({ provider: 'google', callbackURL }),
+    ).then((result) => {
+      if (result.isErr()) {
+        const message =
+          result.error.cause instanceof Error
+            ? result.error.cause.message
+            : result.error.message
+        setError(message)
+        toast.error(message)
+        setGoogleLoading(false)
+      }
     })
   }
 
@@ -46,18 +60,30 @@ export function LoginPage({
     const request =
       mode === 'signin'
         ? authClient.signIn.email({ email, password })
-        : authClient.signUp.email({ name, email, password })
+        : authClient.signUp.email({
+             name,
+             email,
+             password,
+             callbackURL: '/login',
+           })
 
     void request
       .then((result) => {
         if (result?.error) {
           const message = result.error.message || 'Authentication failed'
-          setError(message)
           toast.error(message)
+          if (message !== 'Email not verified') setError(message)
           return
         }
 
+        const sessionToken = result.data?.token
         const authenticatedUser = result.data?.user
+
+        if (mode === 'signup' && !sessionToken) {
+          toast.success('Check your email to verify your account')
+          return
+        }
+
         if (authenticatedUser) {
           postHogBrowserClient.identify(authenticatedUser.id, {
             email: authenticatedUser.email,
@@ -96,6 +122,7 @@ export function LoginPage({
         password={password}
         error={error}
         loading={loading}
+        googleLoading={googleLoading}
         onSubmit={handleSubmit}
         onNameChange={setName}
         emailReadonly={lockedEmail}

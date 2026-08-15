@@ -53,7 +53,13 @@ describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSignIn.mockResolvedValue({})
-    mockSignUp.mockResolvedValue({})
+    mockSignUp.mockResolvedValue({
+      data: {
+        token: 'session-token',
+        user: { id: 'user-1', email: 'ada@example.com', name: 'Ada' },
+      },
+    })
+    mockSignInSocial.mockResolvedValue({})
   })
 
   it('signs in with Better Auth and hands off to onSuccess', async () => {
@@ -107,8 +113,33 @@ describe('LoginPage', () => {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         password: 'password123',
+        callbackURL: '/login',
       })
       expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('prompts for email verification when sign-up returns no session', async () => {
+    const user = userEvent.setup()
+    const { onSuccess } = renderLoginPage({ initialMode: 'signup' })
+
+    mockSignUp.mockResolvedValueOnce({
+      data: {
+        token: null,
+        user: { id: 'user-1', email: 'ada@example.com', name: 'Ada' },
+      },
+    })
+
+    await user.type(screen.getByLabelText(/^name$/i), 'Ada Lovelace')
+    await user.type(screen.getByLabelText(/email/i), 'ada@example.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'Check your email to verify your account',
+      )
+      expect(onSuccess).not.toHaveBeenCalled()
     })
   })
 
@@ -152,6 +183,19 @@ describe('LoginPage', () => {
     })
   })
 
+  it('shows an error when Google sign-in cannot start', async () => {
+    const user = userEvent.setup()
+    renderLoginPage()
+    mockSignInSocial.mockRejectedValueOnce(new Error('Google sign-in failed'))
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Google sign-in failed')).toBeInTheDocument()
+      expect(mockToastError).toHaveBeenCalledWith('Google sign-in failed')
+    })
+  })
+
   it('hides the Google button when the invite email is locked', () => {
     renderLoginPage({ lockedEmail: true })
 
@@ -178,4 +222,5 @@ describe('LoginPage', () => {
       expect(onSuccess).not.toHaveBeenCalled()
     })
   })
-})
+
+  })

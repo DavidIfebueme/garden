@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Result } from 'better-result'
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -57,6 +58,8 @@ export function AccountTab() {
   const [revokingOtherSessions, setRevokingOtherSessions] = useState(false)
   const [revokingToken, setRevokingToken] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  const [googleLinking, setGoogleLinking] = useState(false)
+  const [googleUnlinking, setGoogleUnlinking] = useState(false)
   const { upload, uploading } = useFileUpload(api)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -241,25 +244,46 @@ export function AccountTab() {
   }
 
   const handleLinkGoogle = () => {
-    void authClient.linkSocial({
-      provider: 'google',
-      callbackURL: window.location.href,
+    setGoogleLinking(true)
+    void Result.tryPromise(() =>
+      authClient.linkSocial({
+        provider: 'google',
+        callbackURL: window.location.href,
+      }),
+    ).then((result) => {
+      if (result.isErr()) {
+        toast.error(
+          result.error.cause instanceof Error
+            ? result.error.cause.message
+            : result.error.message,
+        )
+        setGoogleLinking(false)
+      }
     })
   }
 
   const handleUnlinkGoogle = async () => {
-    try {
-      const result = await authClient.unlinkAccount({ providerId: 'google' })
-      if (result.error) {
-        throw new Error(result.error.message || 'Failed to unlink Google')
-      }
-      toast.success('Google account unlinked')
-      await Promise.all([refetch(), refetchAccounts()])
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to unlink Google',
-      )
+    setGoogleUnlinking(true)
+    const result = await Result.tryPromise(() =>
+      authClient.unlinkAccount({ providerId: 'google' }),
+    )
+    if (result.isErr()) {
+      toast.error(result.error.message)
+      setGoogleUnlinking(false)
+      return
     }
+    if (result.value.error) {
+      const errorMessage = result.value.error.message ?? ''
+      const message = errorMessage.includes('last account')
+        ? 'Set a password before unlinking Google.'
+        : errorMessage || 'Failed to unlink Google'
+      toast.error(message)
+      setGoogleUnlinking(false)
+      return
+    }
+    toast.success('Google account unlinked')
+    await Promise.all([refetch(), refetchAccounts()])
+    setGoogleUnlinking(false)
   }
 
   return (
@@ -479,12 +503,13 @@ export function AccountTab() {
               variant="outline"
               size="sm"
               onClick={() => void handleUnlinkGoogle()}
+              disabled={googleUnlinking}
             >
               Unlink
             </Button>
           ) : (
-            <Button size="sm" onClick={handleLinkGoogle}>
-              Link Google
+            <Button size="sm" onClick={handleLinkGoogle} disabled={googleLinking}>
+              {googleLinking ? 'Connecting...' : 'Link Google'}
             </Button>
           )}
         </div>

@@ -40,6 +40,7 @@ import {
 } from '@/lib/posthog-server'
 import type { Db } from '@/lib/server/db'
 import { sendPasswordResetEmail } from '@/lib/server/email/password-reset'
+import { sendVerificationEmail } from '@/lib/server/email/verification'
 
 export type GardenAuthEnv = Pick<
   AppEnv,
@@ -419,6 +420,7 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
     },
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user: resetUser, url }) => {
         await sendPasswordResetEmail({
@@ -429,6 +431,17 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
             email: resetUser.email,
             name: resetUser.name,
           },
+        })
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      sendOnSignIn: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendVerificationEmail({
+          env,
+          verificationUrl: url,
+          user: { email: user.email, name: user.name },
         })
       },
     },
@@ -447,7 +460,7 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
       updateAccountOnSignIn: true,
       accountLinking: {
         trustedProviders: ['google'],
-        requireLocalEmailVerified: false,
+        requireLocalEmailVerified: true,
       },
       additionalFields: {
         workspaceId: { type: 'string', required: false, input: false },

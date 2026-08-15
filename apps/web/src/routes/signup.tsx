@@ -52,6 +52,7 @@ function SignUpRoute() {
 
   return (
     <LoginPage
+      callbackURL={search.redirect ?? '/workspace'}
       initialMode="signup"
       initialEmail={invitationIsPending ? invitation.email : undefined}
       lockedEmail={invitationIsPending}
