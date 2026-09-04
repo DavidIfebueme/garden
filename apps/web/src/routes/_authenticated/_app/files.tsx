@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { FolderOpen } from 'lucide-react'
+import { Folder } from '@phosphor-icons/react'
 
 export const Route = createFileRoute('/_authenticated/_app/files')({
   component: FilesRoute,
@@ -16,7 +16,10 @@ function FilesRoute() {
     <section className="flex h-full flex-1 items-center justify-center px-6">
       <div className="flex max-w-sm flex-col items-center gap-3 text-center">
         <span className="flex size-10 items-center justify-center rounded-md bg-background-main-secondary">
-          <FolderOpen className="size-5 text-icon-neutral-tertiary" />
+          <Folder
+            weight="regular"
+            className="size-5 text-icon-neutral-tertiary"
+          />
         </span>
         <h1 className="text-sm font-medium text-text-neutral-default">
           Files &amp; Folders

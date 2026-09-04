@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Users } from 'lucide-react'
+import { Users } from '@phosphor-icons/react'
 
 export const Route = createFileRoute('/_authenticated/_app/teams')({
   component: TeamsRoute,

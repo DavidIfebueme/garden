@@ -31,7 +31,13 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'home', label: 'Home', to: '/home', icon: House },
   { id: 'chats', label: 'Chats', to: '/chats', icon: ChatsCircle },
   { id: 'tasks', label: 'Tasks', to: '/tasks', icon: ListChecks },
-  { id: 'files', label: 'Files & Folders', to: '/files', icon: Folder },
+  {
+    id: 'files',
+    label: 'Files & Folders',
+    to: '/files',
+    // Design spec: office/regular/folder
+    icon: (props) => <Folder weight="regular" {...props} />,
+  },
   { id: 'inbox', label: 'Inbox', to: '/inbox', icon: Tray },
   { id: 'automations', label: 'Workflows', to: '/workflows', icon: Lightning },
   { id: 'agents', label: 'Agents', to: '/agents', icon: Robot },
