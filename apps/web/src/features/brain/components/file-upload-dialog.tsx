@@ -8,6 +8,7 @@ import {
 } from '@garden/ui/components/ui/dialog'
 import { Loader2 } from 'lucide-react'
 import { BrainFileTypeIcon } from './file-type-icon'
+import { truncateMiddle } from '../format'
 
 type BrainFileUploadDialogProps = {
   file: File | null
@@ -57,8 +58,11 @@ export function BrainFileUploadDialog({
           <BrainFileTypeIcon fileName={file.name} />
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
-              {file.name}
+            <p
+              className="truncate text-sm font-medium text-foreground"
+              title={file.name}
+            >
+              {truncateMiddle(file.name, 48)}
             </p>
 
             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

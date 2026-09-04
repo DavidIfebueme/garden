@@ -53,7 +53,7 @@ import {
   brainFolderListOptions,
 } from '../queries'
 import type { BrainFolderSummary } from '../contract'
-import { formatRelativeTime } from '../format'
+import { formatRelativeTime, truncateMiddle } from '../format'
 import { BrainFilePreviewDialog } from './file-preview-dialog'
 import { BrainFileUploadDialog } from './file-upload-dialog'
 import { BrainFolderDialog } from './folder-dialog'
@@ -124,8 +124,11 @@ function BrainFileCard({
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
         >
           <BrainFileTypeIcon fileName={uploadedFile.name} className="size-4" />
-          <span className="min-w-0 truncate text-sm text-text-neutral-default">
-            {uploadedFile.name}
+          <span
+            className="min-w-0 truncate text-sm text-text-neutral-default"
+            title={uploadedFile.name}
+          >
+            {truncateMiddle(uploadedFile.name, 36)}
           </span>
         </button>
 
@@ -167,7 +170,7 @@ function BrainFileCard({
                     onClick={() => onAddToFolder(uploadedFile, folder.id)}
                   >
                     <FolderIcon />
-                    <span className="truncate">{folder.name}</span>
+                    <span className="min-w-0 truncate">{folder.name}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
@@ -300,7 +303,7 @@ export function BrainFilesPage() {
       }
 
       toast.success('A new file has been added', {
-        description: uploadedFile.name,
+        description: truncateMiddle(uploadedFile.name, 56),
       })
     },
     onSettled: () => {
@@ -366,7 +369,7 @@ export function BrainFilesPage() {
       )
       setFolderDialog(null)
       toast.success('A new folder has been created', {
-        description: folder.name,
+        description: truncateMiddle(folder.name, 56),
       })
     },
   })
@@ -392,7 +395,9 @@ export function BrainFilesPage() {
         ) => (current ? { ...current, item: folder } : current),
       )
       setFolderDialog(null)
-      toast.success('Folder updated', { description: folder.name })
+      toast.success('Folder updated', {
+        description: truncateMiddle(folder.name, 56),
+      })
     },
   })
 
@@ -423,7 +428,7 @@ export function BrainFilesPage() {
         exact: true,
       })
       toast.success('File added to folder', {
-        description: detail.item.name,
+        description: truncateMiddle(detail.item.name, 56),
       })
     },
     onError: (error) => {
@@ -441,7 +446,7 @@ export function BrainFilesPage() {
         exact: true,
       })
       toast.success('File removed from folder', {
-        description: detail.item.name,
+        description: truncateMiddle(detail.item.name, 56),
       })
     },
     onError: (error) => {
@@ -859,9 +864,12 @@ export function BrainFilesPage() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete file</AlertDialogTitle>
-              <AlertDialogDescription>
-                Delete {pendingDeleteFile.name}? This removes it from the
-                knowledge base and any folders.
+              <AlertDialogDescription className="break-words">
+                Delete{' '}
+                <span className="break-all" title={pendingDeleteFile.name}>
+                  {truncateMiddle(pendingDeleteFile.name, 64)}
+                </span>
+                ? This removes it from the knowledge base and any folders.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -905,8 +913,12 @@ function DeleteFolderDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete folder</AlertDialogTitle>
-          <AlertDialogDescription>
-            Delete {folder.name}? The files inside stay in the knowledge base.
+          <AlertDialogDescription className="break-words">
+            Delete{' '}
+            <span className="break-all" title={folder.name}>
+              {truncateMiddle(folder.name, 64)}
+            </span>
+            ? The files inside stay in the knowledge base.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

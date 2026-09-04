@@ -19,6 +19,7 @@ import {
   formatFileSize,
   formatUploadedDate,
   formatUploadedTime,
+  truncateMiddle,
 } from '../format'
 import { BrainFileTypeIcon } from './file-type-icon'
 
@@ -101,10 +102,10 @@ export function BrainFolderDetail({
             <ArrowLeft className="size-4" weight="regular" />
             Files &amp; Folders
           </button>
-          <span aria-hidden="true" className="text-text-secondary">
+          <span aria-hidden="true" className="shrink-0 text-text-secondary">
             |
           </span>
-          <span className="truncate text-text-neutral-default">
+          <span className="min-w-0 truncate text-text-neutral-default">
             {detail?.item.name ?? '…'}
           </span>
         </div>
@@ -214,7 +215,7 @@ export function BrainFolderDetail({
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-border-default">
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm">
                     <thead>
                       <tr className="bg-background-main-secondary text-left">
                         <th className="px-6 py-4 font-semibold text-text-neutral-default">
@@ -241,13 +242,16 @@ export function BrainFolderDetail({
                           className="border-t border-border-default bg-background-main-default"
                         >
                           <td className="px-6 py-5">
-                            <span className="flex items-center gap-2">
+                            <span className="flex min-w-0 items-center gap-2">
                               <BrainFileTypeIcon
                                 fileName={file.name}
-                                className="size-4.5"
+                                className="size-4.5 shrink-0"
                               />
-                              <span className="truncate text-text-neutral-default">
-                                {file.name}
+                              <span
+                                className="min-w-0 truncate text-text-neutral-default"
+                                title={file.name}
+                              >
+                                {truncateMiddle(file.name, 44)}
                               </span>
                             </span>
                           </td>

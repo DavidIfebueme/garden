@@ -140,6 +140,18 @@ describe('BrainFilesPage', () => {
     })
   })
 
+  it('middle-truncates long file names so they stay inside their tiles', async () => {
+    const longName = `${'quarterly-report-'.repeat(10)}final.pdf`
+
+    renderFilesPage([{ id: 'long-file', name: longName, status: 'ready' }])
+
+    const card = await screen.findByTitle(longName)
+    expect(card.textContent?.length).toBeLessThanOrEqual(36)
+    expect(card.textContent).toContain('…')
+    expect(card.textContent?.endsWith('final.pdf')).toBe(true)
+    expect(screen.queryByText(longName)).not.toBeInTheDocument()
+  })
+
   it('shows files stored in the workspace when the page loads', async () => {
     mockListBrainFiles.mockResolvedValue([
       {

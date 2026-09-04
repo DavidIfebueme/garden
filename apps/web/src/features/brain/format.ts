@@ -29,9 +29,9 @@ export function formatFileSize(sizeBytes: number | undefined): string {
   if (sizeBytes === undefined) return '—'
   if (sizeBytes < 1024) return `${sizeBytes} B`
   const kb = sizeBytes / 1024
-  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`
+  if (kb < 1024) return `${kb < 10 ? Number(kb.toFixed(1)) : Math.round(kb)} KB`
   const mb = kb / 1024
-  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`
+  return `${mb < 10 ? Number(mb.toFixed(1)) : Math.round(mb)} MB`
 }
 
 export function formatRelativeTime(iso: string): string {
@@ -45,4 +45,16 @@ export function formatRelativeTime(iso: string): string {
   const days = Math.round(hours / 24)
   if (days < 7) return `${days} d ago`
   return dateFormatter.format(new Date(iso))
+}
+
+/**
+ * Middle-ellipsizes long file names so the extension stays visible in fixed
+ * containers ("quarterly-report…final.pdf"). CSS `truncate` alone drops the
+ * tail, which hides the type the user needs to see.
+ */
+export function truncateMiddle(text: string, maxLength = 40): string {
+  if (text.length <= maxLength) return text
+  const head = Math.ceil((maxLength - 1) / 2)
+  const tail = Math.floor((maxLength - 1) / 2)
+  return `${text.slice(0, head)}…${text.slice(text.length - tail)}`
 }

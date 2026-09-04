@@ -13,6 +13,7 @@ import {
 } from '@garden/ui/components/ui/dialog'
 import type { BrainFileSummary } from '../api'
 import { brainFileExtractedTextOptions, brainFileTextOptions } from '../queries'
+import { truncateMiddle } from '../format'
 
 type PreviewKind = 'docx' | 'pdf' | 'text' | 'xlsx' | 'unavailable'
 
@@ -137,7 +138,9 @@ export function BrainFilePreviewDialog({
           />
 
           <div className="min-w-0 flex-1">
-            <DialogTitle className="truncate text-sm">{file.name}</DialogTitle>
+            <DialogTitle className="truncate text-sm" title={file.name}>
+              {truncateMiddle(file.name, 60)}
+            </DialogTitle>
             <DialogDescription className="mt-1 text-xs">
               Workspace file
             </DialogDescription>
