@@ -114,11 +114,14 @@ type AgentRuntimeEnv = Cloudflare.Env &
   ENVIRONMENT?: string
   VITE_PUBLIC_POSTHOG_HOST?: string
   VITE_PUBLIC_POSTHOG_PROJECT_TOKEN?: string
+  BRAIN_FILES: R2Bucket
   FILES: R2Bucket
   LOADER: WorkerLoader
   Sandbox: DurableObjectNamespace<SandboxDO>
   MCP_SESSION: DurableObjectNamespace
   RUN_WORKFLOW: RunWorkflowBinding
+  HELIX_URL?: string
+  HELIX_API_KEY?: string
 }
 
 type TurnMode = 'start' | 'resume'
@@ -367,6 +370,11 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
     )
   }
 
+  /**
+   * Builds issue-run tools from live run state. Brain tools previously resolved
+   * `this.name` as a chat thread; they now receive the issue run's authoritative
+   * workspace, agent, and run ids from the same context as other issue tools.
+   */
   override getTools(): ToolSet {
     const context = this.getIssueToolContext()
     return {
@@ -379,6 +387,25 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
         loader: this.env.LOADER,
         getSandbox: () => this.getAgentSandbox(),
         issueRunEnv: this.env,
+        brain: {
+          ...(this.env.HELIX_URL === undefined
+            ? {}
+            : { helixUrl: this.env.HELIX_URL }),
+          ...(this.env.HELIX_API_KEY === undefined
+            ? {}
+            : { helixApiKey: this.env.HELIX_API_KEY }),
+          ai: this.env.AI,
+          files: this.env.BRAIN_FILES,
+          getContext: () => {
+            const run = this.currentRunState
+            if (run === null) return null
+            return {
+              workspaceId: run.workspaceId,
+              agentId: run.agentId,
+              runId: run.runId,
+            }
+          },
+        },
       }),
       update_plan: createUpdatePlanTool(context),
       post_comment: createPostCommentTool(context),

@@ -18,7 +18,8 @@
     "dev:reset": "pkill -f '[t]urbo run dev|[t]urbo run dev:local|[v]ite dev|[w]orkerd serve|[e]sbuild --service' || true",
     "dev:web": "turbo run dev:local --ui=tui --filter=@garden/web",
     "build": "turbo run build",
-    "deploy": "pnpm typecheck && pnpm run deploy:alchemy",
+    "deploy": "pnpm typecheck && pnpm run deploy:migrate && pnpm run deploy:alchemy",
+    "deploy:migrate": "pnpm --filter @garden/db db:migrate",
     "deploy:alchemy": "GARDEN_DEPLOY_TARGET=production ALCHEMY_PROFILE=garden-staging ALCHEMY_CI_STATE_STORE_CHECK=false ALCHEMY_TELEMETRY_DISABLED=1 alchemy deploy",
     "deploy:preview": "pnpm typecheck && pnpm run deploy:preview:alchemy",
     "deploy:preview:alchemy": "GARDEN_DEPLOY_TARGET=preview ALCHEMY_PROFILE=garden-staging ALCHEMY_CI_STATE_STORE_CHECK=false ALCHEMY_TELEMETRY_DISABLED=1 alchemy deploy",
@@ -56,6 +57,7 @@
     "overrides": {
       "alchemy@0.93.12>miniflare": "4.20260714.0",
       "@posthog/cli": "0.8.4",
+      "sharp": "0.33.5",
       "effect": "4.0.0-beta.102",
       "@effect/atom-react": "4.0.0-beta.102",
       "@effect/platform-node": "4.0.0-beta.102",
@@ -91,7 +93,8 @@
       "ws": "8.21.0"
     },
     "patchedDependencies": {
-      "agents@0.17.3": "patches/agents@0.17.3.patch"
+      "agents@0.17.3": "patches/agents@0.17.3.patch",
+      "@helix-db/helix-db@3.0.2": "patches/@helix-db__helix-db@3.0.2.patch"
     }
   },
   "dependencies": {
