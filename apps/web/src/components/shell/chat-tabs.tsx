@@ -8,7 +8,10 @@ import {
   PopoverTrigger,
 } from '@garden/ui/components/ui/popover'
 import { SurfaceTabs } from '@garden/ui/components/shell/surface-tabs'
-import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
+import {
+  EMPTY_SURFACE_TABS,
+  useSurfaceTabsStore,
+} from '@garden/app-state/surface-tabs'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { useAgentSessions } from '@/features/chat/use-agent-chat-sessions'
 import { ChatSessionExplorer } from '@/features/chat'
@@ -20,7 +23,9 @@ import { ChatSessionExplorer } from '@/features/chat'
  * first-turn titles appear without a store round-trip.
  */
 export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
-  const tabs = useSurfaceTabsStore((s) => s.bySurface['chats'] ?? [])
+  const tabs = useSurfaceTabsStore(
+    (s) => s.bySurface['chats'] ?? EMPTY_SURFACE_TABS,
+  )
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openChatSession, navigate } = useSurfaceNavigation()
   const { sessions, claimWarmSession } = useAgentSessions()

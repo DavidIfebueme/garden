@@ -19,6 +19,14 @@ export interface SurfaceTabEntry {
   title: string
 }
 
+/**
+ * Shared empty list for selectors. zustand v5 requires getSnapshot results to
+ * be reference-stable — a literal `?? []` inside a selector returns a new array
+ * every call and loops React's "maximum update depth" guard (observed 2026-09
+ * as a shell crash on any page render / dropdown open).
+ */
+export const EMPTY_SURFACE_TABS: SurfaceTabEntry[] = []
+
 interface SurfaceTabsState {
   bySurface: Record<string, SurfaceTabEntry[]>
   /** Adds the tab if absent, otherwise moves it to the end and refreshes its title. */

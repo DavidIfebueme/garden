@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { SurfaceTabs } from '@garden/ui/components/shell/surface-tabs'
-import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
+import {
+  EMPTY_SURFACE_TABS,
+  useSurfaceTabsStore,
+} from '@garden/app-state/surface-tabs'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { issueDetailOptions } from '@/lib/issues/queries'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
@@ -16,7 +19,9 @@ import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigati
  * real title once data lands.
  */
 export function TaskTabsStrip({ activeId }: { activeId: string | null }) {
-  const tabs = useSurfaceTabsStore((s) => s.bySurface['tasks'] ?? [])
+  const tabs = useSurfaceTabsStore(
+    (s) => s.bySurface['tasks'] ?? EMPTY_SURFACE_TABS,
+  )
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openIssue, navigate } = useSurfaceNavigation()
   const workspaceId = useWorkspaceStore((s) => s.workspace?.id ?? '')

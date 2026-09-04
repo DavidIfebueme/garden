@@ -23,7 +23,10 @@ import { SearchCommand } from '@/features/search'
 import { SearchTrigger } from '@/features/search'
 import { ChatRuntimeProvider } from '@/features/chat/chat-runtime-provider'
 import { CreateWorkspaceModal } from '@/features/modals/create-workspace'
-import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
+import {
+  EMPTY_SURFACE_TABS,
+  useSurfaceTabsStore,
+} from '@garden/app-state/surface-tabs'
 import { NAV_ITEMS, navItemForPathname } from '@/features/navigation/nav-items'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { UserCard } from './user-card'
@@ -127,7 +130,9 @@ export function AppShell() {
   const tabbedNav =
     activeNavId === 'chats' || activeNavId === 'tasks' ? activeNavId : null
   const surfaceTabs = useSurfaceTabsStore((s) =>
-    tabbedNav ? (s.bySurface[tabbedNav] ?? []) : [],
+    tabbedNav
+      ? (s.bySurface[tabbedNav] ?? EMPTY_SURFACE_TABS)
+      : EMPTY_SURFACE_TABS,
   )
   const activeTabId = useRouterState({
     select: (s) => {
