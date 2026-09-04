@@ -3,7 +3,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
 import { GardenLogo } from '@garden/ui/components/common/garden-logo'
@@ -68,7 +67,7 @@ export function WorkspaceSwitcher({
         align="start"
         sideOffset={8}
       >
-        <div className="flex items-center gap-2 border-b border-border-default px-3 py-2.5">
+        <div className="flex items-center gap-2 border-b border-border-default bg-background-main-secondary px-3 py-2.5">
           <GardenLogo className="h-[10px] w-[19px]" />
           <span className="truncate text-sm font-semibold text-text-neutral-default">
             Garden
@@ -83,13 +82,6 @@ export function WorkspaceSwitcher({
             <Gear />
             Workspace settings
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenMembers}>
-            <Users />
-            Team members
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup className="py-1">
           <DropdownMenuItem disabled>
             <ChartBar />
             <span className="flex-1">Analytics</span>
@@ -99,6 +91,10 @@ export function WorkspaceSwitcher({
             <CreditCard />
             <span className="flex-1">Billing</span>
             <span className="text-xs text-text-tertiary">Soon</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpenMembers}>
+            <Users />
+            Team members
           </DropdownMenuItem>
           <DropdownMenuItem disabled>
             <Info />
