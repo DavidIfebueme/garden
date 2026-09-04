@@ -112,8 +112,8 @@ export function UserCard({
 
       <DropdownMenuContent
         className="w-72 rounded-xl p-0 shadow-5"
-        side="right"
-        align="end"
+        side="top"
+        align="start"
         sideOffset={8}
       >
         {/* Profile header */}
@@ -136,7 +136,9 @@ export function UserCard({
         <div className="flex items-center gap-2 border-t border-border-default px-3.5 py-2.5">
           <span className="text-xs text-text-secondary">
             User ID:{' '}
-            <span className="text-text-neutral-default">{user.id}</span>
+            <span className="text-text-neutral-default">
+              {redactUserId(user.id)}
+            </span>
           </span>
           <button
             type="button"
@@ -269,6 +271,15 @@ export function UserCard({
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+/**
+ * Masks the middle of the user id in the UI (first 8 … last 4). The full id
+ * still lands on the clipboard via the copy button.
+ */
+function redactUserId(id: string) {
+  if (id.length <= 12) return id
+  return `${id.slice(0, 8)}…${id.slice(-4)}`
 }
 
 function roleLabel(role: MemberRole) {

@@ -252,7 +252,6 @@ export function AppShell() {
               activeId={activeNavId}
               onSelect={handleSelectNav}
               collapsed={collapsed}
-              onOpenSettings={openSettingsDialog}
               userCard={
                 <UserCard
                   user={{

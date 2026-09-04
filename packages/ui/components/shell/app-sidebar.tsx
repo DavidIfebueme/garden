@@ -1,4 +1,3 @@
-import { Gear } from '@phosphor-icons/react'
 import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
@@ -32,9 +31,7 @@ export type AppSidebarProps = {
   activeId: string | null
   onSelect: (id: string) => void
   collapsed: boolean
-  /** Settings affordance rendered above the user card. */
-  onOpenSettings: () => void
-  /** User card slot (account menu) rendered at the bottom. */
+  /** User card slot (account flyout) rendered at the bottom. */
   userCard: ReactNode
   className?: string
 }
@@ -45,7 +42,6 @@ export function AppSidebar({
   activeId,
   onSelect,
   collapsed,
-  onOpenSettings,
   userCard,
   className,
 }: AppSidebarProps) {
@@ -116,25 +112,10 @@ export function AppSidebar({
 
       <div
         className={cn(
-          'flex shrink-0 flex-col gap-0.5 border-t border-border-default p-2',
-          collapsed && 'items-center',
+          'shrink-0 border-t border-border-default p-2',
+          collapsed && 'flex justify-center',
         )}
       >
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          aria-label="Settings"
-          title={collapsed ? 'Settings' : undefined}
-          className={cn(
-            'flex h-9 w-full items-center gap-2.5 rounded-sm text-sm text-text-secondary transition-colors hover:bg-background-main-secondary hover:text-text-neutral-default',
-            collapsed ? 'justify-center px-0' : 'px-3',
-          )}
-        >
-          <Gear className="size-5 shrink-0 text-icon-neutral-tertiary" />
-          {!collapsed ? (
-            <span className="flex-1 text-left">Settings</span>
-          ) : null}
-        </button>
         {userCard}
       </div>
     </aside>
