@@ -6,7 +6,7 @@ import {
   useSurfaceTabsStore,
 } from '@garden/app-state/surface-tabs'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
-import { issueDetailOptions } from '@/lib/issues/queries'
+import { issueDetailOptions, issueListOptions } from '@/lib/issues/queries'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 
 /**
@@ -26,16 +26,27 @@ export function TaskTabsStrip({ activeId }: { activeId: string | null }) {
   const { openIssue, navigate } = useSurfaceNavigation()
   const workspaceId = useWorkspaceStore((s) => s.workspace?.id ?? '')
 
-  // One shared query for the active issue doubles as the tab-title source.
+  // Resolve tab titles live: the issues list cache covers most tabs, and the
+  // detail query (below) covers a tab opened by direct URL before the list
+  // lands. Pure derivation at render — no effects.
+  const issuesQuery = useQuery({
+    ...issueListOptions(workspaceId),
+    enabled: !!workspaceId,
+  })
   const activeIssueQuery = useQuery({
     ...issueDetailOptions(workspaceId, activeId ?? ''),
     enabled: !!workspaceId && !!activeId,
   })
   const liveTitle = activeIssueQuery.data?.title
-
-  const displayTabs = tabs.map((tab) =>
-    tab.id === activeId && liveTitle ? { ...tab, title: liveTitle } : tab,
+  const listTitles = new Map(
+    (issuesQuery.data ?? []).map((issue) => [issue.id, issue.title]),
   )
+
+  const displayTabs = tabs.map((tab) => {
+    const live =
+      (tab.id === activeId ? liveTitle : undefined) ?? listTitles.get(tab.id)
+    return live ? { ...tab, title: live } : tab
+  })
 
   const handleClose = useCallback(
     (id: string) => {
