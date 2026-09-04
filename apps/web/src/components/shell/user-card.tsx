@@ -14,11 +14,11 @@ import {
 } from '@garden/ui/components/ui/dropdown-menu'
 import { cn } from '@garden/ui/lib/utils'
 import {
-  BadgeCheckIcon,
-  ChevronsUpDownIcon,
-  LogOutIcon,
-  ShieldIcon,
-} from 'lucide-react'
+  CaretUpDown,
+  SignOut,
+  ShieldCheck,
+  UserCircleCheck,
+} from '@phosphor-icons/react'
 
 /**
  * User card pinned to the bottom of the new flat sidebar (design: 24px avatar
@@ -63,7 +63,7 @@ export function UserCard({
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-neutral-default">
               {user.name}
             </span>
-            <ChevronsUpDownIcon className="size-3.5 text-icon-neutral-tertiary" />
+            <CaretUpDown className="size-3.5 text-icon-neutral-tertiary" />
           </>
         ) : null}
       </DropdownMenuTrigger>
@@ -88,17 +88,17 @@ export function UserCard({
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onAccount}>
-            <BadgeCheckIcon />
+            <UserCircleCheck />
             Account
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onAccount}>
-            <ShieldIcon />
+            <ShieldCheck />
             Sessions & security
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onLogout}>
-          <LogOutIcon />
+          <SignOut />
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

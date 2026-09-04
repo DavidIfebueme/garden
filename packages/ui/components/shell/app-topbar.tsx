@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight, SidebarSimple } from '@phosphor-icons/react'
 import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
@@ -37,18 +38,18 @@ export function AppTopBar({
       )}
     >
       <TopBarButton
-        icon={PanelLeftIcon}
+        icon={SidebarSimple}
         label="Toggle sidebar"
         onClick={onToggleSidebar}
       />
       <TopBarButton
-        icon={ArrowLeftIcon}
+        icon={ArrowLeft}
         label="Back"
         onClick={onBack}
         disabled={!canGoBack}
       />
       <TopBarButton
-        icon={ArrowRightIcon}
+        icon={ArrowRight}
         label="Forward"
         onClick={onForward}
         disabled={!canGoForward}
@@ -79,71 +80,5 @@ function TopBarButton({
     >
       <Icon className="size-4" />
     </button>
-  )
-}
-
-function PanelLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <rect
-        x="1.5"
-        y="2.5"
-        width="13"
-        height="11"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path d="M6 2.5v11" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
-}
-
-function ArrowLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="M10 3 5 8l5 5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function ArrowRightIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        d="m6 3 5 5-5 5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }

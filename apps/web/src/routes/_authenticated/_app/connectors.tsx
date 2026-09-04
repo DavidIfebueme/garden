@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ConnectionsPage } from '@/features/connections'
 
-export const Route = createFileRoute('/_authenticated/_app/connections')({
+export const Route = createFileRoute('/_authenticated/_app/connectors')({
   // connector_flow + connector_id arrive from connector OAuth/setup callbacks
   // (built by connectorCallbackSearchParams); names stay stable for back-compat
   // with links already issued in emails/callbacks.

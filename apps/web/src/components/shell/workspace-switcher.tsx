@@ -9,7 +9,7 @@ import {
 import { BrandIcon } from '@garden/ui/components/common/brand-icon'
 import { cn } from '@garden/ui/lib/utils'
 import type { Workspace } from '@garden/core/types'
-import { Building2Icon, CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { Buildings, CaretDown, Check } from '@phosphor-icons/react'
 
 /**
  * Workspace switcher — the sidebar header in the redesigned shell: logo +
@@ -49,7 +49,7 @@ export function WorkspaceSwitcher({
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-neutral-default">
               {workspaceName}
             </span>
-            <ChevronDownIcon className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
+            <CaretDown className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
           </>
         ) : null}
       </DropdownMenuTrigger>
@@ -72,11 +72,11 @@ export function WorkspaceSwitcher({
                   disabled={active}
                   onClick={() => onSwitchWorkspace(workspace)}
                 >
-                  <Building2Icon />
+                  <Buildings />
                   <span className="min-w-0 flex-1 truncate">
                     {workspace.name}
                   </span>
-                  {active ? <CheckIcon className="ml-auto" /> : null}
+                  {active ? <Check className="ml-auto" /> : null}
                 </DropdownMenuItem>
               )
             })}
@@ -84,7 +84,7 @@ export function WorkspaceSwitcher({
         ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onCreateWorkspace}>
-          <Building2Icon />
+          <Buildings />
           New workspace
         </DropdownMenuItem>
       </DropdownMenuContent>

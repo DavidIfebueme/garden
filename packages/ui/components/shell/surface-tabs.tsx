@@ -1,3 +1,4 @@
+import { Plus, X } from '@phosphor-icons/react'
 import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
@@ -81,7 +82,7 @@ export function SurfaceTabs({
                 active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
               )}
             >
-              <CloseIcon />
+              <X className="size-2.5" />
             </button>
           </div>
         )
@@ -93,47 +94,9 @@ export function SurfaceTabs({
         title={newLabel}
         className="ml-1 flex size-6 shrink-0 items-center justify-center rounded-sm text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default"
       >
-        <PlusIcon />
+        <Plus className="size-3" />
       </button>
       {end}
     </div>
-  )
-}
-
-function CloseIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="m2 2 6 6M8 2 2 8"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M6 1.5v9M1.5 6h9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
   )
 }

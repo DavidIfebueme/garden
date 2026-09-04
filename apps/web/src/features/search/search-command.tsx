@@ -147,9 +147,9 @@ const navPages: NavPage[] = [
   },
   {
     id: 'capabilities',
-    to: '/connections',
-    title: 'Connections',
-    label: 'Connections',
+    to: '/connectors',
+    title: 'Connectors',
+    label: 'Connectors',
     icon: IconSettingsCog,
     keywords: ['connections', 'capabilities', 'permissions'],
   },

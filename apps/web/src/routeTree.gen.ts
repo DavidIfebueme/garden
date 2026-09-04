@@ -33,6 +33,8 @@ import { Route as ApiAutomationsRouteImport } from './routes/api/automations'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
+import { Route as AuthenticatedConnectionsRouteImport } from './routes/_authenticated/connections'
+import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as ApiWorkspacesIdRouteImport } from './routes/api/workspaces/$id'
 import { Route as ApiRunsIdRouteImport } from './routes/api/runs/$id'
@@ -64,15 +66,16 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAttachmentsIdRouteImport } from './routes/api/attachments/$id'
 import { Route as ApiAgentsIdRouteImport } from './routes/api/agents/$id'
 import { Route as AuthenticatedInvitationsIdRouteImport } from './routes/_authenticated/invitations/$id'
+import { Route as AuthenticatedAutomationsIdRouteImport } from './routes/_authenticated/automations.$id'
+import { Route as AuthenticatedAppWorkflowsRouteImport } from './routes/_authenticated/_app/workflows'
 import { Route as AuthenticatedAppTeamsRouteImport } from './routes/_authenticated/_app/teams'
 import { Route as AuthenticatedAppTasksRouteImport } from './routes/_authenticated/_app/tasks'
 import { Route as AuthenticatedAppSkillsRouteImport } from './routes/_authenticated/_app/skills'
 import { Route as AuthenticatedAppInboxRouteImport } from './routes/_authenticated/_app/inbox'
 import { Route as AuthenticatedAppHomeRouteImport } from './routes/_authenticated/_app/home'
 import { Route as AuthenticatedAppFilesRouteImport } from './routes/_authenticated/_app/files'
-import { Route as AuthenticatedAppConnectionsRouteImport } from './routes/_authenticated/_app/connections'
+import { Route as AuthenticatedAppConnectorsRouteImport } from './routes/_authenticated/_app/connectors'
 import { Route as AuthenticatedAppChatsRouteImport } from './routes/_authenticated/_app/chats'
-import { Route as AuthenticatedAppAutomationsRouteImport } from './routes/_authenticated/_app/automations'
 import { Route as AuthenticatedAppAgentsRouteImport } from './routes/_authenticated/_app/agents'
 import { Route as ApiWorkspacesIdMembersRouteImport } from './routes/api/workspaces/$id/members'
 import { Route as ApiWorkspacesIdInvitationsRouteImport } from './routes/api/workspaces/$id/invitations'
@@ -106,9 +109,9 @@ import { Route as ApiAutomationsIdTriggerRouteImport } from './routes/api/automa
 import { Route as ApiAutomationsIdRunsRouteImport } from './routes/api/automations/$id/runs'
 import { Route as ApiAgentsIdRestoreRouteImport } from './routes/api/agents/$id/restore'
 import { Route as ApiAgentsIdArchiveRouteImport } from './routes/api/agents/$id/archive'
+import { Route as AuthenticatedAppWorkflowsIdRouteImport } from './routes/_authenticated/_app/workflows.$id'
 import { Route as AuthenticatedAppTasksIssueIdRouteImport } from './routes/_authenticated/_app/tasks.$issueId'
 import { Route as AuthenticatedAppChatsThreadIdRouteImport } from './routes/_authenticated/_app/chats.$threadId'
-import { Route as AuthenticatedAppAutomationsIdRouteImport } from './routes/_authenticated/_app/automations.$id'
 import { Route as AuthenticatedAppAgentsAgentIdRouteImport } from './routes/_authenticated/_app/agents.$agentId'
 import { Route as ApiWorkspacesIdMembersMemberIdRouteImport } from './routes/api/workspaces/$id/members/$memberId'
 import { Route as ApiWorkspacesIdInvitationsInvitationIdRouteImport } from './routes/api/workspaces/$id/invitations/$invitationId'
@@ -239,6 +242,18 @@ const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedConnectionsRoute =
+  AuthenticatedConnectionsRouteImport.update({
+    id: '/connections',
+    path: '/connections',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAutomationsRoute =
+  AuthenticatedAutomationsRouteImport.update({
+    id: '/automations',
+    path: '/automations',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/_app',
   getParentRoute: () => AuthenticatedRoute,
@@ -398,6 +413,18 @@ const AuthenticatedInvitationsIdRoute =
     path: '/invitations/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAutomationsIdRoute =
+  AuthenticatedAutomationsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAutomationsRoute,
+  } as any)
+const AuthenticatedAppWorkflowsRoute =
+  AuthenticatedAppWorkflowsRouteImport.update({
+    id: '/workflows',
+    path: '/workflows',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppTeamsRoute = AuthenticatedAppTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
@@ -428,10 +455,10 @@ const AuthenticatedAppFilesRoute = AuthenticatedAppFilesRouteImport.update({
   path: '/files',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppConnectionsRoute =
-  AuthenticatedAppConnectionsRouteImport.update({
-    id: '/connections',
-    path: '/connections',
+const AuthenticatedAppConnectorsRoute =
+  AuthenticatedAppConnectorsRouteImport.update({
+    id: '/connectors',
+    path: '/connectors',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppChatsRoute = AuthenticatedAppChatsRouteImport.update({
@@ -439,12 +466,6 @@ const AuthenticatedAppChatsRoute = AuthenticatedAppChatsRouteImport.update({
   path: '/chats',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppAutomationsRoute =
-  AuthenticatedAppAutomationsRouteImport.update({
-    id: '/automations',
-    path: '/automations',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
 const AuthenticatedAppAgentsRoute = AuthenticatedAppAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
@@ -615,6 +636,12 @@ const ApiAgentsIdArchiveRoute = ApiAgentsIdArchiveRouteImport.update({
   path: '/archive',
   getParentRoute: () => ApiAgentsIdRoute,
 } as any)
+const AuthenticatedAppWorkflowsIdRoute =
+  AuthenticatedAppWorkflowsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppWorkflowsRoute,
+  } as any)
 const AuthenticatedAppTasksIssueIdRoute =
   AuthenticatedAppTasksIssueIdRouteImport.update({
     id: '/$issueId',
@@ -626,12 +653,6 @@ const AuthenticatedAppChatsThreadIdRoute =
     id: '/$threadId',
     path: '/$threadId',
     getParentRoute: () => AuthenticatedAppChatsRoute,
-  } as any)
-const AuthenticatedAppAutomationsIdRoute =
-  AuthenticatedAppAutomationsIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAppAutomationsRoute,
   } as any)
 const AuthenticatedAppAgentsAgentIdRoute =
   AuthenticatedAppAgentsAgentIdRouteImport.update({
@@ -706,6 +727,8 @@ export interface FileRoutesByFullPath {
   '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/automations': typeof AuthenticatedAutomationsRouteWithChildren
+  '/connections': typeof AuthenticatedConnectionsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
   '/api/$': typeof ApiSplatRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -719,15 +742,16 @@ export interface FileRoutesByFullPath {
   '/api/upload-file': typeof ApiUploadFileRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/agents': typeof AuthenticatedAppAgentsRouteWithChildren
-  '/automations': typeof AuthenticatedAppAutomationsRouteWithChildren
   '/chats': typeof AuthenticatedAppChatsRouteWithChildren
-  '/connections': typeof AuthenticatedAppConnectionsRoute
+  '/connectors': typeof AuthenticatedAppConnectorsRoute
   '/files': typeof AuthenticatedAppFilesRoute
   '/home': typeof AuthenticatedAppHomeRoute
   '/inbox': typeof AuthenticatedAppInboxRoute
   '/skills': typeof AuthenticatedAppSkillsRoute
   '/tasks': typeof AuthenticatedAppTasksRouteWithChildren
   '/teams': typeof AuthenticatedAppTeamsRoute
+  '/workflows': typeof AuthenticatedAppWorkflowsRouteWithChildren
+  '/automations/$id': typeof AuthenticatedAutomationsIdRoute
   '/invitations/$id': typeof AuthenticatedInvitationsIdRoute
   '/api/agents/$id': typeof ApiAgentsIdRouteWithChildren
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
@@ -759,9 +783,9 @@ export interface FileRoutesByFullPath {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/agents/$agentId': typeof AuthenticatedAppAgentsAgentIdRoute
-  '/automations/$id': typeof AuthenticatedAppAutomationsIdRoute
   '/chats/$threadId': typeof AuthenticatedAppChatsThreadIdRoute
   '/tasks/$issueId': typeof AuthenticatedAppTasksIssueIdRoute
+  '/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -816,6 +840,8 @@ export interface FileRoutesByTo {
   '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/automations': typeof AuthenticatedAutomationsRouteWithChildren
+  '/connections': typeof AuthenticatedConnectionsRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
   '/api/$': typeof ApiSplatRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -829,15 +855,16 @@ export interface FileRoutesByTo {
   '/api/upload-file': typeof ApiUploadFileRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/agents': typeof AuthenticatedAppAgentsRouteWithChildren
-  '/automations': typeof AuthenticatedAppAutomationsRouteWithChildren
   '/chats': typeof AuthenticatedAppChatsRouteWithChildren
-  '/connections': typeof AuthenticatedAppConnectionsRoute
+  '/connectors': typeof AuthenticatedAppConnectorsRoute
   '/files': typeof AuthenticatedAppFilesRoute
   '/home': typeof AuthenticatedAppHomeRoute
   '/inbox': typeof AuthenticatedAppInboxRoute
   '/skills': typeof AuthenticatedAppSkillsRoute
   '/tasks': typeof AuthenticatedAppTasksRouteWithChildren
   '/teams': typeof AuthenticatedAppTeamsRoute
+  '/workflows': typeof AuthenticatedAppWorkflowsRouteWithChildren
+  '/automations/$id': typeof AuthenticatedAutomationsIdRoute
   '/invitations/$id': typeof AuthenticatedInvitationsIdRoute
   '/api/agents/$id': typeof ApiAgentsIdRouteWithChildren
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
@@ -869,9 +896,9 @@ export interface FileRoutesByTo {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/agents/$agentId': typeof AuthenticatedAppAgentsAgentIdRoute
-  '/automations/$id': typeof AuthenticatedAppAutomationsIdRoute
   '/chats/$threadId': typeof AuthenticatedAppChatsThreadIdRoute
   '/tasks/$issueId': typeof AuthenticatedAppTasksIssueIdRoute
+  '/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -929,6 +956,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/automations': typeof AuthenticatedAutomationsRouteWithChildren
+  '/_authenticated/connections': typeof AuthenticatedConnectionsRoute
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
   '/api/$': typeof ApiSplatRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -942,15 +971,16 @@ export interface FileRoutesById {
   '/api/upload-file': typeof ApiUploadFileRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/_authenticated/_app/agents': typeof AuthenticatedAppAgentsRouteWithChildren
-  '/_authenticated/_app/automations': typeof AuthenticatedAppAutomationsRouteWithChildren
   '/_authenticated/_app/chats': typeof AuthenticatedAppChatsRouteWithChildren
-  '/_authenticated/_app/connections': typeof AuthenticatedAppConnectionsRoute
+  '/_authenticated/_app/connectors': typeof AuthenticatedAppConnectorsRoute
   '/_authenticated/_app/files': typeof AuthenticatedAppFilesRoute
   '/_authenticated/_app/home': typeof AuthenticatedAppHomeRoute
   '/_authenticated/_app/inbox': typeof AuthenticatedAppInboxRoute
   '/_authenticated/_app/skills': typeof AuthenticatedAppSkillsRoute
   '/_authenticated/_app/tasks': typeof AuthenticatedAppTasksRouteWithChildren
   '/_authenticated/_app/teams': typeof AuthenticatedAppTeamsRoute
+  '/_authenticated/_app/workflows': typeof AuthenticatedAppWorkflowsRouteWithChildren
+  '/_authenticated/automations/$id': typeof AuthenticatedAutomationsIdRoute
   '/_authenticated/invitations/$id': typeof AuthenticatedInvitationsIdRoute
   '/api/agents/$id': typeof ApiAgentsIdRouteWithChildren
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
@@ -982,9 +1012,9 @@ export interface FileRoutesById {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/_authenticated/_app/agents/$agentId': typeof AuthenticatedAppAgentsAgentIdRoute
-  '/_authenticated/_app/automations/$id': typeof AuthenticatedAppAutomationsIdRoute
   '/_authenticated/_app/chats/$threadId': typeof AuthenticatedAppChatsThreadIdRoute
   '/_authenticated/_app/tasks/$issueId': typeof AuthenticatedAppTasksIssueIdRoute
+  '/_authenticated/_app/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -1041,6 +1071,8 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/signup'
     | '/terms'
+    | '/automations'
+    | '/connections'
     | '/workspace'
     | '/api/$'
     | '/api/agents'
@@ -1054,15 +1086,16 @@ export interface FileRouteTypes {
     | '/api/upload-file'
     | '/api/workspaces'
     | '/agents'
-    | '/automations'
     | '/chats'
-    | '/connections'
+    | '/connectors'
     | '/files'
     | '/home'
     | '/inbox'
     | '/skills'
     | '/tasks'
     | '/teams'
+    | '/workflows'
+    | '/automations/$id'
     | '/invitations/$id'
     | '/api/agents/$id'
     | '/api/attachments/$id'
@@ -1094,9 +1127,9 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/agents/$agentId'
-    | '/automations/$id'
     | '/chats/$threadId'
     | '/tasks/$issueId'
+    | '/workflows/$id'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1151,6 +1184,8 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/signup'
     | '/terms'
+    | '/automations'
+    | '/connections'
     | '/workspace'
     | '/api/$'
     | '/api/agents'
@@ -1164,15 +1199,16 @@ export interface FileRouteTypes {
     | '/api/upload-file'
     | '/api/workspaces'
     | '/agents'
-    | '/automations'
     | '/chats'
-    | '/connections'
+    | '/connectors'
     | '/files'
     | '/home'
     | '/inbox'
     | '/skills'
     | '/tasks'
     | '/teams'
+    | '/workflows'
+    | '/automations/$id'
     | '/invitations/$id'
     | '/api/agents/$id'
     | '/api/attachments/$id'
@@ -1204,9 +1240,9 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/agents/$agentId'
-    | '/automations/$id'
     | '/chats/$threadId'
     | '/tasks/$issueId'
+    | '/workflows/$id'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1263,6 +1299,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/_authenticated/_app'
+    | '/_authenticated/automations'
+    | '/_authenticated/connections'
     | '/_authenticated/workspace'
     | '/api/$'
     | '/api/agents'
@@ -1276,15 +1314,16 @@ export interface FileRouteTypes {
     | '/api/upload-file'
     | '/api/workspaces'
     | '/_authenticated/_app/agents'
-    | '/_authenticated/_app/automations'
     | '/_authenticated/_app/chats'
-    | '/_authenticated/_app/connections'
+    | '/_authenticated/_app/connectors'
     | '/_authenticated/_app/files'
     | '/_authenticated/_app/home'
     | '/_authenticated/_app/inbox'
     | '/_authenticated/_app/skills'
     | '/_authenticated/_app/tasks'
     | '/_authenticated/_app/teams'
+    | '/_authenticated/_app/workflows'
+    | '/_authenticated/automations/$id'
     | '/_authenticated/invitations/$id'
     | '/api/agents/$id'
     | '/api/attachments/$id'
@@ -1316,9 +1355,9 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/_authenticated/_app/agents/$agentId'
-    | '/_authenticated/_app/automations/$id'
     | '/_authenticated/_app/chats/$threadId'
     | '/_authenticated/_app/tasks/$issueId'
+    | '/_authenticated/_app/workflows/$id'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1581,6 +1620,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkspaceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/connections': {
+      id: '/_authenticated/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof AuthenticatedConnectionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/automations': {
+      id: '/_authenticated/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AuthenticatedAutomationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/_app': {
       id: '/_authenticated/_app'
       path: ''
@@ -1798,6 +1851,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvitationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/automations/$id': {
+      id: '/_authenticated/automations/$id'
+      path: '/$id'
+      fullPath: '/automations/$id'
+      preLoaderRoute: typeof AuthenticatedAutomationsIdRouteImport
+      parentRoute: typeof AuthenticatedAutomationsRoute
+    }
+    '/_authenticated/_app/workflows': {
+      id: '/_authenticated/_app/workflows'
+      path: '/workflows'
+      fullPath: '/workflows'
+      preLoaderRoute: typeof AuthenticatedAppWorkflowsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_app/teams': {
       id: '/_authenticated/_app/teams'
       path: '/teams'
@@ -1840,11 +1907,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppFilesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/connections': {
-      id: '/_authenticated/_app/connections'
-      path: '/connections'
-      fullPath: '/connections'
-      preLoaderRoute: typeof AuthenticatedAppConnectionsRouteImport
+    '/_authenticated/_app/connectors': {
+      id: '/_authenticated/_app/connectors'
+      path: '/connectors'
+      fullPath: '/connectors'
+      preLoaderRoute: typeof AuthenticatedAppConnectorsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/_app/chats': {
@@ -1852,13 +1919,6 @@ declare module '@tanstack/react-router' {
       path: '/chats'
       fullPath: '/chats'
       preLoaderRoute: typeof AuthenticatedAppChatsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/automations': {
-      id: '/_authenticated/_app/automations'
-      path: '/automations'
-      fullPath: '/automations'
-      preLoaderRoute: typeof AuthenticatedAppAutomationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/_app/agents': {
@@ -2092,6 +2152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsIdArchiveRouteImport
       parentRoute: typeof ApiAgentsIdRoute
     }
+    '/_authenticated/_app/workflows/$id': {
+      id: '/_authenticated/_app/workflows/$id'
+      path: '/$id'
+      fullPath: '/workflows/$id'
+      preLoaderRoute: typeof AuthenticatedAppWorkflowsIdRouteImport
+      parentRoute: typeof AuthenticatedAppWorkflowsRoute
+    }
     '/_authenticated/_app/tasks/$issueId': {
       id: '/_authenticated/_app/tasks/$issueId'
       path: '/$issueId'
@@ -2105,13 +2172,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/chats/$threadId'
       preLoaderRoute: typeof AuthenticatedAppChatsThreadIdRouteImport
       parentRoute: typeof AuthenticatedAppChatsRoute
-    }
-    '/_authenticated/_app/automations/$id': {
-      id: '/_authenticated/_app/automations/$id'
-      path: '/$id'
-      fullPath: '/automations/$id'
-      preLoaderRoute: typeof AuthenticatedAppAutomationsIdRouteImport
-      parentRoute: typeof AuthenticatedAppAutomationsRoute
     }
     '/_authenticated/_app/agents/$agentId': {
       id: '/_authenticated/_app/agents/$agentId'
@@ -2200,20 +2260,6 @@ const AuthenticatedAppAgentsRouteWithChildren =
     AuthenticatedAppAgentsRouteChildren,
   )
 
-interface AuthenticatedAppAutomationsRouteChildren {
-  AuthenticatedAppAutomationsIdRoute: typeof AuthenticatedAppAutomationsIdRoute
-}
-
-const AuthenticatedAppAutomationsRouteChildren: AuthenticatedAppAutomationsRouteChildren =
-  {
-    AuthenticatedAppAutomationsIdRoute: AuthenticatedAppAutomationsIdRoute,
-  }
-
-const AuthenticatedAppAutomationsRouteWithChildren =
-  AuthenticatedAppAutomationsRoute._addFileChildren(
-    AuthenticatedAppAutomationsRouteChildren,
-  )
-
 interface AuthenticatedAppChatsRouteChildren {
   AuthenticatedAppChatsThreadIdRoute: typeof AuthenticatedAppChatsThreadIdRoute
 }
@@ -2240,44 +2286,75 @@ const AuthenticatedAppTasksRouteWithChildren =
     AuthenticatedAppTasksRouteChildren,
   )
 
+interface AuthenticatedAppWorkflowsRouteChildren {
+  AuthenticatedAppWorkflowsIdRoute: typeof AuthenticatedAppWorkflowsIdRoute
+}
+
+const AuthenticatedAppWorkflowsRouteChildren: AuthenticatedAppWorkflowsRouteChildren =
+  {
+    AuthenticatedAppWorkflowsIdRoute: AuthenticatedAppWorkflowsIdRoute,
+  }
+
+const AuthenticatedAppWorkflowsRouteWithChildren =
+  AuthenticatedAppWorkflowsRoute._addFileChildren(
+    AuthenticatedAppWorkflowsRouteChildren,
+  )
+
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAgentsRoute: typeof AuthenticatedAppAgentsRouteWithChildren
-  AuthenticatedAppAutomationsRoute: typeof AuthenticatedAppAutomationsRouteWithChildren
   AuthenticatedAppChatsRoute: typeof AuthenticatedAppChatsRouteWithChildren
-  AuthenticatedAppConnectionsRoute: typeof AuthenticatedAppConnectionsRoute
+  AuthenticatedAppConnectorsRoute: typeof AuthenticatedAppConnectorsRoute
   AuthenticatedAppFilesRoute: typeof AuthenticatedAppFilesRoute
   AuthenticatedAppHomeRoute: typeof AuthenticatedAppHomeRoute
   AuthenticatedAppInboxRoute: typeof AuthenticatedAppInboxRoute
   AuthenticatedAppSkillsRoute: typeof AuthenticatedAppSkillsRoute
   AuthenticatedAppTasksRoute: typeof AuthenticatedAppTasksRouteWithChildren
   AuthenticatedAppTeamsRoute: typeof AuthenticatedAppTeamsRoute
+  AuthenticatedAppWorkflowsRoute: typeof AuthenticatedAppWorkflowsRouteWithChildren
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAgentsRoute: AuthenticatedAppAgentsRouteWithChildren,
-  AuthenticatedAppAutomationsRoute:
-    AuthenticatedAppAutomationsRouteWithChildren,
   AuthenticatedAppChatsRoute: AuthenticatedAppChatsRouteWithChildren,
-  AuthenticatedAppConnectionsRoute: AuthenticatedAppConnectionsRoute,
+  AuthenticatedAppConnectorsRoute: AuthenticatedAppConnectorsRoute,
   AuthenticatedAppFilesRoute: AuthenticatedAppFilesRoute,
   AuthenticatedAppHomeRoute: AuthenticatedAppHomeRoute,
   AuthenticatedAppInboxRoute: AuthenticatedAppInboxRoute,
   AuthenticatedAppSkillsRoute: AuthenticatedAppSkillsRoute,
   AuthenticatedAppTasksRoute: AuthenticatedAppTasksRouteWithChildren,
   AuthenticatedAppTeamsRoute: AuthenticatedAppTeamsRoute,
+  AuthenticatedAppWorkflowsRoute: AuthenticatedAppWorkflowsRouteWithChildren,
 }
 
 const AuthenticatedAppRouteWithChildren =
   AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
 
+interface AuthenticatedAutomationsRouteChildren {
+  AuthenticatedAutomationsIdRoute: typeof AuthenticatedAutomationsIdRoute
+}
+
+const AuthenticatedAutomationsRouteChildren: AuthenticatedAutomationsRouteChildren =
+  {
+    AuthenticatedAutomationsIdRoute: AuthenticatedAutomationsIdRoute,
+  }
+
+const AuthenticatedAutomationsRouteWithChildren =
+  AuthenticatedAutomationsRoute._addFileChildren(
+    AuthenticatedAutomationsRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRouteWithChildren
+  AuthenticatedConnectionsRoute: typeof AuthenticatedConnectionsRoute
   AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
   AuthenticatedInvitationsIdRoute: typeof AuthenticatedInvitationsIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedAutomationsRoute: AuthenticatedAutomationsRouteWithChildren,
+  AuthenticatedConnectionsRoute: AuthenticatedConnectionsRoute,
   AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
   AuthenticatedInvitationsIdRoute: AuthenticatedInvitationsIdRoute,
 }

@@ -1,13 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { AutomationDetailPage } from '@/features/automations'
+import { AutomationsPage } from '@/features/automations'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 
-export const Route = createFileRoute('/_authenticated/_app/automations/$id')({
-  component: AutomationDetailRoute,
+export const Route = createFileRoute('/_authenticated/_app/workflows')({
+  component: AutomationsRoute,
 })
 
-function AutomationDetailRoute() {
-  const params = Route.useParams()
+function AutomationsRoute() {
   const navigate = useNavigate()
   const workspaceId = useWorkspaceStore((state) => state.workspace?.id ?? null)
 
@@ -19,15 +18,14 @@ function AutomationDetailRoute() {
     )
   }
 
-  const backToList = () => {
-    void navigate({ to: '/automations' })
-  }
-
   return (
-    <AutomationDetailPage
-      automationId={params.id}
-      onBack={backToList}
-      onDeleted={backToList}
+    <AutomationsPage
+      onOpenAutomation={(automation) => {
+        void navigate({
+          to: '/workflows/$id',
+          params: { id: automation.id },
+        })
+      }}
     />
   )
 }

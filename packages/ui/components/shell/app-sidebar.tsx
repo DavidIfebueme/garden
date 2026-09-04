@@ -1,3 +1,4 @@
+import { Gear } from '@phosphor-icons/react'
 import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
@@ -129,7 +130,7 @@ export function AppSidebar({
             collapsed ? 'justify-center px-0' : 'px-3',
           )}
         >
-          <SettingsIcon className="size-5 shrink-0 text-icon-neutral-tertiary" />
+          <Gear className="size-5 shrink-0 text-icon-neutral-tertiary" />
           {!collapsed ? (
             <span className="flex-1 text-left">Settings</span>
           ) : null}
@@ -137,26 +138,5 @@ export function AppSidebar({
         {userCard}
       </div>
     </aside>
-  )
-}
-
-function SettingsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5 3.4 12.6M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
   )
 }

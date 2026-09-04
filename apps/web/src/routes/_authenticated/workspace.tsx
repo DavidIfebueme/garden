@@ -7,7 +7,7 @@ import { sanitizeRedirectTarget } from '@/lib/redirect'
  * dock was removed in the shell rebuild (2026-09 redesign): surfaces are
  * routed pages now. Old links land on /home; issue deep links (?issue=<id>,
  * e.g. from assignment emails) forward to the task detail route; connector
- * flow links forward to the connections surface.
+ * flow links forward to the connectors surface.
  *
  * Unauthenticated visitors are sent to /login with the FULL original URL as
  * the post-login redirect — beforeLoad children run before the parent auth
@@ -50,7 +50,7 @@ export const Route = createFileRoute('/_authenticated/workspace')({
     }
     if (search.connector_flow || search.connector_id) {
       throw redirect({
-        to: '/connections',
+        to: '/connectors',
         search: {
           connector_flow: search.connector_flow,
           connector_id: search.connector_id,

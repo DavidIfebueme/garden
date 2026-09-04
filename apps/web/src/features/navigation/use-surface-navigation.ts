@@ -46,7 +46,7 @@ export function useSurfaceNavigation() {
   const openAutomation = useCallback(
     (automation: { id: string }) => {
       void navigate({
-        to: '/automations/$id',
+        to: '/workflows/$id',
         params: { id: automation.id },
       })
     },
@@ -63,7 +63,7 @@ export function useSurfaceNavigation() {
   const openConnections = useCallback(
     (connectorId?: string) => {
       void navigate({
-        to: '/connections',
+        to: '/connectors',
         search: connectorId ? { connector_id: connectorId } : {},
       })
     },
