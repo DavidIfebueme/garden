@@ -6,10 +6,13 @@ import { cn } from '@garden/ui/lib/utils'
  * Surface-scoped tab strip (Chats, Tasks) — sits at the top of the content
  * pane, below the AppTopBar. Replaces the retired global FlexLayout dock:
  * instead of app-wide tabs, only surfaces that opted in render this strip and
- * own their tab state and their "+" action (designer decision 2026-09).
+ * own their tab state and their "+" action.
  *
- * Active tab reads as the current surface: subtle secondary fill + default
- * text; idle tabs are quiet text with a hover wash. Presentational only.
+ * Styling per the design (Penpot "Garden" TabItem boards): inactive tabs are
+ * background.main.secondary (gray.100) blocks flush to the 40px strip with
+ * gray.500 labels; the active tab is white with a hairline top/side border and
+ * punches through the strip's bottom rail into the content. No horizontal
+ * scroll — the top-bar arrows step the selection when tabs overflow.
  */
 
 export type SurfaceTab = {
@@ -45,7 +48,7 @@ export function SurfaceTabs({
     <div
       role="tablist"
       className={cn(
-        'flex h-9 shrink-0 items-center gap-1 overflow-hidden border-b border-border-default bg-background-main-default px-2',
+        'flex h-10 shrink-0 items-stretch border-b border-border-default bg-background-main-default',
         className,
       )}
     >
@@ -57,16 +60,16 @@ export function SurfaceTabs({
             role="tab"
             aria-selected={active}
             className={cn(
-              'group flex h-7 max-w-48 items-center gap-1.5 rounded-sm pr-1 pl-2.5 text-sm transition-colors',
+              'group relative flex w-36 min-w-0 items-stretch text-sm',
               active
-                ? 'bg-background-main-secondary font-medium text-text-neutral-default'
-                : 'text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',
+                ? 'z-10 -mb-px border-x border-t border-border-default bg-background-main-default font-medium text-text-neutral-default'
+                : 'bg-background-main-secondary text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',
             )}
           >
             <button
               type="button"
               onClick={() => onSelect(tab.id)}
-              className="flex min-w-0 items-center gap-1.5 outline-none"
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 px-2.5 outline-none"
             >
               {tab.icon ? (
                 <tab.icon className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
@@ -78,7 +81,7 @@ export function SurfaceTabs({
               onClick={() => onClose(tab.id)}
               aria-label={`Close ${tab.title}`}
               className={cn(
-                'flex size-4 shrink-0 items-center justify-center rounded-xs text-icon-neutral-tertiary transition-opacity hover:bg-background-main-tertiary hover:text-icon-neutral-default',
+                'flex w-6 shrink-0 cursor-pointer items-center justify-center text-icon-neutral-tertiary transition-opacity hover:text-icon-neutral-default',
                 active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
               )}
             >
@@ -92,11 +95,13 @@ export function SurfaceTabs({
         onClick={onNew}
         aria-label={newLabel}
         title={newLabel}
-        className="ml-1 flex size-6 shrink-0 items-center justify-center rounded-sm text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default"
+        className="flex w-10 shrink-0 cursor-pointer items-center justify-center self-stretch bg-background-main-secondary text-text-tertiary transition-colors hover:bg-background-main-secondary-hover hover:text-icon-neutral-default"
       >
-        <Plus className="size-3" />
+        <Plus className="size-3.5" />
       </button>
-      {end}
+      {end ? (
+        <div className="ml-auto flex items-center px-1.5">{end}</div>
+      ) : null}
     </div>
   )
 }

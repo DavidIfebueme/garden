@@ -241,7 +241,6 @@ export function AppShell() {
             <AppSidebar
               header={
                 <WorkspaceSwitcher
-                  workspaceName={workspace?.name ?? 'Garden'}
                   collapsed={collapsed}
                   onInviteMembers={() => openSettingsDialog('members')}
                   onOpenSettings={() => openSettingsDialog()}

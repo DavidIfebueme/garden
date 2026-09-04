@@ -6,7 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
-import { BrandIcon } from '@garden/ui/components/common/brand-icon'
+import { GardenLogo } from '@garden/ui/components/common/garden-logo'
 import { cn } from '@garden/ui/lib/utils'
 import {
   ChartBar,
@@ -21,7 +21,8 @@ import {
 
 /**
  * Sidebar header menu — the workspace menu from the design's Enterprise flyout
- * (Penpot "Admin Profile" page): workspace identity up top, then Invite
+ * (Penpot "Admin Profile" page): the Garden brand (wave mark + wordmark, per
+ * the design — never the workspace name) up top, then Invite
  * members / Workspace settings / Team members live, with Analytics, Billing,
  * and Learn more rendered disabled until those surfaces exist.
  *
@@ -30,13 +31,11 @@ import {
  * top bar.
  */
 export function WorkspaceSwitcher({
-  workspaceName,
   collapsed,
   onInviteMembers,
   onOpenSettings,
   onOpenMembers,
 }: {
-  workspaceName: string
   collapsed?: boolean
   onInviteMembers: () => void
   onOpenSettings: () => void
@@ -47,17 +46,17 @@ export function WorkspaceSwitcher({
       <DropdownMenuTrigger
         aria-label="Workspace menu"
         className={cn(
-          'flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left transition-colors hover:bg-background-main-secondary',
+          'cursor-pointer flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left transition-colors hover:bg-background-main-secondary',
           collapsed && 'justify-center px-0',
         )}
       >
-        <span className="flex size-6 shrink-0 items-center justify-center">
-          <BrandIcon className="size-5" noSpin />
+        <span className="flex h-[22px] shrink-0 items-center">
+          <GardenLogo className="h-[13px] w-[25px]" />
         </span>
         {!collapsed ? (
           <>
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-neutral-default">
-              {workspaceName}
+              Garden
             </span>
             <CaretDown className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
           </>
@@ -70,9 +69,9 @@ export function WorkspaceSwitcher({
         sideOffset={8}
       >
         <div className="flex items-center gap-2 border-b border-border-default px-3 py-2.5">
-          <BrandIcon className="size-4" noSpin />
+          <GardenLogo className="h-[10px] w-[19px]" />
           <span className="truncate text-sm font-semibold text-text-neutral-default">
-            {workspaceName}
+            Garden
           </span>
         </div>
         <DropdownMenuGroup className="py-1">
@@ -104,6 +103,7 @@ export function WorkspaceSwitcher({
           <DropdownMenuItem disabled>
             <Info />
             <span className="flex-1">Learn more</span>
+            <span className="text-xs text-text-tertiary">Soon</span>
             <CaretRight className="text-icon-neutral-tertiary" />
           </DropdownMenuItem>
         </DropdownMenuGroup>

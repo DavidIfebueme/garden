@@ -85,7 +85,7 @@ export function UserCard({
       <DropdownMenuTrigger
         aria-label="Account"
         className={cn(
-          'flex w-full items-center gap-2 rounded-sm p-1.5 text-left transition-colors hover:bg-background-main-secondary',
+          'cursor-pointer flex w-full items-center gap-2 rounded-sm p-1.5 text-left transition-colors hover:bg-background-main-secondary',
           collapsed && 'justify-center p-0',
         )}
       >
@@ -117,7 +117,7 @@ export function UserCard({
         sideOffset={8}
       >
         {/* Profile header */}
-        <div className="flex items-center gap-2.5 px-3.5 pt-3.5 pb-3">
+        <div className="flex items-center gap-2.5 bg-background-main-secondary px-3.5 pt-3.5 pb-3">
           <Avatar className="size-9 rounded-sm">
             <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
             <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
@@ -133,7 +133,7 @@ export function UserCard({
         </div>
 
         {/* User ID + role */}
-        <div className="flex items-center gap-2 border-t border-border-default px-3.5 py-2.5">
+        <div className="flex items-center gap-2 border-t border-border-default bg-background-main-secondary px-3.5 py-2.5">
           <span className="text-xs text-text-secondary">
             User ID:{' '}
             <span className="text-text-neutral-default">
@@ -144,7 +144,7 @@ export function UserCard({
             type="button"
             onClick={copyUserId}
             aria-label="Copy user ID"
-            className="flex size-5 items-center justify-center rounded-xs text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default"
+            className="cursor-pointer flex size-5 items-center justify-center rounded-xs text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default"
           >
             <Copy className="size-3" />
           </button>
@@ -160,7 +160,7 @@ export function UserCard({
           <button
             type="button"
             onClick={onAccount}
-            className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <Gear className="size-4 text-icon-neutral-secondary" />
             Settings
@@ -168,7 +168,7 @@ export function UserCard({
           <button
             type="button"
             onClick={onInviteMembers}
-            className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <PaperPlaneTilt className="size-4 text-icon-neutral-secondary" />
             Invite members
@@ -181,7 +181,7 @@ export function UserCard({
           <div
             role="radiogroup"
             aria-label="Theme"
-            className="flex rounded-md bg-background-main-secondary p-0.5"
+            className="cursor-pointer flex rounded-md bg-background-main-secondary p-0.5"
           >
             {themeOptions.map((opt) => {
               const active = theme === opt.value
@@ -193,7 +193,7 @@ export function UserCard({
                   aria-checked={active}
                   onClick={() => setTheme(opt.value)}
                   className={cn(
-                    'h-7 flex-1 rounded-[5px] text-sm transition-colors',
+                    'h-7 flex-1 cursor-pointer rounded-[5px] text-sm transition-colors',
                     active
                       ? 'bg-background-brand-default font-medium text-text-brand-on-brand'
                       : 'text-text-secondary hover:text-text-neutral-default',
@@ -212,7 +212,7 @@ export function UserCard({
             type="button"
             onClick={() => setAddWorkspaceOpen((value) => !value)}
             aria-expanded={addWorkspaceOpen}
-            className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
           >
             <Plus className="size-4 text-icon-neutral-secondary" />
             <span className="flex-1 text-left">Add workspace</span>
@@ -234,7 +234,7 @@ export function UserCard({
                       type="button"
                       disabled={active}
                       onClick={() => onSwitchWorkspace(workspace)}
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary disabled:opacity-60"
+                      className="cursor-pointer flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary disabled:opacity-60"
                     >
                       <Buildings className="size-4 shrink-0 text-icon-neutral-tertiary" />
                       <span className="min-w-0 flex-1 truncate">
@@ -263,7 +263,7 @@ export function UserCard({
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-2 border-t border-border-default px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+          className="cursor-pointer flex w-full items-center gap-2 border-t border-border-default px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
         >
           <SignOut className="size-4 text-icon-neutral-secondary" />
           Sign out

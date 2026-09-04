@@ -57,15 +57,15 @@ export function AppSidebar({
     >
       <div
         className={cn(
-          'flex h-10 shrink-0 items-center border-b border-border-default',
+          'flex h-10 shrink-0 items-center',
           collapsed ? 'justify-center px-0' : 'px-2',
         )}
       >
         {header}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Surfaces">
-        <ul className="flex flex-col gap-0.5">
+      <nav className="flex-1 overflow-y-auto px-4 py-4" aria-label="Surfaces">
+        <ul className="flex flex-col gap-1">
           {items.map((item) => {
             const active = item.id === activeId
             return (
@@ -76,7 +76,7 @@ export function AppSidebar({
                   aria-current={active ? 'page' : undefined}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    'group flex h-10 w-full items-center gap-2.5 rounded-sm text-sm transition-colors',
+                    'group cursor-pointer flex h-10 w-full items-center gap-2.5 rounded-sm text-sm transition-colors',
                     collapsed ? 'justify-center px-0' : 'px-3',
                     active
                       ? 'bg-background-main-secondary font-medium text-text-brand-secondary'
@@ -112,8 +112,8 @@ export function AppSidebar({
 
       <div
         className={cn(
-          'shrink-0 border-t border-border-default p-2',
-          collapsed && 'flex justify-center',
+          'shrink-0 px-4 pb-8',
+          collapsed && 'flex justify-center px-2',
         )}
       >
         {userCard}

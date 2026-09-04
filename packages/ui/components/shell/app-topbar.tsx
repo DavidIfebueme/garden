@@ -10,11 +10,13 @@ import { cn } from '@garden/ui/lib/utils'
 /**
  * App shell top bar — the 40px chrome strip above the content pane from the
  * redesign: sidebar toggle + (tabbable surfaces only) previous/next tab arrows.
- * The arrows move the ACTIVE TAB selection through the strip when tabs overflow
- * (designer decision 2026-09: no horizontal scrolling tab strip; arrows step
- * through tabs instead). They are not browser-history controls. The global "+"
- * from early passes stays dropped — each tabbable surface owns its "+" via
- * SurfaceTabs. Presentational only; the app wires behavior.
+ * Controls are gray.100-filled blocks per the design (Penpot "Garden": top-bar
+ * buttons are background.main.secondary fills with gray.400 icons), not
+ * transparent ghosts. The arrows move the ACTIVE TAB selection through the
+ * strip when tabs overflow (no horizontal scrolling strip). The global "+"
+ * stays dropped — each tabbable surface owns its "+" via SurfaceTabs. The
+ * squares-four grid icon is intentionally inert until Mini Apps lands.
+ * Presentational only; the app wires behavior.
  */
 
 export type AppTopBarProps = {
@@ -23,10 +25,7 @@ export type AppTopBarProps = {
   onNext: () => void
   canGoPrevious: boolean
   canGoNext: boolean
-  /**
-   * Tab arrows render only on tabbable surfaces (Chats, Tasks) — other
-   * surfaces are single-page and get just the sidebar toggle.
-   */
+  /** Tab arrows render only on tabbable surfaces (Chats, Tasks). */
   showTabArrows?: boolean
   /** Right-side slot (e.g. the search trigger). */
   end?: ReactNode
@@ -46,7 +45,7 @@ export function AppTopBar({
   return (
     <div
       className={cn(
-        'flex h-10 shrink-0 items-center gap-1 border-b border-border-default bg-background-main-default px-3',
+        'flex h-10 shrink-0 items-stretch border-b border-border-default bg-background-main-default',
         className,
       )}
     >
@@ -74,11 +73,11 @@ export function AppTopBar({
       <span
         aria-hidden="true"
         title="Mini apps — coming soon"
-        className="ml-auto flex size-7 items-center justify-center text-icon-neutral-tertiary"
+        className="ml-auto flex w-10 items-center justify-center self-stretch bg-background-main-secondary text-text-tertiary"
       >
         <SquaresFour className="size-4" />
       </span>
-      {end ? <div className="ml-1 flex items-center">{end}</div> : null}
+      {end ? <div className="flex items-center px-1.5">{end}</div> : null}
     </div>
   )
 }
@@ -100,7 +99,7 @@ function TopBarButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex size-7 items-center justify-center rounded-sm text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default disabled:pointer-events-none disabled:opacity-40"
+      className="flex w-10 cursor-pointer items-center justify-center self-stretch bg-background-main-secondary text-text-tertiary transition-colors hover:bg-background-main-secondary-hover hover:text-icon-neutral-default disabled:pointer-events-none disabled:opacity-40"
     >
       <Icon className="size-4" />
     </button>

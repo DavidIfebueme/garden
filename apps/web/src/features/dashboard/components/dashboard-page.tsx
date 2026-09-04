@@ -414,9 +414,9 @@ function DashboardPageFixture() {
             <DistributionBars
               emptyLabel="No status data"
               entries={[
-                { name: 'todo', value: 7, color: '#3b82f6' },
-                { name: 'in progress', value: 5, color: '#0ea5e9' },
-                { name: 'done', value: 6, color: '#22c55e' },
+                { name: 'todo', value: 7, color: 'var(--blue-500)' },
+                { name: 'in progress', value: 5, color: 'var(--blue-400)' },
+                { name: 'done', value: 6, color: 'var(--green-600)' },
               ]}
             />
           </ChartCard>
@@ -424,9 +424,9 @@ function DashboardPageFixture() {
             <DistributionBars
               emptyLabel="No priority data"
               entries={[
-                { name: 'high', value: 4, color: '#ef4444' },
-                { name: 'medium', value: 8, color: '#f59e0b' },
-                { name: 'low', value: 6, color: '#22c55e' },
+                { name: 'high', value: 4, color: 'var(--util-color-10)' },
+                { name: 'medium', value: 8, color: 'var(--yellow-500)' },
+                { name: 'low', value: 6, color: 'var(--green-500)' },
               ]}
             />
           </ChartCard>
