@@ -117,7 +117,7 @@ export function UserCard({
         sideOffset={8}
       >
         {/* Profile header */}
-        <div className="flex items-center gap-2.5 bg-background-main-secondary px-3.5 pt-3.5 pb-3">
+        <div className="flex items-center gap-2.5 bg-background-main-secondary px-4 pt-3.5 pb-3">
           <Avatar className="size-9 rounded-sm">
             <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
             <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
@@ -133,7 +133,7 @@ export function UserCard({
         </div>
 
         {/* User ID + role */}
-        <div className="flex items-center gap-2 border-t border-border-default bg-background-main-secondary px-3.5 py-2.5">
+        <div className="flex items-center gap-2 border-t border-border-default bg-background-main-secondary px-4 py-2.5">
           <span className="text-xs text-text-secondary">
             User ID:{' '}
             <span className="text-text-neutral-default">
@@ -156,11 +156,11 @@ export function UserCard({
         </div>
 
         {/* Settings + Invite */}
-        <div className="flex gap-2 border-t border-border-default px-3.5 py-3">
+        <div className="flex gap-2 border-t border-border-default px-4 py-3">
           <button
             type="button"
             onClick={onAccount}
-            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm whitespace-nowrap text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <Gear className="size-4 text-icon-neutral-secondary" />
             Settings
@@ -168,7 +168,7 @@ export function UserCard({
           <button
             type="button"
             onClick={onInviteMembers}
-            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm whitespace-nowrap text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <PaperPlaneTilt className="size-4 text-icon-neutral-secondary" />
             Invite members
@@ -176,7 +176,7 @@ export function UserCard({
         </div>
 
         {/* Theme */}
-        <div className="border-t border-border-default px-3.5 py-3">
+        <div className="border-t border-border-default px-4 py-3">
           <p className="mb-2 text-xs text-text-secondary">Theme</p>
           <div
             role="radiogroup"
@@ -212,7 +212,7 @@ export function UserCard({
             type="button"
             onClick={() => setAddWorkspaceOpen((value) => !value)}
             aria-expanded={addWorkspaceOpen}
-            className="cursor-pointer flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+            className="cursor-pointer flex h-10 w-full items-center gap-3 px-2 text-sm tracking-wider text-text-neutral-default transition-colors hover:bg-background-main-secondary [&_svg]:size-[18px]"
           >
             <Plus className="size-4 text-icon-neutral-secondary" />
             <span className="flex-1 text-left">Add workspace</span>
@@ -224,7 +224,7 @@ export function UserCard({
             />
           </button>
           {addWorkspaceOpen ? (
-            <div className="px-3.5 pb-3">
+            <div className="px-4 pb-3">
               <div className="max-h-40 overflow-y-auto">
                 {workspaces.map((workspace) => {
                   const active = workspace.id === currentWorkspaceId
@@ -263,7 +263,7 @@ export function UserCard({
         <button
           type="button"
           onClick={onLogout}
-          className="cursor-pointer flex w-full items-center gap-2 border-t border-border-default px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+          className="cursor-pointer flex h-10 w-full items-center gap-3 border-t border-border-default px-2 text-sm tracking-wider text-text-neutral-default transition-colors hover:bg-background-main-secondary [&_svg]:size-[18px]"
         >
           <SignOut className="size-4 text-icon-neutral-secondary" />
           Sign out

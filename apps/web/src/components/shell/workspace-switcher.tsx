@@ -6,6 +6,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
+
+/**
+ * Menu row metrics from the design file (Enterprise flyout, measured):
+ * row 265×39 inside 16px flyout padding; icon 18px at 8px inset; 12px
+ * icon→label gap; label 14px/400/1.6/+0.02em; hover = background.main.secondary.
+ */
+const menuItemClass =
+  'flex h-10 cursor-pointer items-center gap-3 rounded-sm px-2 text-sm tracking-wider [&_svg]:size-[18px]!'
 import { GardenLogo } from '@garden/ui/components/common/garden-logo'
 import { cn } from '@garden/ui/lib/utils'
 import {
@@ -75,31 +83,31 @@ export function WorkspaceSwitcher({
           </span>
         </div>
         <DropdownMenuGroup className="py-1">
-          <DropdownMenuItem onClick={onInviteMembers}>
+          <DropdownMenuItem className={menuItemClass} onClick={onInviteMembers}>
             <PaperPlaneTilt />
             Invite members
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onOpenSettings}>
+          <DropdownMenuItem className={menuItemClass} onClick={onOpenSettings}>
             <Gear />
             Workspace settings
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem disabled className={menuItemClass}>
             <ChartBar />
             <span className="flex-1">Analytics</span>
             <span className="text-xs text-text-tertiary">Soon</span>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem disabled className={menuItemClass}>
             <CreditCard />
             <span className="flex-1">Billing</span>
             <span className="text-xs text-text-tertiary">Soon</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenMembers}>
+          <DropdownMenuItem className={menuItemClass} onClick={onOpenMembers}>
             <Users />
             Team members
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>
+          <DropdownMenuItem disabled className={menuItemClass}>
             <Info />
             <span className="flex-1">Learn more</span>
             <span className="text-xs text-text-tertiary">Soon</span>
