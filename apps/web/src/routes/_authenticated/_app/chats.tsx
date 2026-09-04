@@ -1,28 +1,9 @@
-import { Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
-import { ChatTabsStrip } from '@/components/shell/chat-tabs'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 /**
- * Chats surface layout: owns the thread tab strip for the composer home and
- * open threads (TanStack nests chats.$threadId under this route — the Outlet
- * renders the child).
+ * Chats surface layout — nests chats.index (composer home) and
+ * chats.$threadId. The thread tab strip lives in the app shell's top bar.
  */
 export const Route = createFileRoute('/_authenticated/_app/chats')({
-  component: ChatsLayout,
+  component: Outlet,
 })
-
-function ChatsLayout() {
-  const activeId = useRouterState({
-    select: (s) => {
-      const params = s.matches[s.matches.length - 1]?.params as
-        | { threadId?: string }
-        | undefined
-      return params?.threadId ?? null
-    },
-  })
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ChatTabsStrip activeId={activeId} />
-      <Outlet />
-    </div>
-  )
-}

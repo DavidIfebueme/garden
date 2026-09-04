@@ -3,16 +3,15 @@ import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
 /**
- * Surface-scoped tab strip (Chats, Tasks) — sits at the top of the content
- * pane, below the AppTopBar. Replaces the retired global FlexLayout dock:
+ * Surface-scoped tab strip (Chats, Tasks) — rendered INLINE in the AppTopBar's
+ * gray chrome band (the design's Layout_Tab strip hosts tabs + arrows together). Replaces the retired global FlexLayout dock:
  * instead of app-wide tabs, only surfaces that opted in render this strip and
  * own their tab state and their "+" action.
  *
- * Styling per the design (Penpot "Garden" TabItem boards): inactive tabs are
- * background.main.secondary (gray.100) blocks flush to the 40px strip with
- * gray.500 labels; the active tab is white with a hairline top/side border and
- * punches through the strip's bottom rail into the content. No horizontal
- * scroll — the top-bar arrows step the selection when tabs overflow.
+ * Styling on the gray top-bar band: inactive tabs are quiet text on the band
+ * (hover lifts them); the active tab is a white block punching into the
+ * content below. No horizontal scroll — the top-bar arrows step the selection
+ * when tabs overflow.
  */
 
 export type SurfaceTab = {
@@ -47,10 +46,7 @@ export function SurfaceTabs({
   return (
     <div
       role="tablist"
-      className={cn(
-        'flex h-10 shrink-0 items-stretch border-b border-border-default bg-background-main-default',
-        className,
-      )}
+      className={cn('flex h-full min-w-0 flex-1 items-stretch', className)}
     >
       {tabs.map((tab) => {
         const active = tab.id === activeId
@@ -62,8 +58,8 @@ export function SurfaceTabs({
             className={cn(
               'group relative flex w-36 min-w-0 items-stretch text-sm',
               active
-                ? 'z-10 -mb-px border-x border-t border-border-default bg-background-main-default font-medium text-text-neutral-default'
-                : 'bg-background-main-secondary text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',
+                ? 'z-10 border-x border-t border-border-default bg-background-main-default font-medium text-text-neutral-default'
+                : 'text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',
             )}
           >
             <button
@@ -95,7 +91,7 @@ export function SurfaceTabs({
         onClick={onNew}
         aria-label={newLabel}
         title={newLabel}
-        className="flex w-10 shrink-0 cursor-pointer items-center justify-center self-stretch bg-background-main-secondary text-text-tertiary transition-colors hover:bg-background-main-secondary-hover hover:text-icon-neutral-default"
+        className="flex w-10 shrink-0 cursor-pointer items-center justify-center self-stretch text-text-tertiary transition-colors hover:bg-background-main-secondary-hover hover:text-icon-neutral-default"
       >
         <Plus className="size-3.5" />
       </button>

@@ -20,7 +20,6 @@ import {
 import { useSettingsDialogStore } from '@/features/settings'
 import { SettingsDialog } from '@/features/settings'
 import { SearchCommand } from '@/features/search'
-import { SearchTrigger } from '@/features/search'
 import { ChatRuntimeProvider } from '@/features/chat/chat-runtime-provider'
 import { CreateWorkspaceModal } from '@/features/modals/create-workspace'
 import {
@@ -29,6 +28,8 @@ import {
 } from '@garden/app-state/surface-tabs'
 import { NAV_ITEMS, navItemForPathname } from '@/features/navigation/nav-items'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
+import { ChatTabsStrip } from './chat-tabs'
+import { TaskTabsStrip } from './task-tabs'
 import { UserCard } from './user-card'
 import { WorkspaceSwitcher } from './workspace-switcher'
 
@@ -279,7 +280,13 @@ export function AppShell() {
                 canGoPrevious={tabStep.current > 0}
                 canGoNext={tabStep.current < tabStep.count - 1}
                 showTabArrows={tabbedNav !== null}
-                end={<SearchTrigger />}
+                tabs={
+                  tabbedNav === 'chats' ? (
+                    <ChatTabsStrip activeId={activeTabId} />
+                  ) : tabbedNav === 'tasks' ? (
+                    <TaskTabsStrip activeId={activeTabId} />
+                  ) : null
+                }
               />
               <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <Outlet />
