@@ -48,7 +48,17 @@ Only when explicitly requested:
 NODE_OPTIONS=--max-old-space-size=8192 pnpm run deploy
 ```
 
-This selects `GARDEN_DEPLOY_TARGET=production` and updates `garden-staging`.
+This typechecks, applies pending PostgreSQL migrations, then selects
+`GARDEN_DEPLOY_TARGET=production` and updates `garden-staging`. A migration
+failure stops the command before Alchemy deploys application code.
+
+`DATABASE_URL` must be available to the process that runs `pnpm deploy`. For
+Cloudflare Workers Builds, configure it as a build secret on the Git trigger;
+a Worker runtime secret is not available to the build command.
+
+Preview intentionally does not run migrations because it shares the live
+PostgreSQL origin. Apply schema changes only through the protected production
+deployment path.
 
 ## Mandatory preview teardown
 
