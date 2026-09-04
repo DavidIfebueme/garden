@@ -54,7 +54,7 @@ export function WorkspaceSwitcher({
       <DropdownMenuTrigger
         aria-label="Workspace menu"
         className={cn(
-          'cursor-pointer flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left transition-colors hover:bg-background-main-secondary',
+          'cursor-pointer flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left',
           collapsed && 'justify-center px-0',
         )}
       >
