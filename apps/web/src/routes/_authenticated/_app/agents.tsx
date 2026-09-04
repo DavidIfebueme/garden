@@ -1,12 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { AgentsPage } from '@/features/agents/components'
-import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
+/** Agents surface layout — parent of agents.index + agents.$agentId. */
 export const Route = createFileRoute('/_authenticated/_app/agents')({
-  component: AgentsRoute,
+  component: Outlet,
 })
-
-function AgentsRoute() {
-  const { openAgent } = useSurfaceNavigation()
-  return <AgentsPage onOpenAgent={openAgent} />
-}

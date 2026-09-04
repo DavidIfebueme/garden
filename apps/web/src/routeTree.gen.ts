@@ -77,6 +77,10 @@ import { Route as AuthenticatedAppFilesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppConnectorsRouteImport } from './routes/_authenticated/_app/connectors'
 import { Route as AuthenticatedAppChatsRouteImport } from './routes/_authenticated/_app/chats'
 import { Route as AuthenticatedAppAgentsRouteImport } from './routes/_authenticated/_app/agents'
+import { Route as AuthenticatedAppWorkflowsIndexRouteImport } from './routes/_authenticated/_app/workflows.index'
+import { Route as AuthenticatedAppTasksIndexRouteImport } from './routes/_authenticated/_app/tasks.index'
+import { Route as AuthenticatedAppChatsIndexRouteImport } from './routes/_authenticated/_app/chats.index'
+import { Route as AuthenticatedAppAgentsIndexRouteImport } from './routes/_authenticated/_app/agents.index'
 import { Route as ApiWorkspacesIdMembersRouteImport } from './routes/api/workspaces/$id/members'
 import { Route as ApiWorkspacesIdInvitationsRouteImport } from './routes/api/workspaces/$id/invitations'
 import { Route as ApiWorkProductsIdReviewRouteImport } from './routes/api/work-products/$id/review'
@@ -471,6 +475,30 @@ const AuthenticatedAppAgentsRoute = AuthenticatedAppAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppWorkflowsIndexRoute =
+  AuthenticatedAppWorkflowsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppWorkflowsRoute,
+  } as any)
+const AuthenticatedAppTasksIndexRoute =
+  AuthenticatedAppTasksIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppTasksRoute,
+  } as any)
+const AuthenticatedAppChatsIndexRoute =
+  AuthenticatedAppChatsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppChatsRoute,
+  } as any)
+const AuthenticatedAppAgentsIndexRoute =
+  AuthenticatedAppAgentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppAgentsRoute,
+  } as any)
 const ApiWorkspacesIdMembersRoute = ApiWorkspacesIdMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -818,6 +846,10 @@ export interface FileRoutesByFullPath {
   '/api/work-products/$id/review': typeof ApiWorkProductsIdReviewRoute
   '/api/workspaces/$id/invitations': typeof ApiWorkspacesIdInvitationsRouteWithChildren
   '/api/workspaces/$id/members': typeof ApiWorkspacesIdMembersRouteWithChildren
+  '/agents/': typeof AuthenticatedAppAgentsIndexRoute
+  '/chats/': typeof AuthenticatedAppChatsIndexRoute
+  '/tasks/': typeof AuthenticatedAppTasksIndexRoute
+  '/workflows/': typeof AuthenticatedAppWorkflowsIndexRoute
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
@@ -854,16 +886,12 @@ export interface FileRoutesByTo {
   '/api/projects': typeof ApiProjectsRoute
   '/api/upload-file': typeof ApiUploadFileRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
-  '/agents': typeof AuthenticatedAppAgentsRouteWithChildren
-  '/chats': typeof AuthenticatedAppChatsRouteWithChildren
   '/connectors': typeof AuthenticatedAppConnectorsRoute
   '/files': typeof AuthenticatedAppFilesRoute
   '/home': typeof AuthenticatedAppHomeRoute
   '/inbox': typeof AuthenticatedAppInboxRoute
   '/skills': typeof AuthenticatedAppSkillsRoute
-  '/tasks': typeof AuthenticatedAppTasksRouteWithChildren
   '/teams': typeof AuthenticatedAppTeamsRoute
-  '/workflows': typeof AuthenticatedAppWorkflowsRouteWithChildren
   '/automations/$id': typeof AuthenticatedAutomationsIdRoute
   '/invitations/$id': typeof AuthenticatedInvitationsIdRoute
   '/api/agents/$id': typeof ApiAgentsIdRouteWithChildren
@@ -931,6 +959,10 @@ export interface FileRoutesByTo {
   '/api/work-products/$id/review': typeof ApiWorkProductsIdReviewRoute
   '/api/workspaces/$id/invitations': typeof ApiWorkspacesIdInvitationsRouteWithChildren
   '/api/workspaces/$id/members': typeof ApiWorkspacesIdMembersRouteWithChildren
+  '/agents': typeof AuthenticatedAppAgentsIndexRoute
+  '/chats': typeof AuthenticatedAppChatsIndexRoute
+  '/tasks': typeof AuthenticatedAppTasksIndexRoute
+  '/workflows': typeof AuthenticatedAppWorkflowsIndexRoute
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
@@ -1047,6 +1079,10 @@ export interface FileRoutesById {
   '/api/work-products/$id/review': typeof ApiWorkProductsIdReviewRoute
   '/api/workspaces/$id/invitations': typeof ApiWorkspacesIdInvitationsRouteWithChildren
   '/api/workspaces/$id/members': typeof ApiWorkspacesIdMembersRouteWithChildren
+  '/_authenticated/_app/agents/': typeof AuthenticatedAppAgentsIndexRoute
+  '/_authenticated/_app/chats/': typeof AuthenticatedAppChatsIndexRoute
+  '/_authenticated/_app/tasks/': typeof AuthenticatedAppTasksIndexRoute
+  '/_authenticated/_app/workflows/': typeof AuthenticatedAppWorkflowsIndexRoute
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
@@ -1162,6 +1198,10 @@ export interface FileRouteTypes {
     | '/api/work-products/$id/review'
     | '/api/workspaces/$id/invitations'
     | '/api/workspaces/$id/members'
+    | '/agents/'
+    | '/chats/'
+    | '/tasks/'
+    | '/workflows/'
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
@@ -1198,16 +1238,12 @@ export interface FileRouteTypes {
     | '/api/projects'
     | '/api/upload-file'
     | '/api/workspaces'
-    | '/agents'
-    | '/chats'
     | '/connectors'
     | '/files'
     | '/home'
     | '/inbox'
     | '/skills'
-    | '/tasks'
     | '/teams'
-    | '/workflows'
     | '/automations/$id'
     | '/invitations/$id'
     | '/api/agents/$id'
@@ -1275,6 +1311,10 @@ export interface FileRouteTypes {
     | '/api/work-products/$id/review'
     | '/api/workspaces/$id/invitations'
     | '/api/workspaces/$id/members'
+    | '/agents'
+    | '/chats'
+    | '/tasks'
+    | '/workflows'
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
@@ -1390,6 +1430,10 @@ export interface FileRouteTypes {
     | '/api/work-products/$id/review'
     | '/api/workspaces/$id/invitations'
     | '/api/workspaces/$id/members'
+    | '/_authenticated/_app/agents/'
+    | '/_authenticated/_app/chats/'
+    | '/_authenticated/_app/tasks/'
+    | '/_authenticated/_app/workflows/'
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
@@ -1928,6 +1972,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAgentsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/workflows/': {
+      id: '/_authenticated/_app/workflows/'
+      path: '/'
+      fullPath: '/workflows/'
+      preLoaderRoute: typeof AuthenticatedAppWorkflowsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppWorkflowsRoute
+    }
+    '/_authenticated/_app/tasks/': {
+      id: '/_authenticated/_app/tasks/'
+      path: '/'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof AuthenticatedAppTasksIndexRouteImport
+      parentRoute: typeof AuthenticatedAppTasksRoute
+    }
+    '/_authenticated/_app/chats/': {
+      id: '/_authenticated/_app/chats/'
+      path: '/'
+      fullPath: '/chats/'
+      preLoaderRoute: typeof AuthenticatedAppChatsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppChatsRoute
+    }
+    '/_authenticated/_app/agents/': {
+      id: '/_authenticated/_app/agents/'
+      path: '/'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AuthenticatedAppAgentsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppAgentsRoute
+    }
     '/api/workspaces/$id/members': {
       id: '/api/workspaces/$id/members'
       path: '/members'
@@ -2248,11 +2320,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAppAgentsRouteChildren {
   AuthenticatedAppAgentsAgentIdRoute: typeof AuthenticatedAppAgentsAgentIdRoute
+  AuthenticatedAppAgentsIndexRoute: typeof AuthenticatedAppAgentsIndexRoute
 }
 
 const AuthenticatedAppAgentsRouteChildren: AuthenticatedAppAgentsRouteChildren =
   {
     AuthenticatedAppAgentsAgentIdRoute: AuthenticatedAppAgentsAgentIdRoute,
+    AuthenticatedAppAgentsIndexRoute: AuthenticatedAppAgentsIndexRoute,
   }
 
 const AuthenticatedAppAgentsRouteWithChildren =
@@ -2262,10 +2336,12 @@ const AuthenticatedAppAgentsRouteWithChildren =
 
 interface AuthenticatedAppChatsRouteChildren {
   AuthenticatedAppChatsThreadIdRoute: typeof AuthenticatedAppChatsThreadIdRoute
+  AuthenticatedAppChatsIndexRoute: typeof AuthenticatedAppChatsIndexRoute
 }
 
 const AuthenticatedAppChatsRouteChildren: AuthenticatedAppChatsRouteChildren = {
   AuthenticatedAppChatsThreadIdRoute: AuthenticatedAppChatsThreadIdRoute,
+  AuthenticatedAppChatsIndexRoute: AuthenticatedAppChatsIndexRoute,
 }
 
 const AuthenticatedAppChatsRouteWithChildren =
@@ -2275,10 +2351,12 @@ const AuthenticatedAppChatsRouteWithChildren =
 
 interface AuthenticatedAppTasksRouteChildren {
   AuthenticatedAppTasksIssueIdRoute: typeof AuthenticatedAppTasksIssueIdRoute
+  AuthenticatedAppTasksIndexRoute: typeof AuthenticatedAppTasksIndexRoute
 }
 
 const AuthenticatedAppTasksRouteChildren: AuthenticatedAppTasksRouteChildren = {
   AuthenticatedAppTasksIssueIdRoute: AuthenticatedAppTasksIssueIdRoute,
+  AuthenticatedAppTasksIndexRoute: AuthenticatedAppTasksIndexRoute,
 }
 
 const AuthenticatedAppTasksRouteWithChildren =
@@ -2288,11 +2366,13 @@ const AuthenticatedAppTasksRouteWithChildren =
 
 interface AuthenticatedAppWorkflowsRouteChildren {
   AuthenticatedAppWorkflowsIdRoute: typeof AuthenticatedAppWorkflowsIdRoute
+  AuthenticatedAppWorkflowsIndexRoute: typeof AuthenticatedAppWorkflowsIndexRoute
 }
 
 const AuthenticatedAppWorkflowsRouteChildren: AuthenticatedAppWorkflowsRouteChildren =
   {
     AuthenticatedAppWorkflowsIdRoute: AuthenticatedAppWorkflowsIdRoute,
+    AuthenticatedAppWorkflowsIndexRoute: AuthenticatedAppWorkflowsIndexRoute,
   }
 
 const AuthenticatedAppWorkflowsRouteWithChildren =

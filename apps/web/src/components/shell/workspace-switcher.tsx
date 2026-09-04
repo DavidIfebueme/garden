@@ -1,6 +1,7 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -59,29 +60,31 @@ export function WorkspaceSwitcher({
         align="start"
         sideOffset={8}
       >
-        <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          Workspaces
-        </DropdownMenuLabel>
-        {workspaces.length > 0 ? (
-          <div className="max-h-48 overflow-y-auto py-1">
-            {workspaces.map((workspace) => {
-              const active = workspace.id === currentWorkspaceId
-              return (
-                <DropdownMenuItem
-                  key={workspace.id}
-                  disabled={active}
-                  onClick={() => onSwitchWorkspace(workspace)}
-                >
-                  <Buildings />
-                  <span className="min-w-0 flex-1 truncate">
-                    {workspace.name}
-                  </span>
-                  {active ? <Check className="ml-auto" /> : null}
-                </DropdownMenuItem>
-              )
-            })}
-          </div>
-        ) : null}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            Workspaces
+          </DropdownMenuLabel>
+          {workspaces.length > 0 ? (
+            <div className="max-h-48 overflow-y-auto py-1">
+              {workspaces.map((workspace) => {
+                const active = workspace.id === currentWorkspaceId
+                return (
+                  <DropdownMenuItem
+                    key={workspace.id}
+                    disabled={active}
+                    onClick={() => onSwitchWorkspace(workspace)}
+                  >
+                    <Buildings />
+                    <span className="min-w-0 flex-1 truncate">
+                      {workspace.name}
+                    </span>
+                    {active ? <Check className="ml-auto" /> : null}
+                  </DropdownMenuItem>
+                )
+              })}
+            </div>
+          ) : null}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onCreateWorkspace}>
           <Buildings />

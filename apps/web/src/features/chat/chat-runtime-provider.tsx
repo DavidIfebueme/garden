@@ -129,12 +129,17 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const workspaceId = useWorkspaceStore((state) => state.workspace?.id ?? null)
   // The visible chat thread is the mounted /chats/$threadId route — the
-  // router is the source of truth now that the dock is gone.
+  // router is the source of truth now that the dock is gone. On the /chats
+  // index the composer visibly mounts the warm session itself, so it counts
+  // as visible too — otherwise the hidden warmer double-connects it (the
+  // reconnect storm the old dock-era guard prevented; smoke-observed 2026-09).
   const visibleChatThreadId = useRouterState({
-    select: (s) =>
-      s.location.pathname.startsWith('/chats/')
+    select: (s) => {
+      if (s.location.pathname === '/chats') return 'composer'
+      return s.location.pathname.startsWith('/chats/')
         ? (s.location.pathname.split('/')[2] ?? null)
-        : null,
+        : null
+    },
   })
   const { claimWarmSession, sessionsQuery, warmSession } = useAgentSessions()
   const warmSessionQuery = useQuery({
@@ -164,7 +169,9 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
    * checked: local Agents SDK `useAgent` / `useAgentChat` connection lifecycle.
    */
   const sessionToWarm =
-    warmCandidate && warmCandidate.id !== visibleChatThreadId
+    warmCandidate &&
+    warmCandidate.id !== visibleChatThreadId &&
+    visibleChatThreadId !== 'composer'
       ? warmCandidate
       : null
 
