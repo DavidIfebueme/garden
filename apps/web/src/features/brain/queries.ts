@@ -3,7 +3,9 @@ import {
   getBrainFileText,
   getBrainFileBytes,
   getBrainFileExtractedText,
+  getBrainFolderDetail,
   listBrainFiles,
+  listBrainFolders,
 } from './api'
 import { BRAIN_FILE_POLLING_POLICY } from './policy'
 
@@ -14,6 +16,12 @@ export const brainFileKeys = {
   content: (id: string) => [...brainFileKeys.detail(id), 'content'] as const,
   extractedText: (id: string) =>
     [...brainFileKeys.detail(id), 'extracted-text'] as const,
+}
+
+export const brainFolderKeys = {
+  all: ['brain', 'folders'] as const,
+  list: () => [...brainFolderKeys.all, 'list'] as const,
+  detail: (id: string) => [...brainFolderKeys.all, 'detail', id] as const,
 }
 
 /**
@@ -58,6 +66,24 @@ export function brainFileExtractedTextOptions(id: string) {
     queryKey: brainFileKeys.extractedText(id),
     queryFn: () => getBrainFileExtractedText(id),
     staleTime: Infinity,
+  })
+}
+
+/** Folder list for the Files page; folder detail feeds the folder view. */
+export function brainFolderListOptions() {
+  return queryOptions({
+    queryKey: brainFolderKeys.list(),
+    queryFn: ({ signal }) => listBrainFolders(signal),
+    retry: false,
+    refetchOnWindowFocus: true,
+  })
+}
+
+export function brainFolderDetailOptions(id: string) {
+  return queryOptions({
+    queryKey: brainFolderKeys.detail(id),
+    queryFn: ({ signal }) => getBrainFolderDetail(id, signal),
+    retry: false,
   })
 }
 

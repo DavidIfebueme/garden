@@ -9,6 +9,7 @@ import {
   BrainFileResponseSchema,
   brainFileStatusOf,
 } from '@/features/brain/contract'
+import { brainFileSummaryOf } from '@/lib/server/brain-file-summary'
 import {
   requireAppRequestContext,
   type AppRequestContext,
@@ -104,11 +105,7 @@ export const getBrainFileStatus = async ({
   if (item === null) return notFound('Brain file not found')
 
   const body = BrainFileResponseSchema.parse({
-    item: {
-      id: item.id,
-      name: item.label,
-      status: brainFileStatusOf(item),
-    },
+    item: brainFileSummaryOf(item),
   })
 
   return Response.json(body, {
@@ -227,11 +224,7 @@ export const retryBrainFileIndexing = async ({
   }
 
   const body = BrainFileResponseSchema.parse({
-    item: {
-      id: item.id,
-      name: item.label,
-      status,
-    },
+    item: { ...brainFileSummaryOf(item), status },
   })
 
   return Response.json(body, { status: status === 'ready' ? 200 : 202 })

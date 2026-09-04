@@ -61,6 +61,7 @@ import { Route as ApiConnectionsCallbackEventsRouteImport } from './routes/api/c
 import { Route as ApiConnectionsConnectorIdRouteImport } from './routes/api/connections/$connectorId'
 import { Route as ApiCommentsIdRouteImport } from './routes/api/comments/$id'
 import { Route as ApiChatThreadsRouteImport } from './routes/api/chat/threads'
+import { Route as ApiBrainFoldersRouteImport } from './routes/api/brain/folders'
 import { Route as ApiBrainFilesRouteImport } from './routes/api/brain/files'
 import { Route as ApiAutomationsIdRouteImport } from './routes/api/automations/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -109,6 +110,7 @@ import { Route as ApiDocumentsIdDisplayRouteImport } from './routes/api/document
 import { Route as ApiConnectionsConnectorIdActivityRouteImport } from './routes/api/connections/$connectorId/activity'
 import { Route as ApiCommentsIdReactionsRouteImport } from './routes/api/comments/$id/reactions'
 import { Route as ApiChatThreadsIdRouteImport } from './routes/api/chat/threads/$id'
+import { Route as ApiBrainFoldersIdRouteImport } from './routes/api/brain/folders/$id'
 import { Route as ApiBrainFilesIdRouteImport } from './routes/api/brain/files/$id'
 import { Route as ApiAutomationsIdTriggersRouteImport } from './routes/api/automations/$id/triggers'
 import { Route as ApiAutomationsIdTriggerRouteImport } from './routes/api/automations/$id/trigger'
@@ -126,6 +128,7 @@ import { Route as ApiChatThreadsIdToolApprovalRouteImport } from './routes/api/c
 import { Route as ApiChatThreadsIdPrimaryIssueRouteImport } from './routes/api/chat/threads/$id/primary-issue'
 import { Route as ApiChatThreadsIdPermissionRequestsRouteImport } from './routes/api/chat/threads/$id/permission-requests'
 import { Route as ApiChatThreadsIdDocumentsRouteImport } from './routes/api/chat/threads/$id/documents'
+import { Route as ApiBrainFoldersIdFilesRouteImport } from './routes/api/brain/folders/$id/files'
 import { Route as ApiBrainFilesIdTextRouteImport } from './routes/api/brain/files/$id/text'
 import { Route as ApiBrainFilesIdContentRouteImport } from './routes/api/brain/files/$id/content'
 import { Route as ApiAutomationsIdTriggersTriggerIdRouteImport } from './routes/api/automations/$id/triggers/$triggerId'
@@ -395,6 +398,11 @@ const ApiChatThreadsRoute = ApiChatThreadsRouteImport.update({
   path: '/api/chat/threads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBrainFoldersRoute = ApiBrainFoldersRouteImport.update({
+  id: '/api/brain/folders',
+  path: '/api/brain/folders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrainFilesRoute = ApiBrainFilesRouteImport.update({
   id: '/api/brain/files',
   path: '/api/brain/files',
@@ -647,6 +655,11 @@ const ApiChatThreadsIdRoute = ApiChatThreadsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiChatThreadsRoute,
 } as any)
+const ApiBrainFoldersIdRoute = ApiBrainFoldersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiBrainFoldersRoute,
+} as any)
 const ApiBrainFilesIdRoute = ApiBrainFilesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -744,6 +757,11 @@ const ApiChatThreadsIdDocumentsRoute =
     path: '/documents',
     getParentRoute: () => ApiChatThreadsIdRoute,
   } as any)
+const ApiBrainFoldersIdFilesRoute = ApiBrainFoldersIdFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => ApiBrainFoldersIdRoute,
+} as any)
 const ApiBrainFilesIdTextRoute = ApiBrainFilesIdTextRouteImport.update({
   id: '/text',
   path: '/text',
@@ -810,6 +828,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/automations/$id': typeof ApiAutomationsIdRouteWithChildren
   '/api/brain/files': typeof ApiBrainFilesRouteWithChildren
+  '/api/brain/folders': typeof ApiBrainFoldersRouteWithChildren
   '/api/chat/threads': typeof ApiChatThreadsRouteWithChildren
   '/api/comments/$id': typeof ApiCommentsIdRouteWithChildren
   '/api/connections/$connectorId': typeof ApiConnectionsConnectorIdRouteWithChildren
@@ -845,6 +864,7 @@ export interface FileRoutesByFullPath {
   '/api/automations/$id/trigger': typeof ApiAutomationsIdTriggerRoute
   '/api/automations/$id/triggers': typeof ApiAutomationsIdTriggersRouteWithChildren
   '/api/brain/files/$id': typeof ApiBrainFilesIdRouteWithChildren
+  '/api/brain/folders/$id': typeof ApiBrainFoldersIdRouteWithChildren
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
@@ -879,6 +899,7 @@ export interface FileRoutesByFullPath {
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/brain/files/$id/content': typeof ApiBrainFilesIdContentRoute
   '/api/brain/files/$id/text': typeof ApiBrainFilesIdTextRoute
+  '/api/brain/folders/$id/files': typeof ApiBrainFoldersIdFilesRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
   '/api/chat/threads/$id/primary-issue': typeof ApiChatThreadsIdPrimaryIssueRoute
@@ -927,6 +948,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/automations/$id': typeof ApiAutomationsIdRouteWithChildren
   '/api/brain/files': typeof ApiBrainFilesRouteWithChildren
+  '/api/brain/folders': typeof ApiBrainFoldersRouteWithChildren
   '/api/chat/threads': typeof ApiChatThreadsRouteWithChildren
   '/api/comments/$id': typeof ApiCommentsIdRouteWithChildren
   '/api/connections/$connectorId': typeof ApiConnectionsConnectorIdRouteWithChildren
@@ -962,6 +984,7 @@ export interface FileRoutesByTo {
   '/api/automations/$id/trigger': typeof ApiAutomationsIdTriggerRoute
   '/api/automations/$id/triggers': typeof ApiAutomationsIdTriggersRouteWithChildren
   '/api/brain/files/$id': typeof ApiBrainFilesIdRouteWithChildren
+  '/api/brain/folders/$id': typeof ApiBrainFoldersIdRouteWithChildren
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
@@ -996,6 +1019,7 @@ export interface FileRoutesByTo {
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/brain/files/$id/content': typeof ApiBrainFilesIdContentRoute
   '/api/brain/files/$id/text': typeof ApiBrainFilesIdTextRoute
+  '/api/brain/folders/$id/files': typeof ApiBrainFoldersIdFilesRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
   '/api/chat/threads/$id/primary-issue': typeof ApiChatThreadsIdPrimaryIssueRoute
@@ -1051,6 +1075,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/automations/$id': typeof ApiAutomationsIdRouteWithChildren
   '/api/brain/files': typeof ApiBrainFilesRouteWithChildren
+  '/api/brain/folders': typeof ApiBrainFoldersRouteWithChildren
   '/api/chat/threads': typeof ApiChatThreadsRouteWithChildren
   '/api/comments/$id': typeof ApiCommentsIdRouteWithChildren
   '/api/connections/$connectorId': typeof ApiConnectionsConnectorIdRouteWithChildren
@@ -1086,6 +1111,7 @@ export interface FileRoutesById {
   '/api/automations/$id/trigger': typeof ApiAutomationsIdTriggerRoute
   '/api/automations/$id/triggers': typeof ApiAutomationsIdTriggersRouteWithChildren
   '/api/brain/files/$id': typeof ApiBrainFilesIdRouteWithChildren
+  '/api/brain/folders/$id': typeof ApiBrainFoldersIdRouteWithChildren
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
@@ -1120,6 +1146,7 @@ export interface FileRoutesById {
   '/api/automations/$id/triggers/$triggerId': typeof ApiAutomationsIdTriggersTriggerIdRoute
   '/api/brain/files/$id/content': typeof ApiBrainFilesIdContentRoute
   '/api/brain/files/$id/text': typeof ApiBrainFilesIdTextRoute
+  '/api/brain/folders/$id/files': typeof ApiBrainFoldersIdFilesRoute
   '/api/chat/threads/$id/documents': typeof ApiChatThreadsIdDocumentsRoute
   '/api/chat/threads/$id/permission-requests': typeof ApiChatThreadsIdPermissionRequestsRoute
   '/api/chat/threads/$id/primary-issue': typeof ApiChatThreadsIdPrimaryIssueRoute
@@ -1174,6 +1201,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/automations/$id'
     | '/api/brain/files'
+    | '/api/brain/folders'
     | '/api/chat/threads'
     | '/api/comments/$id'
     | '/api/connections/$connectorId'
@@ -1209,6 +1237,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/trigger'
     | '/api/automations/$id/triggers'
     | '/api/brain/files/$id'
+    | '/api/brain/folders/$id'
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
@@ -1243,6 +1272,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/brain/files/$id/content'
     | '/api/brain/files/$id/text'
+    | '/api/brain/folders/$id/files'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
     | '/api/chat/threads/$id/primary-issue'
@@ -1291,6 +1321,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/automations/$id'
     | '/api/brain/files'
+    | '/api/brain/folders'
     | '/api/chat/threads'
     | '/api/comments/$id'
     | '/api/connections/$connectorId'
@@ -1326,6 +1357,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/trigger'
     | '/api/automations/$id/triggers'
     | '/api/brain/files/$id'
+    | '/api/brain/folders/$id'
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
@@ -1360,6 +1392,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/brain/files/$id/content'
     | '/api/brain/files/$id/text'
+    | '/api/brain/folders/$id/files'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
     | '/api/chat/threads/$id/primary-issue'
@@ -1414,6 +1447,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/automations/$id'
     | '/api/brain/files'
+    | '/api/brain/folders'
     | '/api/chat/threads'
     | '/api/comments/$id'
     | '/api/connections/$connectorId'
@@ -1449,6 +1483,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/trigger'
     | '/api/automations/$id/triggers'
     | '/api/brain/files/$id'
+    | '/api/brain/folders/$id'
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
@@ -1483,6 +1518,7 @@ export interface FileRouteTypes {
     | '/api/automations/$id/triggers/$triggerId'
     | '/api/brain/files/$id/content'
     | '/api/brain/files/$id/text'
+    | '/api/brain/folders/$id/files'
     | '/api/chat/threads/$id/documents'
     | '/api/chat/threads/$id/permission-requests'
     | '/api/chat/threads/$id/primary-issue'
@@ -1520,6 +1556,7 @@ export interface RootRouteChildren {
   ApiAttachmentsIdRoute: typeof ApiAttachmentsIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBrainFilesRoute: typeof ApiBrainFilesRouteWithChildren
+  ApiBrainFoldersRoute: typeof ApiBrainFoldersRouteWithChildren
   ApiChatThreadsRoute: typeof ApiChatThreadsRouteWithChildren
   ApiCommentsIdRoute: typeof ApiCommentsIdRouteWithChildren
   ApiDevIssueRunPlanRoute: typeof ApiDevIssueRunPlanRoute
@@ -1909,6 +1946,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatThreadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/brain/folders': {
+      id: '/api/brain/folders'
+      path: '/api/brain/folders'
+      fullPath: '/api/brain/folders'
+      preLoaderRoute: typeof ApiBrainFoldersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/brain/files': {
       id: '/api/brain/files'
       path: '/api/brain/files'
@@ -2245,6 +2289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatThreadsIdRouteImport
       parentRoute: typeof ApiChatThreadsRoute
     }
+    '/api/brain/folders/$id': {
+      id: '/api/brain/folders/$id'
+      path: '/$id'
+      fullPath: '/api/brain/folders/$id'
+      preLoaderRoute: typeof ApiBrainFoldersIdRouteImport
+      parentRoute: typeof ApiBrainFoldersRoute
+    }
     '/api/brain/files/$id': {
       id: '/api/brain/files/$id'
       path: '/$id'
@@ -2363,6 +2414,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/chat/threads/$id/documents'
       preLoaderRoute: typeof ApiChatThreadsIdDocumentsRouteImport
       parentRoute: typeof ApiChatThreadsIdRoute
+    }
+    '/api/brain/folders/$id/files': {
+      id: '/api/brain/folders/$id/files'
+      path: '/files'
+      fullPath: '/api/brain/folders/$id/files'
+      preLoaderRoute: typeof ApiBrainFoldersIdFilesRouteImport
+      parentRoute: typeof ApiBrainFoldersIdRoute
     }
     '/api/brain/files/$id/text': {
       id: '/api/brain/files/$id/text'
@@ -2792,6 +2850,29 @@ const ApiBrainFilesRouteWithChildren = ApiBrainFilesRoute._addFileChildren(
   ApiBrainFilesRouteChildren,
 )
 
+interface ApiBrainFoldersIdRouteChildren {
+  ApiBrainFoldersIdFilesRoute: typeof ApiBrainFoldersIdFilesRoute
+}
+
+const ApiBrainFoldersIdRouteChildren: ApiBrainFoldersIdRouteChildren = {
+  ApiBrainFoldersIdFilesRoute: ApiBrainFoldersIdFilesRoute,
+}
+
+const ApiBrainFoldersIdRouteWithChildren =
+  ApiBrainFoldersIdRoute._addFileChildren(ApiBrainFoldersIdRouteChildren)
+
+interface ApiBrainFoldersRouteChildren {
+  ApiBrainFoldersIdRoute: typeof ApiBrainFoldersIdRouteWithChildren
+}
+
+const ApiBrainFoldersRouteChildren: ApiBrainFoldersRouteChildren = {
+  ApiBrainFoldersIdRoute: ApiBrainFoldersIdRouteWithChildren,
+}
+
+const ApiBrainFoldersRouteWithChildren = ApiBrainFoldersRoute._addFileChildren(
+  ApiBrainFoldersRouteChildren,
+)
+
 interface ApiChatThreadsIdRouteChildren {
   ApiChatThreadsIdDocumentsRoute: typeof ApiChatThreadsIdDocumentsRoute
   ApiChatThreadsIdPermissionRequestsRoute: typeof ApiChatThreadsIdPermissionRequestsRoute
@@ -2861,6 +2942,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAttachmentsIdRoute: ApiAttachmentsIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBrainFilesRoute: ApiBrainFilesRouteWithChildren,
+  ApiBrainFoldersRoute: ApiBrainFoldersRouteWithChildren,
   ApiChatThreadsRoute: ApiChatThreadsRouteWithChildren,
   ApiCommentsIdRoute: ApiCommentsIdRouteWithChildren,
   ApiDevIssueRunPlanRoute: ApiDevIssueRunPlanRoute,

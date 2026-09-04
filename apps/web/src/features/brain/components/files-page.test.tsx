@@ -23,6 +23,14 @@ import { brainFileKeys } from '../queries'
 import { BrainFilesPage } from './files-page'
 
 const mockUploadBrainFile = vi.hoisted(() => vi.fn())
+const mockListBrainFolders = vi.hoisted(() => vi.fn())
+const mockCreateBrainFolder = vi.hoisted(() => vi.fn())
+const mockUpdateBrainFolder = vi.hoisted(() => vi.fn())
+const mockDeleteBrainFolder = vi.hoisted(() => vi.fn())
+const mockGetBrainFolderDetail = vi.hoisted(() => vi.fn())
+const mockAddFileToBrainFolder = vi.hoisted(() => vi.fn())
+const mockRemoveFileFromBrainFolder = vi.hoisted(() => vi.fn())
+const mockDeleteBrainFile = vi.hoisted(() => vi.fn())
 const mockGetBrainFileText = vi.hoisted(() => vi.fn())
 const mockGetBrainFileExtractedText = vi.hoisted(() => vi.fn())
 const mockListBrainFiles = vi.hoisted(() => vi.fn())
@@ -37,6 +45,14 @@ vi.mock('../api', () => ({
   retryBrainFile: mockRetryBrainFile,
   uploadBrainFile: mockUploadBrainFile,
   getBrainFileBytes: mockGetBrainFileBytes,
+  listBrainFolders: mockListBrainFolders,
+  createBrainFolder: mockCreateBrainFolder,
+  updateBrainFolder: mockUpdateBrainFolder,
+  deleteBrainFolder: mockDeleteBrainFolder,
+  getBrainFolderDetail: mockGetBrainFolderDetail,
+  addFileToBrainFolder: mockAddFileToBrainFolder,
+  removeFileFromBrainFolder: mockRemoveFileFromBrainFolder,
+  deleteBrainFile: mockDeleteBrainFile,
 }))
 
 vi.mock('pdfjs-dist', () => ({
@@ -96,6 +112,9 @@ describe('BrainFilesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListBrainFiles.mockResolvedValue([])
+    mockListBrainFolders.mockResolvedValue([])
+    mockDeleteBrainFile.mockResolvedValue(undefined)
+    mockDeleteBrainFolder.mockResolvedValue(undefined)
     mockGetBrainFileText.mockResolvedValue('Garden preview notes')
     mockGetBrainFileExtractedText.mockResolvedValue(
       '# Quarterly report\n\nRevenue increased.',
@@ -591,21 +610,21 @@ describe('BrainFilesPage', () => {
       },
     ])
 
-    const filesRegion = await screen.findByRole('region', { name: 'Files' })
-    const uploadTile = within(filesRegion).getByRole('button', {
-      name: /add your documents or drag and drop them here/i,
+    const uploadRegion = await screen.findByRole('region', { name: 'Upload' })
+    const uploadTile = within(uploadRegion).getByRole('button', {
+      name: /add your documents or drag & drop it here/i,
     })
-    const fileTile = await within(filesRegion).findByRole('listitem')
+    expect(uploadTile).toHaveClass('h-[9.5rem]', 'sm:w-[32.5rem]')
+
+    const recentRegion = screen.getByRole('region', {
+      name: 'Your Recent Files',
+    })
+    const fileTile = await within(recentRegion).findByRole('listitem')
     const previewButton = within(fileTile).getByRole('button', {
       name: 'Preview saved-notes.txt',
     })
-
-    expect(uploadTile).toHaveClass('min-h-[7.125rem]', 'sm:w-[24.375rem]')
-    expect(fileTile).toHaveClass('min-h-[7.125rem]', 'sm:w-[11.625rem]')
+    expect(fileTile).toHaveClass('sm:w-[15.5rem]')
     expect(previewButton).toHaveClass('cursor-pointer')
-    expect(
-      within(filesRegion).queryByRole('heading', { name: 'Files' }),
-    ).not.toBeInTheDocument()
   })
 
   it('shows a list error and lets the user try again', async () => {
@@ -764,7 +783,7 @@ describe('BrainFilesPage', () => {
 
     fireEvent.drop(
       screen.getByRole('button', {
-        name: /add your documents or drag and drop them here/i,
+        name: /add your documents or drag & drop it here/i,
       }),
       {
         dataTransfer: {
@@ -880,5 +899,257 @@ describe('BrainFilesPage', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByText('Ready')).toBeInTheDocument()
+  })
+
+  it('creates a folder from the dialog with privacy', async () => {
+    const user = userEvent.setup()
+
+    mockCreateBrainFolder.mockResolvedValue({
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'private',
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    })
+
+    renderFilesPage()
+
+    const foldersRegion = await screen.findByRole('region', {
+      name: 'Folders',
+    })
+    await user.click(
+      within(foldersRegion).getAllByRole('button', {
+        name: /create a folder/i,
+      })[0]!,
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    const nameInput = within(dialog).getByLabelText(/Folder Name/)
+    await user.type(nameInput, 'Test Case')
+    expect(within(dialog).getByText('9/50')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('switch'))
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create folder' }),
+    )
+
+    expect(mockCreateBrainFolder).toHaveBeenCalledWith({
+      name: 'Test Case',
+      privacy: 'private',
+    })
+    expect(await screen.findByText('Test Case')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps the create action disabled until the folder has a name', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage()
+
+    const foldersRegion = await screen.findByRole('region', {
+      name: 'Folders',
+    })
+    await user.click(
+      within(foldersRegion).getAllByRole('button', {
+        name: /create a folder/i,
+      })[0]!,
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByRole('button', { name: 'Create folder' }),
+    ).toBeDisabled()
+    expect(within(dialog).getByText('0/50')).toBeInTheDocument()
+  })
+
+  it('filters folders by the scope tabs', async () => {
+    const user = userEvent.setup()
+
+    mockListBrainFolders.mockResolvedValue([
+      {
+        id: 'folder-private',
+        name: 'Jog_Memo',
+        privacy: 'private',
+        fileCount: 7,
+        createdByName: 'Fred',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'folder-shared',
+        name: 'Livewire fixtures',
+        privacy: 'shared',
+        fileCount: 12,
+        createdByName: 'Fred',
+        createdAt: new Date().toISOString(),
+      },
+    ])
+
+    renderFilesPage()
+
+    expect(await screen.findByText('Jog_Memo')).toBeInTheDocument()
+    expect(screen.getByText('Livewire fixtures')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Private' }))
+    expect(screen.getByText('Jog_Memo')).toBeInTheDocument()
+    expect(screen.queryByText('Livewire fixtures')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Shared' }))
+    expect(screen.queryByText('Jog_Memo')).not.toBeInTheDocument()
+    expect(screen.getByText('Livewire fixtures')).toBeInTheDocument()
+  })
+
+  it('opens a folder, shows its files table, and removes a file', async () => {
+    const user = userEvent.setup()
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'private' as const,
+      fileCount: 1,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockListBrainFolders.mockResolvedValue([folder])
+    mockGetBrainFolderDetail.mockResolvedValue({
+      item: folder,
+      files: [
+        {
+          id: 'brain-file-9',
+          name: 'dots-payee.pdf',
+          status: 'ready',
+          sizeBytes: 11_264,
+          uploadedAt: '2024-07-07T13:42:00.000Z',
+        },
+      ],
+    })
+    mockRemoveFileFromBrainFolder.mockResolvedValue({
+      item: { ...folder, fileCount: 0 },
+      files: [],
+    })
+
+    renderFilesPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Open folder Test Case' }),
+    )
+
+    expect(
+      await screen.findByRole('columnheader', { name: 'File name' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('dots-payee.pdf')).toBeInTheDocument()
+    expect(screen.getByText('07 July 2024')).toBeInTheDocument()
+    expect(screen.getByText('11 KB')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }))
+
+    expect(mockRemoveFileFromBrainFolder).toHaveBeenCalledWith(
+      'folder-1',
+      'brain-file-9',
+    )
+    expect(await screen.findByText('No files yet')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /files & folders/i }))
+    expect(
+      await screen.findByRole('region', { name: 'Folders' }),
+    ).toBeInTheDocument()
+  })
+
+  it('adds a file to a folder from the file card menu', async () => {
+    // Submenu popups animate in with pointer-events disabled briefly.
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'shared' as const,
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockListBrainFolders.mockResolvedValue([folder])
+    mockAddFileToBrainFolder.mockResolvedValue({
+      item: { ...folder, fileCount: 1 },
+      files: [
+        { id: 'stored-file-1', name: 'saved-notes.txt', status: 'ready' },
+      ],
+    })
+
+    renderFilesPage([
+      { id: 'stored-file-1', name: 'saved-notes.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'File actions for saved-notes.txt',
+      }),
+    )
+    await user.hover(
+      await screen.findByRole('menuitem', { name: /add to folder/i }),
+    )
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Test Case' }))
+
+    await waitFor(() => {
+      expect(mockAddFileToBrainFolder).toHaveBeenCalledWith(
+        'folder-1',
+        'stored-file-1',
+      )
+    })
+  })
+
+  it('deletes a folder after confirmation', async () => {
+    const user = userEvent.setup()
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'private' as const,
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockListBrainFolders.mockResolvedValue([folder])
+
+    renderFilesPage()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Folder actions for Test Case',
+      }),
+    )
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Delete folder' }),
+    )
+
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Delete folder' }),
+    )
+
+    expect(mockDeleteBrainFolder).toHaveBeenCalledWith('folder-1')
+    expect(screen.queryByText('Test Case')).not.toBeInTheDocument()
+  })
+
+  it('deletes a file from the card menu after confirmation', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'stored-file-1', name: 'saved-notes.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'File actions for saved-notes.txt',
+      }),
+    )
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Delete file' }),
+    )
+
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    expect(mockDeleteBrainFile).toHaveBeenCalledWith('stored-file-1')
+    expect(screen.queryByText('saved-notes.txt')).not.toBeInTheDocument()
   })
 })
