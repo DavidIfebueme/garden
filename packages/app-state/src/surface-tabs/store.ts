@@ -42,14 +42,27 @@ export const useSurfaceTabsStore = create<SurfaceTabsState>()(
   persist(
     (set) => ({
       bySurface: {},
+      // Insertion-ordered, not MRU: re-activating a tab keeps its position so
+      // the top-bar previous/next arrows can step a stable strip (MRU ordering
+      // pinned the active tab to the end, leaving "next" permanently disabled
+      // and "previous" alternating the last two — smoke-observed 2026-09).
       upsertTab: (surface, tab) =>
         set((state) => {
           const current = state.bySurface[surface] ?? []
-          const rest = current.filter((t) => t.id !== tab.id)
+          if (current.some((t) => t.id === tab.id)) {
+            return {
+              bySurface: {
+                ...state.bySurface,
+                [surface]: current.map((t) =>
+                  t.id === tab.id ? { ...t, title: tab.title } : t,
+                ),
+              },
+            }
+          }
           return {
             bySurface: {
               ...state.bySurface,
-              [surface]: [...rest, tab].slice(-MAX_TABS_PER_SURFACE),
+              [surface]: [...current, tab].slice(-MAX_TABS_PER_SURFACE),
             },
           }
         }),
