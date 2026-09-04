@@ -3,6 +3,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
 import { GardenLogo } from '@garden/ui/components/common/garden-logo'
@@ -62,10 +63,10 @@ export function WorkspaceSwitcher({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[297px] rounded-xl shadow-5"
+        className="min-w-60 overflow-hidden rounded-xl p-0 shadow-5"
         side="bottom"
         align="start"
-        sideOffset={4}
+        sideOffset={8}
       >
         <div className="flex items-center gap-2 border-b border-border-default bg-background-main-secondary px-3 py-2.5">
           <GardenLogo className="h-[10px] w-[19px]" />
@@ -74,29 +75,31 @@ export function WorkspaceSwitcher({
           </span>
         </div>
         <DropdownMenuGroup className="py-1">
-          <DropdownMenuItem onClick={onInviteMembers} className="px-3 py-2.5">
+          <DropdownMenuItem onClick={onInviteMembers}>
             <PaperPlaneTilt />
             Invite members
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenSettings} className="px-3 py-2.5">
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onOpenSettings}>
             <Gear />
             Workspace settings
           </DropdownMenuItem>
-          <DropdownMenuItem disabled className="px-3 py-2.5">
+          <DropdownMenuItem disabled>
             <ChartBar />
             <span className="flex-1">Analytics</span>
             <span className="text-xs text-text-tertiary">Soon</span>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled className="px-3 py-2.5">
+          <DropdownMenuItem disabled>
             <CreditCard />
             <span className="flex-1">Billing</span>
             <span className="text-xs text-text-tertiary">Soon</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onOpenMembers} className="px-3 py-2.5">
+          <DropdownMenuItem onClick={onOpenMembers}>
             <Users />
             Team members
           </DropdownMenuItem>
-          <DropdownMenuItem disabled className="px-3 py-2.5">
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled>
             <Info />
             <span className="flex-1">Learn more</span>
             <span className="text-xs text-text-tertiary">Soon</span>

@@ -111,7 +111,7 @@ export function UserCard({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="w-72 rounded-xl p-0 shadow-5"
+        className="w-72 overflow-hidden rounded-xl p-0 shadow-5"
         side="top"
         align="start"
         sideOffset={8}
