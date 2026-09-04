@@ -71,7 +71,7 @@ export function WorkspaceSwitcher({
         ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="min-w-60 overflow-hidden rounded-xl p-0 shadow-5"
+        className="w-[297px] overflow-hidden rounded-xl p-0 shadow-5"
         side="bottom"
         align="start"
         sideOffset={8}
