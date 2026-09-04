@@ -70,12 +70,7 @@ function InvitationRoute() {
             onClick={() =>
               void navigate({
                 to: '/home',
-                search: {
-                  connector_flow: undefined,
-                  connector_id: undefined,
-                  workspace_id: undefined,
-                  issue: undefined,
-                },
+                search: {},
               })
             }
           >
@@ -97,12 +92,7 @@ function InvitationRoute() {
         onClick={() =>
           void navigate({
             to: '/home',
-            search: {
-              connector_flow: undefined,
-              connector_id: undefined,
-              workspace_id: undefined,
-              issue: undefined,
-            },
+            search: {},
           })
         }
       >
