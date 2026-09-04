@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
 import {
   Avatar,
   AvatarFallback,
@@ -6,36 +9,63 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
 import { cn } from '@garden/ui/lib/utils'
+import type { Workspace } from '@garden/core/types'
 import {
+  Buildings,
+  CaretRight,
   CaretUpDown,
+  Check,
+  Copy,
+  Gear,
+  PaperPlaneTilt,
+  Plus,
   SignOut,
-  ShieldCheck,
-  UserCircleCheck,
 } from '@phosphor-icons/react'
+import type { MemberRole } from '@garden/core/types'
 
 /**
- * User card pinned to the bottom of the new flat sidebar (design: 24px avatar
- * + name + chevron). Account-only menu (account, sessions & security, logout) —
- * workspace switching moved up to the sidebar header's WorkspaceSwitcher.
+ * Account flyout — the sidebar's bottom user card per the design's
+ * User-profile_Flyout (Penpot "Admin Profile" page): profile header, User ID
+ * copy + role badge, Settings / Invite members actions, Theme segmented
+ * control (System/Light/Dark), an expandable "Add workspace" row that carries
+ * workspace switching + creation, and Sign out. The card itself shows avatar +
+ * name + role badge (design's profile strip).
  */
+
+const themeOptions = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+] as const
+
 export function UserCard({
   user,
+  role,
+  workspaces,
+  currentWorkspaceId,
   collapsed,
   onAccount,
+  onInviteMembers,
   onLogout,
+  onSwitchWorkspace,
+  onCreateWorkspace,
 }: {
-  user: { name: string; email: string; avatar?: string | null }
+  user: { id: string; name: string; email: string; avatar?: string | null }
+  role: MemberRole | null
+  workspaces: Workspace[]
+  currentWorkspaceId?: string | null
   collapsed?: boolean
   onAccount: () => void
+  onInviteMembers: () => void
   onLogout: () => void
+  onSwitchWorkspace: (workspace: Workspace) => void
+  onCreateWorkspace: () => void
 }) {
+  const { theme, setTheme } = useTheme()
+  const [addWorkspaceOpen, setAddWorkspaceOpen] = useState(false)
   const initials = user.name
     .split(' ')
     .map((word) => word[0])
@@ -43,14 +73,21 @@ export function UserCard({
     .slice(0, 2)
     .toUpperCase()
 
+  const copyUserId = () => {
+    void navigator.clipboard.writeText(user.id).then(
+      () => toast.success('User ID copied'),
+      () => toast.error('Copy failed'),
+    )
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        aria-label="Account"
         className={cn(
           'flex w-full items-center gap-2 rounded-sm p-1.5 text-left transition-colors hover:bg-background-main-secondary',
           collapsed && 'justify-center p-0',
         )}
-        aria-label="Account"
       >
         <Avatar className="size-6 rounded-sm">
           <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
@@ -63,45 +100,177 @@ export function UserCard({
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-neutral-default">
               {user.name}
             </span>
-            <CaretUpDown className="size-3.5 text-icon-neutral-tertiary" />
+            {role ? (
+              <span className="rounded-pill bg-badge-blue-background px-1.5 py-0.5 text-[10px] font-medium text-badge-blue-text">
+                {roleLabel(role)}
+              </span>
+            ) : null}
+            <CaretUpDown className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
           </>
         ) : null}
       </DropdownMenuTrigger>
+
       <DropdownMenuContent
-        className="min-w-56 rounded-lg"
+        className="w-72 rounded-xl p-0 shadow-5"
         side="right"
         align="end"
         sideOffset={8}
       >
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="p-0 font-normal">
-            <div className="flex items-center gap-2 px-2 py-2 text-left text-sm">
-              <Avatar>
-                <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+        {/* Profile header */}
+        <div className="flex items-center gap-2.5 px-3.5 pt-3.5 pb-3">
+          <Avatar className="size-9 rounded-sm">
+            <AvatarImage src={user.avatar ?? undefined} alt={user.name} />
+            <AvatarFallback className="rounded-sm">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="grid min-w-0 flex-1 text-left leading-tight">
+            <span className="truncate text-sm font-semibold text-text-neutral-default">
+              {user.name}
+            </span>
+            <span className="truncate text-xs text-text-secondary">
+              {user.email}
+            </span>
+          </div>
+        </div>
+
+        {/* User ID + role */}
+        <div className="flex items-center gap-2 border-t border-border-default px-3.5 py-2.5">
+          <span className="text-xs text-text-secondary">
+            User ID:{' '}
+            <span className="text-text-neutral-default">{user.id}</span>
+          </span>
+          <button
+            type="button"
+            onClick={copyUserId}
+            aria-label="Copy user ID"
+            className="flex size-5 items-center justify-center rounded-xs text-icon-neutral-tertiary transition-colors hover:bg-background-main-secondary hover:text-icon-neutral-default"
+          >
+            <Copy className="size-3" />
+          </button>
+          {role ? (
+            <span className="ml-auto rounded-pill bg-badge-blue-background px-2 py-0.5 text-xs font-medium text-badge-blue-text">
+              {roleLabel(role)}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Settings + Invite */}
+        <div className="flex gap-2 border-t border-border-default px-3.5 py-3">
+          <button
+            type="button"
+            onClick={onAccount}
+            className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+          >
+            <Gear className="size-4 text-icon-neutral-secondary" />
+            Settings
+          </button>
+          <button
+            type="button"
+            onClick={onInviteMembers}
+            className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
+          >
+            <PaperPlaneTilt className="size-4 text-icon-neutral-secondary" />
+            Invite members
+          </button>
+        </div>
+
+        {/* Theme */}
+        <div className="border-t border-border-default px-3.5 py-3">
+          <p className="mb-2 text-xs text-text-secondary">Theme</p>
+          <div
+            role="radiogroup"
+            aria-label="Theme"
+            className="flex rounded-md bg-background-main-secondary p-0.5"
+          >
+            {themeOptions.map((opt) => {
+              const active = theme === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setTheme(opt.value)}
+                  className={cn(
+                    'h-7 flex-1 rounded-[5px] text-sm transition-colors',
+                    active
+                      ? 'bg-background-brand-default font-medium text-text-brand-on-brand'
+                      : 'text-text-secondary hover:text-text-neutral-default',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Add workspace (expandable — carries switching + creation) */}
+        <div className="border-t border-border-default">
+          <button
+            type="button"
+            onClick={() => setAddWorkspaceOpen((value) => !value)}
+            aria-expanded={addWorkspaceOpen}
+            className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+          >
+            <Plus className="size-4 text-icon-neutral-secondary" />
+            <span className="flex-1 text-left">Add workspace</span>
+            <CaretRight
+              className={cn(
+                'size-3.5 text-icon-neutral-tertiary transition-transform',
+                addWorkspaceOpen && 'rotate-90',
+              )}
+            />
+          </button>
+          {addWorkspaceOpen ? (
+            <div className="px-3.5 pb-3">
+              <div className="max-h-40 overflow-y-auto">
+                {workspaces.map((workspace) => {
+                  const active = workspace.id === currentWorkspaceId
+                  return (
+                    <button
+                      key={workspace.id}
+                      type="button"
+                      disabled={active}
+                      onClick={() => onSwitchWorkspace(workspace)}
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary disabled:opacity-60"
+                    >
+                      <Buildings className="size-4 shrink-0 text-icon-neutral-tertiary" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {workspace.name}
+                      </span>
+                      {active ? (
+                        <Check className="size-3.5 text-icon-success-default" />
+                      ) : null}
+                    </button>
+                  )
+                })}
               </div>
+              <button
+                type="button"
+                onClick={onCreateWorkspace}
+                className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-brand-secondary transition-colors hover:bg-background-main-secondary"
+              >
+                <Plus className="size-4" />
+                New workspace
+              </button>
             </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onAccount}>
-            <UserCircleCheck />
-            Account
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onAccount}>
-            <ShieldCheck />
-            Sessions & security
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout}>
-          <SignOut />
-          Log out
-        </DropdownMenuItem>
+          ) : null}
+        </div>
+
+        {/* Sign out */}
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex w-full items-center gap-2 border-t border-border-default px-3.5 py-2.5 text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary"
+        >
+          <SignOut className="size-4 text-icon-neutral-secondary" />
+          Sign out
+        </button>
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+function roleLabel(role: MemberRole) {
+  return role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Member'
 }

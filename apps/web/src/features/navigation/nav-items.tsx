@@ -1,14 +1,14 @@
 import {
   BookOpen,
-  ChatsCircle,
-  Folder,
+  ChatCircleDots,
+  Folders,
   House,
   Lightning,
   ListChecks,
+  FinnTheHuman,
   Plugs,
-  Robot,
   Tray,
-  Users,
+  UsersThree,
 } from '@phosphor-icons/react'
 import type { ComponentType } from 'react'
 
@@ -29,21 +29,16 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { id: 'home', label: 'Home', to: '/home', icon: House },
-  { id: 'chats', label: 'Chats', to: '/chats', icon: ChatsCircle },
+  { id: 'chats', label: 'Chats', to: '/chats', icon: ChatCircleDots },
   { id: 'tasks', label: 'Tasks', to: '/tasks', icon: ListChecks },
-  {
-    id: 'files',
-    label: 'Files & Folders',
-    to: '/files',
-    // Design spec: office/regular/folder
-    icon: (props) => <Folder weight="regular" {...props} />,
-  },
+  // Design spec: office / regular / folders
+  { id: 'files', label: 'Files & Folders', to: '/files', icon: Folders },
   { id: 'inbox', label: 'Inbox', to: '/inbox', icon: Tray },
   { id: 'automations', label: 'Workflows', to: '/workflows', icon: Lightning },
-  { id: 'agents', label: 'Agents', to: '/agents', icon: Robot },
+  { id: 'agents', label: 'Agents', to: '/agents', icon: FinnTheHuman },
   { id: 'skills', label: 'Skills', to: '/skills', icon: BookOpen },
   { id: 'connections', label: 'Connectors', to: '/connectors', icon: Plugs },
-  { id: 'teams', label: 'Teams', to: '/teams', icon: Users },
+  { id: 'teams', label: 'Teams', to: '/teams', icon: UsersThree },
 ]
 
 /** Resolves the nav item that owns a pathname (longest route-base match). */

@@ -117,6 +117,17 @@ export function AppShell() {
     ...inboxListOptions(workspaceId),
     enabled: !!workspaceId,
   })
+  const memberListQuery = useQuery({
+    ...memberListOptions(workspaceId),
+    enabled: !!workspaceId,
+  })
+  const currentMemberRole = useMemo(
+    () =>
+      memberListQuery.data?.find((member) => member.user_id === user?.id)
+        ?.role ?? null,
+    [memberListQuery.data, user?.id],
+  )
+
   const unreadCount = useMemo(
     () =>
       deduplicateInboxItems(rawInboxItems).filter((item) => !item.read).length,
@@ -231,11 +242,10 @@ export function AppShell() {
               header={
                 <WorkspaceSwitcher
                   workspaceName={workspace?.name ?? 'Garden'}
-                  workspaces={workspaceListQuery.data ?? []}
-                  currentWorkspaceId={workspace?.id ?? null}
                   collapsed={collapsed}
-                  onSwitchWorkspace={handleSwitchWorkspace}
-                  onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
+                  onInviteMembers={() => openSettingsDialog('members')}
+                  onOpenSettings={() => openSettingsDialog()}
+                  onOpenMembers={() => openSettingsDialog('members')}
                 />
               }
               items={navItems}
@@ -246,13 +256,20 @@ export function AppShell() {
               userCard={
                 <UserCard
                   user={{
+                    id: user?.id ?? '',
                     name: user?.name ?? 'Account',
                     email: user?.email ?? 'Signed out',
                     avatar: user?.avatar_url ?? null,
                   }}
+                  role={currentMemberRole}
+                  workspaces={workspaceListQuery.data ?? []}
+                  currentWorkspaceId={workspace?.id ?? null}
                   collapsed={collapsed}
-                  onAccount={openSettingsDialog}
+                  onAccount={() => openSettingsDialog()}
+                  onInviteMembers={() => openSettingsDialog('members')}
                   onLogout={() => void handleLogout()}
+                  onSwitchWorkspace={handleSwitchWorkspace}
+                  onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
                 />
               }
             />

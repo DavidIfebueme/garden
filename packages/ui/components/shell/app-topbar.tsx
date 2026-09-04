@@ -1,4 +1,9 @@
-import { ArrowLeft, ArrowRight, SidebarSimple } from '@phosphor-icons/react'
+import {
+  CaretLeft,
+  CaretRight,
+  SidebarSimple,
+  SquaresFour,
+} from '@phosphor-icons/react'
 import type { ComponentType, ReactNode } from 'react'
 import { cn } from '@garden/ui/lib/utils'
 
@@ -53,20 +58,27 @@ export function AppTopBar({
       {showTabArrows ? (
         <>
           <TopBarButton
-            icon={ArrowLeft}
+            icon={CaretLeft}
             label="Previous tab"
             onClick={onPrevious}
             disabled={!canGoPrevious}
           />
           <TopBarButton
-            icon={ArrowRight}
+            icon={CaretRight}
             label="Next tab"
             onClick={onNext}
             disabled={!canGoNext}
           />
         </>
       ) : null}
-      {end ? <div className="ml-auto flex items-center">{end}</div> : null}
+      <span
+        aria-hidden="true"
+        title="Mini apps — coming soon"
+        className="ml-auto flex size-7 items-center justify-center text-icon-neutral-tertiary"
+      >
+        <SquaresFour className="size-4" />
+      </span>
+      {end ? <div className="ml-1 flex items-center">{end}</div> : null}
     </div>
   )
 }
