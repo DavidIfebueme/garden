@@ -708,6 +708,27 @@ describe('BrainFilesPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('middle-truncates long file names in the upload review modal', async () => {
+    const user = userEvent.setup()
+    const longName = `${'quarterly-report-'.repeat(10)}final.pdf`
+    const file = new File(['Garden notes'], longName, { type: 'text/plain' })
+
+    renderFilesPage()
+
+    await user.upload(
+      screen.getByLabelText('Choose a document to upload'),
+      file,
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    const name = within(dialog).getByTitle(longName)
+
+    expect(name.textContent?.length).toBeLessThanOrEqual(48)
+    expect(name.textContent).toContain('…')
+    expect(name.textContent?.endsWith('final.pdf')).toBe(true)
+    expect(within(dialog).queryByText(longName)).not.toBeInTheDocument()
+  })
+
   it('shows byte-level progress in the upload modal', async () => {
     const user = userEvent.setup()
     const file = new File(['Garden notes'], 'notes.txt', {
