@@ -57,8 +57,8 @@ export function AppSidebar({
     >
       <div
         className={cn(
-          'flex h-14 shrink-0 items-center',
-          collapsed ? 'justify-center px-0' : 'px-2',
+          'flex h-10 shrink-0 items-center',
+          collapsed ? 'justify-center px-0' : 'px-4',
         )}
       >
         {header}
@@ -77,7 +77,7 @@ export function AppSidebar({
                   title={collapsed ? item.label : undefined}
                   className={cn(
                     'group cursor-pointer flex h-10 w-full items-center gap-2.5 rounded-sm text-sm transition-colors',
-                    collapsed ? 'justify-center px-0' : 'px-3',
+                    collapsed ? 'justify-center px-0' : 'px-2',
                     active
                       ? 'bg-background-main-secondary font-medium text-text-brand-secondary'
                       : 'text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',

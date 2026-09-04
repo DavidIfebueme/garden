@@ -85,7 +85,7 @@ export function UserCard({
       <DropdownMenuTrigger
         aria-label="Account"
         className={cn(
-          'cursor-pointer flex w-full items-center gap-2 rounded-sm p-1.5 text-left transition-colors hover:bg-background-main-secondary',
+          'cursor-pointer flex w-full items-center gap-2 rounded-sm p-2 text-left transition-colors hover:bg-background-main-secondary',
           collapsed && 'justify-center p-0',
         )}
       >
