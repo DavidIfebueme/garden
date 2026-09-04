@@ -244,7 +244,7 @@ export const Route = createFileRoute('/api/executor/oauth/start')({
         if (outcome.value.status === 'redirect') {
           return Response.redirect(outcome.value.authorizationUrl)
         }
-        return Response.redirect('/workspace')
+        return Response.redirect('/home')
       },
     },
   },

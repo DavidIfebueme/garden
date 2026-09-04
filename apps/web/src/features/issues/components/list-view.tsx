@@ -12,7 +12,7 @@ import { useLoadMoreDoneIssues } from '@/lib/issues/mutations'
 import { STATUS_CONFIG } from '@garden/core/issues/config'
 import { useViewStore } from '@garden/app-state/issues/stores/view-store-context'
 import { useIssueSelectionStore } from '@garden/app-state/issues/stores/selection-store'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { sortIssues } from '../utils/sort'
 import { StatusIcon } from './status-icon'
 import { ListRow, type ChildProgress } from './list-row'
@@ -34,16 +34,12 @@ export function ListView({
   doneTotal?: number
   onCreateIssue: (data?: Record<string, unknown> | null) => void
 }) {
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const handleOpenIssue = useCallback(
     (issue: Issue) => {
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: issue.title,
-        entityId: issue.id,
-      })
+      openIssue({ id: issue.id, title: issue.title })
     },
-    [dock],
+    [openIssue],
   )
   const sortBy = useViewStore((s) => s.sortBy)
   const sortDirection = useViewStore((s) => s.sortDirection)

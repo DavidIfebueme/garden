@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { AutomationDetailPage } from '@/features/automations'
+import { useWorkspaceStore } from '@garden/app-state/workspace'
 
-export const Route = createFileRoute('/_authenticated/automations/$id')({
+export const Route = createFileRoute('/_authenticated/_app/automations/$id')({
   component: AutomationDetailRoute,
 })
 

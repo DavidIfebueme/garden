@@ -423,9 +423,6 @@ importers:
       emoji-mart:
         specifier: ^5.6.0
         version: 5.6.0
-      flexlayout-react:
-        specifier: ^0.9.1
-        version: 0.9.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       fractional-indexing:
         specifier: 3.2.0
         version: 3.2.0
@@ -6510,12 +6507,6 @@ packages:
   find-process@2.1.1:
     resolution: {integrity: sha512-SrQDx3QhlmHM90iqn9rdjCQcw/T+WlpOkHFsjoRgB+zTpDfltNA1VSNYeYELwhUTJy12UFxqjWhmhOrJc+o4sA==}
     hasBin: true
-
-  flexlayout-react@0.9.1:
-    resolution: {integrity: sha512-sB/93gKvDUBcukvxeNsu88ziobdsBfZQCDk9tTaxZOruaefpCpjpkSjhrhgoomWmTrSz8xnpHj8QcUaRf0Begg==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -14833,11 +14824,6 @@ snapshots:
       chalk: 4.1.2
       commander: 14.0.3
       loglevel: 1.9.2
-
-  flexlayout-react@0.9.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
 
   for-each@0.3.5:
     dependencies:

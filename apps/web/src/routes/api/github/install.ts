@@ -26,7 +26,7 @@ function readConnectorFlowId(request: Request) {
 }
 
 function redirectToGitHubPanel(request: Request, flowId?: string | null) {
-  const url = new URL('/workspace', request.url)
+  const url = new URL('/connections', request.url)
   url.search = connectorCallbackSearchParams({
     connectorId: 'github',
     flowId,

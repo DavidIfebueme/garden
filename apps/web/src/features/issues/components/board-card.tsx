@@ -16,7 +16,7 @@ import { ProgressRing } from './progress-ring'
 import type { ChildProgress } from './list-row'
 import { LiveDot } from './live-dot'
 import { ConnectorIcon } from './connector-icon'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 
 /**
  * Hook variant of `useUpdateIssue` for editable cards. Centralized here so the
@@ -265,20 +265,16 @@ export const DraggableBoardCard = memo(function DraggableBoardCard({
     transition,
   }
 
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const handleUpdate = useBoardCardUpdate(issue.id)
 
   const handleOpen = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
       if (isDragging) return
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: issue.title,
-        entityId: issue.id,
-      })
+      openIssue({ id: issue.id, title: issue.title })
     },
-    [dock, issue.id, issue.title, isDragging],
+    [openIssue, issue.id, issue.title, isDragging],
   )
 
   return (

@@ -26,7 +26,7 @@ const colors = {
  * serif headline so the recipient sees what they own before any chrome; the CTA
  * lands them in the assignee's workspace, where the assignment inbox item
  * (written alongside this send) surfaces the task — there is no per-issue route
- * to deep-link yet, only `/workspace?workspace_id=`.
+ * to deep-link yet, only `/home?workspace_id=`.
  */
 export function renderIssueAssignmentEmailHtml(
   props: IssueAssignmentEmailProps,

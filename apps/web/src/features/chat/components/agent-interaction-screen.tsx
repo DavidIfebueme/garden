@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@garden/app-state/auth'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { listThreadDocuments } from '@/lib/api'
-import { useSidebar } from '@garden/ui/components/ui/sidebar'
 import {
   useAgentSessions,
   type AgentChatSession,
@@ -68,7 +67,6 @@ export function AgentInteractionScreen({
 }) {
   const user = useAuthStore((state) => state.user)
   const workspace = useWorkspaceStore((state) => state.workspace)
-  const { state: sidebarState, toggleSidebar } = useSidebar()
   const {
     claimWarmSession,
     sessions,
@@ -134,8 +132,6 @@ export function AgentInteractionScreen({
       onClose={onClose}
       panelDescription={null}
       panelTitle={panelTitle}
-      sidebarState={sidebarState}
-      toggleSidebar={toggleSidebar}
       updateSessionPreview={updateSessionPreview}
     />
   )
@@ -150,8 +146,6 @@ function ChatPanelInteraction({
   onClose?: () => void
   panelDescription?: string | null
   panelTitle: string
-  sidebarState: 'collapsed' | 'expanded'
-  toggleSidebar: () => void
   updateSessionPreview: ReturnType<
     typeof useAgentSessions
   >['updateSessionPreview']

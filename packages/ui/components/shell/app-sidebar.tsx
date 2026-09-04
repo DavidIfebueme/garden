@@ -1,0 +1,162 @@
+import type { ComponentType, ReactNode } from 'react'
+import { cn } from '@garden/ui/lib/utils'
+
+/**
+ * App shell sidebar — the flat, labeled navigation column from the redesign
+ * (Penpot "Garden" file, 2026-09): fixed 240px, wordmark header, icon+label nav
+ * rows with optional count badges, user card pinned to the bottom.
+ *
+ * This replaces the old two-tier rail (icon rail + per-context explorer rail).
+ * It is presentational only: routing, badge counts, and the user menu are
+ * wired by the app through props. Token mapping: active row uses
+ * background.main.secondary fill + text.brand.secondary label; idle rows use
+ * text.secondary; badges use badge red tokens via utility classes below.
+ */
+
+export type AppSidebarNavItem = {
+  id: string
+  label: string
+  icon: ComponentType<{ className?: string }>
+  badge?: number
+}
+
+export type AppSidebarProps = {
+  /**
+   * Header slot — the workspace switcher (logo + workspace name + chevron
+   * dropdown). The app owns workspace data; the sidebar owns layout only.
+   * Sidebar collapse is owned by the top bar (no header control here).
+   */
+  header: ReactNode
+  items: AppSidebarNavItem[]
+  activeId: string | null
+  onSelect: (id: string) => void
+  collapsed: boolean
+  /** Settings affordance rendered above the user card. */
+  onOpenSettings: () => void
+  /** User card slot (account menu) rendered at the bottom. */
+  userCard: ReactNode
+  className?: string
+}
+
+export function AppSidebar({
+  header,
+  items,
+  activeId,
+  onSelect,
+  collapsed,
+  onOpenSettings,
+  userCard,
+  className,
+}: AppSidebarProps) {
+  return (
+    <aside
+      aria-label="Primary"
+      data-collapsed={collapsed || undefined}
+      className={cn(
+        'flex h-full shrink-0 flex-col border-r border-border-default bg-background-main-default transition-[width] duration-150',
+        collapsed ? 'w-16' : 'w-60',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          'flex h-10 shrink-0 items-center border-b border-border-default',
+          collapsed ? 'justify-center px-0' : 'px-2',
+        )}
+      >
+        {header}
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Surfaces">
+        <ul className="flex flex-col gap-0.5">
+          {items.map((item) => {
+            const active = item.id === activeId
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    'group flex h-10 w-full items-center gap-2.5 rounded-sm text-sm transition-colors',
+                    collapsed ? 'justify-center px-0' : 'px-3',
+                    active
+                      ? 'bg-background-main-secondary font-medium text-text-brand-secondary'
+                      : 'text-text-secondary hover:bg-background-main-secondary-hover hover:text-text-neutral-default',
+                  )}
+                >
+                  <item.icon
+                    className={cn(
+                      'size-5 shrink-0',
+                      active
+                        ? 'text-icon-brand-secondary'
+                        : 'text-icon-neutral-tertiary group-hover:text-icon-neutral-secondary',
+                    )}
+                  />
+                  {!collapsed ? (
+                    <span className="flex-1 truncate text-left">
+                      {item.label}
+                    </span>
+                  ) : null}
+                  {!collapsed &&
+                  typeof item.badge === 'number' &&
+                  item.badge > 0 ? (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-xs leading-none text-red-100">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
+      <div
+        className={cn(
+          'flex shrink-0 flex-col gap-0.5 border-t border-border-default p-2',
+          collapsed && 'items-center',
+        )}
+      >
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          aria-label="Settings"
+          title={collapsed ? 'Settings' : undefined}
+          className={cn(
+            'flex h-9 w-full items-center gap-2.5 rounded-sm text-sm text-text-secondary transition-colors hover:bg-background-main-secondary hover:text-text-neutral-default',
+            collapsed ? 'justify-center px-0' : 'px-3',
+          )}
+        >
+          <SettingsIcon className="size-5 shrink-0 text-icon-neutral-tertiary" />
+          {!collapsed ? (
+            <span className="flex-1 text-left">Settings</span>
+          ) : null}
+        </button>
+        {userCard}
+      </div>
+    </aside>
+  )
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5 3.4 12.6M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}

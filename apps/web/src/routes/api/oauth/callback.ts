@@ -18,7 +18,7 @@ if (window.opener) {
   window.opener.postMessage({ type: 'executor-oauth', ...result }, window.location.origin);
   window.close();
 } else {
-  window.location.replace('/workspace');
+  window.location.replace('/home');
 }
 </script></body></html>`
 

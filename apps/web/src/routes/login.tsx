@@ -9,18 +9,19 @@ import {
 } from '@/lib/server/invitations'
 
 export const Route = createFileRoute('/login')({
-  validateSearch: (search) => ({
-    redirect:
-      typeof search.redirect === 'string'
-        ? sanitizeRedirectTarget(search.redirect)
-        : undefined,
-  }),
+  validateSearch: (search) => {
+    const out: { redirect?: string } = {}
+    if (typeof search.redirect === 'string') {
+      out.redirect = sanitizeRedirectTarget(search.redirect)
+    }
+    return out
+  },
   beforeLoad: async ({ search }) => {
     const session = await getRouteSession()
     if (!session) return
 
     throw redirect({
-      href: search.redirect ?? '/workspace',
+      href: search.redirect ?? '/home',
     })
   },
   loaderDeps: ({ search }) => ({ redirect: search.redirect }),
@@ -59,7 +60,7 @@ function LoginRoute() {
         invitationIsPending ? invitation.organizationName : undefined
       }
       onSuccess={() =>
-        void navigate({ href: search.redirect ?? '/workspace', replace: true })
+        void navigate({ href: search.redirect ?? '/home', replace: true })
       }
     />
   )

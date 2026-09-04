@@ -34,7 +34,7 @@ import { cn } from '@garden/ui/lib/utils'
 import { useWorkspaceId } from '@garden/app-state/hooks'
 import { STATUS_CONFIG } from '@garden/core/issues/config'
 import { PriorityIcon, StatusIcon } from '@/features/issues/components'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import {
   dashboardActivityOptions,
   dashboardDistributionOptions,
@@ -826,28 +826,20 @@ function DashboardResourcesSection({
 
 export function DashboardPage() {
   const wsId = useWorkspaceId()
-  const dock = useWorkspaceDock()
+  const { openIssue, openConnections, navigate } = useSurfaceNavigation()
 
   const openIssues = useCallback(
-    () => dock?.openPanel({ kind: 'issues', title: 'Tasks' }),
-    [dock],
+    () => void navigate({ to: '/tasks' }),
+    [navigate],
   )
   const openInbox = useCallback(
-    () => dock?.openPanel({ kind: 'inbox', title: 'Inbox' }),
-    [dock],
-  )
-  const openConnections = useCallback(
-    () => dock?.openPanel({ kind: 'capabilities', title: 'Connections' }),
-    [dock],
+    () => void navigate({ to: '/inbox' }),
+    [navigate],
   )
   const openIssueDetail = useCallback(
     (issue: { id: string; title: string }) =>
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: issue.title,
-        entityId: issue.id,
-      }),
-    [dock],
+      openIssue({ id: issue.id, title: issue.title }),
+    [openIssue],
   )
 
   return (

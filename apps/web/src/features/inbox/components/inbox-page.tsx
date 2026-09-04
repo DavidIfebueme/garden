@@ -12,7 +12,7 @@ import {
 } from '@/lib/inbox/mutations'
 import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { toast } from 'sonner'
 import {
   MoreHorizontal,
@@ -262,7 +262,7 @@ function InboxNotificationDetail({
 
 export function InboxPage() {
   const { searchParams, replace } = useNavigation()
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const selectedKey = searchParams.get('item') ?? ''
 
   const [search, setSearch] = useState('')
@@ -382,13 +382,9 @@ export function InboxPage() {
     (item: InboxItem) => {
       if (!item.issue_id) return
       setSelectedKey(item.id, item)
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: item.title,
-        entityId: item.issue_id,
-      })
+      openIssue({ id: item.issue_id, title: item.title })
     },
-    [dock, setSelectedKey],
+    [openIssue, setSelectedKey],
   )
 
   // -- Shared sub-components --------------------------------------------------

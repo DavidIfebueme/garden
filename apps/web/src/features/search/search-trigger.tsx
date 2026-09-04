@@ -1,25 +1,30 @@
 import { cn } from '@garden/ui/lib/utils'
 import { IconSearch } from '@tabler/icons-react'
 import { Kbd, KbdGroup } from '@garden/ui/components/ui/kbd'
-import { SidebarMenuButton } from '@garden/ui/components/ui/sidebar'
 import { useSearchStore } from './search-store'
 
+/**
+ * Global search trigger. Rebuilt for the redesigned shell as a plain button —
+ * it previously rendered shadcn's SidebarMenuButton, which throws outside the
+ * retired SidebarProvider. Mounted in the AppTopBar's end slot.
+ */
 export function SearchTrigger({ className }: { className?: string } = {}) {
   return (
-    <SidebarMenuButton
-      tooltip="Search"
+    <button
+      type="button"
+      aria-label="Search"
+      onClick={() => useSearchStore.getState().setOpen(true)}
       className={cn(
-        'text-muted-foreground group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0!',
+        'flex h-7 items-center gap-2 rounded-sm border border-border-default px-2.5 text-sm text-text-secondary transition-colors hover:bg-background-main-secondary hover:text-text-neutral-default',
         className,
       )}
-      onClick={() => useSearchStore.getState().setOpen(true)}
     >
       <IconSearch className="size-4" />
-      <span className="group-data-[collapsible=icon]:hidden">Search...</span>
-      <KbdGroup className="ml-auto group-data-[collapsible=icon]:hidden">
+      <span className="hidden sm:inline">Search…</span>
+      <KbdGroup className="ml-1 hidden sm:flex">
         <Kbd>⌘</Kbd>
         <Kbd>K</Kbd>
       </KbdGroup>
-    </SidebarMenuButton>
+    </button>
   )
 }
