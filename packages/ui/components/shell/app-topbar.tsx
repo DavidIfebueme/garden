@@ -4,18 +4,25 @@ import { cn } from '@garden/ui/lib/utils'
 
 /**
  * App shell top bar — the 40px chrome strip above the content pane from the
- * redesign: sidebar toggle, history back/forward. The global "+" from early
- * design passes was intentionally dropped (designer decision 2026-09): tabs are
- * surface-scoped (Chats, Tasks) and each owns its "+" via SurfaceTabs.
- * Presentational only; navigation behavior is wired by the app.
+ * redesign: sidebar toggle + (tabbable surfaces only) previous/next tab arrows.
+ * The arrows move the ACTIVE TAB selection through the strip when tabs overflow
+ * (designer decision 2026-09: no horizontal scrolling tab strip; arrows step
+ * through tabs instead). They are not browser-history controls. The global "+"
+ * from early passes stays dropped — each tabbable surface owns its "+" via
+ * SurfaceTabs. Presentational only; the app wires behavior.
  */
 
 export type AppTopBarProps = {
   onToggleSidebar: () => void
-  onBack: () => void
-  onForward: () => void
-  canGoBack: boolean
-  canGoForward: boolean
+  onPrevious: () => void
+  onNext: () => void
+  canGoPrevious: boolean
+  canGoNext: boolean
+  /**
+   * Tab arrows render only on tabbable surfaces (Chats, Tasks) — other
+   * surfaces are single-page and get just the sidebar toggle.
+   */
+  showTabArrows?: boolean
   /** Right-side slot (e.g. the search trigger). */
   end?: ReactNode
   className?: string
@@ -23,10 +30,11 @@ export type AppTopBarProps = {
 
 export function AppTopBar({
   onToggleSidebar,
-  onBack,
-  onForward,
-  canGoBack,
-  canGoForward,
+  onPrevious,
+  onNext,
+  canGoPrevious,
+  canGoNext,
+  showTabArrows = false,
   end,
   className,
 }: AppTopBarProps) {
@@ -42,18 +50,22 @@ export function AppTopBar({
         label="Toggle sidebar"
         onClick={onToggleSidebar}
       />
-      <TopBarButton
-        icon={ArrowLeft}
-        label="Back"
-        onClick={onBack}
-        disabled={!canGoBack}
-      />
-      <TopBarButton
-        icon={ArrowRight}
-        label="Forward"
-        onClick={onForward}
-        disabled={!canGoForward}
-      />
+      {showTabArrows ? (
+        <>
+          <TopBarButton
+            icon={ArrowLeft}
+            label="Previous tab"
+            onClick={onPrevious}
+            disabled={!canGoPrevious}
+          />
+          <TopBarButton
+            icon={ArrowRight}
+            label="Next tab"
+            onClick={onNext}
+            disabled={!canGoNext}
+          />
+        </>
+      ) : null}
       {end ? <div className="ml-auto flex items-center">{end}</div> : null}
     </div>
   )

@@ -1,10 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import {
-  Outlet,
-  useNavigate,
-  useRouter,
-  useRouterState,
-} from '@tanstack/react-router'
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Result } from 'better-result'
 import { toast } from 'sonner'
@@ -28,7 +23,9 @@ import { SearchCommand } from '@/features/search'
 import { SearchTrigger } from '@/features/search'
 import { ChatRuntimeProvider } from '@/features/chat/chat-runtime-provider'
 import { CreateWorkspaceModal } from '@/features/modals/create-workspace'
+import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import { NAV_ITEMS, navItemForPathname } from '@/features/navigation/nav-items'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { UserCard } from './user-card'
 import { WorkspaceSwitcher } from './workspace-switcher'
 
@@ -97,7 +94,6 @@ function WorkspaceSetupState({ onCreate }: { onCreate: () => void }) {
  */
 export function AppShell() {
   const navigate = useNavigate()
-  const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const queryClient = useQueryClient()
 
@@ -108,6 +104,7 @@ export function AppShell() {
   const clearWorkspace = useWorkspaceStore((state) => state.clearWorkspace)
   const openSettingsDialog = useSettingsDialogStore((s) => s.openSettings)
 
+  const { openIssue, openChatSession } = useSurfaceNavigation()
   const [collapsed, setCollapsed] = useState(false)
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
 
@@ -124,6 +121,37 @@ export function AppShell() {
   )
 
   const activeNavId = navItemForPathname(pathname)?.id ?? null
+
+  // Tab arrows (tabbable surfaces only): step the active selection through the
+  // surface's open tabs. Active id comes from the route param when present.
+  const tabbedNav =
+    activeNavId === 'chats' || activeNavId === 'tasks' ? activeNavId : null
+  const surfaceTabs = useSurfaceTabsStore((s) =>
+    tabbedNav ? (s.bySurface[tabbedNav] ?? []) : [],
+  )
+  const activeTabId = useRouterState({
+    select: (s) => {
+      const params = s.matches[s.matches.length - 1]?.params as
+        | { threadId?: string; issueId?: string }
+        | undefined
+      return params?.threadId ?? params?.issueId ?? null
+    },
+  })
+  const tabStep = useMemo(() => {
+    const current = surfaceTabs.findIndex((tab) => tab.id === activeTabId)
+    return { current, count: surfaceTabs.length }
+  }, [surfaceTabs, activeTabId])
+
+  const stepTab = useCallback(
+    (direction: -1 | 1) => {
+      if (!tabbedNav) return
+      const next = surfaceTabs[tabStep.current + direction]
+      if (!next) return
+      if (tabbedNav === 'chats') openChatSession(next)
+      else openIssue(next)
+    },
+    [tabbedNav, surfaceTabs, tabStep.current, openChatSession, openIssue],
+  )
 
   const navItems = useMemo(
     () =>
@@ -226,10 +254,11 @@ export function AppShell() {
             <div className="flex min-w-0 flex-1 flex-col">
               <AppTopBar
                 onToggleSidebar={() => setCollapsed((value) => !value)}
-                onBack={() => router.history.back()}
-                onForward={() => router.history.forward()}
-                canGoBack={router.history.canGoBack()}
-                canGoForward
+                onPrevious={() => stepTab(-1)}
+                onNext={() => stepTab(1)}
+                canGoPrevious={tabStep.current > 0}
+                canGoNext={tabStep.current < tabStep.count - 1}
+                showTabArrows={tabbedNav !== null}
                 end={<SearchTrigger />}
               />
               <main className="flex min-h-0 flex-1 flex-col overflow-hidden">

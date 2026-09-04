@@ -45,7 +45,7 @@ export function SurfaceTabs({
     <div
       role="tablist"
       className={cn(
-        'flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-border-default bg-background-main-default px-2',
+        'flex h-9 shrink-0 items-center gap-1 overflow-hidden border-b border-border-default bg-background-main-default px-2',
         className,
       )}
     >
