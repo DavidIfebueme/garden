@@ -343,7 +343,10 @@ export function BrainFilesPage() {
       id: string
       name?: string
       privacy?: 'private' | 'shared'
-    }) => updateBrainFolder(input.id, input),
+    }) =>
+      // The id belongs in the URL, not the body: the route's strict update
+      // schema rejects unknown keys, so forwarding `input` verbatim 400s.
+      updateBrainFolder(input.id, { name: input.name, privacy: input.privacy }),
     onSuccess: (folder) => {
       queryClient.setQueryData<BrainFolderSummary[]>(
         brainFolderKeys.list(),

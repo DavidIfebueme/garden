@@ -1433,6 +1433,48 @@ describe('BrainFilesPage', () => {
     expect(items[3]).toHaveAttribute('aria-disabled', 'true')
   })
 
+  it('renames a folder from the card menu', async () => {
+    const user = userEvent.setup()
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'private' as const,
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockListBrainFolders.mockResolvedValue([folder])
+    mockUpdateBrainFolder.mockResolvedValue({ ...folder, name: 'Renamed Case' })
+
+    renderFilesPage()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Folder actions for Test Case',
+      }),
+    )
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
+
+    const dialog = await screen.findByRole('dialog')
+    const nameInput = within(dialog).getByLabelText(/Folder Name/)
+    expect(nameInput).toHaveValue('Test Case')
+
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Renamed Case')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Save changes' }),
+    )
+
+    // The PATCH payload must not carry the folder id: the strict update
+    // schema rejects unknown keys, which turned every rename into a 400.
+    expect(mockUpdateBrainFolder).toHaveBeenCalledWith('folder-1', {
+      name: 'Renamed Case',
+      privacy: 'private',
+    })
+    expect(await screen.findByText('Renamed Case')).toBeInTheDocument()
+  })
+
   it('deletes a folder after confirmation', async () => {
     const user = userEvent.setup()
     const folder = {
