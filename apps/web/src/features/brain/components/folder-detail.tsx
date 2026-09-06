@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  Database,
   DotsThreeVertical,
   Download,
   Eye,
@@ -8,6 +9,7 @@ import {
   Folder as FolderIcon,
   Lock,
   Plus,
+  ShareNetwork,
   Trash,
   UploadSimple,
 } from '@phosphor-icons/react'
@@ -48,12 +50,12 @@ import { ViewModePill, type ViewMode } from './view-mode-pill'
  * Folders, folder title with brand folder glyph + privacy/count/size meta,
  * search + export toolbar with the shared grid/list pill, and the
  * five-column table (File name / Date uploaded / Time uploaded / Size /
- * Action) or a grid of KB-style file cards. The design's "Share" button,
- * "Filter" control, and header copy icon are omitted by scope decision —
- * none has backend support or defined behavior yet. The row/card action
- * carries the design's "Delete" label even though it detaches the file from
- * the folder; the confirm dialog states honestly that the file stays in the
- * knowledge base.
+ * Action) or a grid of KB-style file cards. The design's "Filter" control and
+ * header copy icon are omitted by scope decision — no backend support or
+ * defined behavior; the "Share" button renders disabled for the same reason.
+ * The row/card action carries the design's "Delete" label even though it
+ * detaches the file from the folder; the confirm dialog states honestly that
+ * the file stays in the knowledge base.
  */
 export function BrainFolderDetail({
   folderId,
@@ -196,6 +198,18 @@ export function BrainFolderDetail({
                   >
                     <Trash className="size-4" weight="regular" />
                   </Button>
+                  {/* Design frame order: delete, Share, Upload file. Folder
+                      sharing has no backend, so Share stays visible but
+                      disabled per product decision. */}
+                  <Button
+                    variant="outline"
+                    className="h-10 gap-2"
+                    disabled
+                    title="Sharing is not available yet"
+                  >
+                    <ShareNetwork className="size-4" weight="regular" />
+                    Share
+                  </Button>
                   <Button
                     className="h-10 gap-2"
                     disabled={uploading}
@@ -222,7 +236,7 @@ export function BrainFolderDetail({
                   disabled={detail.files.length === 0}
                   onClick={exportCsv}
                 >
-                  <Download className="size-4" weight="regular" />
+                  <Database className="size-4" weight="regular" />
                   Export Data
                 </Button>
 

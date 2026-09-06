@@ -1240,6 +1240,9 @@ describe('BrainFilesPage', () => {
     expect(screen.getByText('dots-payee.pdf')).toBeInTheDocument()
     expect(screen.getByText('07 July, 2024')).toBeInTheDocument()
     expect(screen.getByText('11 KB')).toBeInTheDocument()
+    // The design frame's Share button renders; sharing has no backend, so it
+    // stays disabled.
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
@@ -1688,6 +1691,35 @@ describe('BrainFilesPage', () => {
     for (const header of screen.getAllByRole('columnheader')) {
       expect(header).not.toHaveClass('border-l')
     }
+  })
+
+  it('shows the design toolbar in the all-files view with Filter disabled', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    const search = await screen.findByLabelText('Search files')
+    const filter = screen.getByRole('button', { name: 'Filter' })
+    const exportButton = screen.getByRole('button', { name: 'Export Data' })
+
+    // No filtering backend; the button stays visible but disabled.
+    expect(filter).toBeDisabled()
+    expect(
+      search.compareDocumentPosition(filter) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      filter.compareDocumentPosition(exportButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('keeps View and Delete out of the table row menu but on grid cards', async () => {

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import {
-  Download,
+  Database,
   Eye,
   Files,
+  FunnelSimple,
   Trash,
   UploadSimple,
 } from '@phosphor-icons/react'
@@ -33,9 +34,9 @@ import { ViewModePill, type ViewMode } from './view-mode-pill'
  * pills — with two deliberate deviations: Delete is the real file delete
  * (parent renders the destructive confirm; there is no folder to detach
  * from), and each row keeps the FileCardMenu beside the pills so Download and
- * Add to folder stay reachable. The design's Filter button and folder-only
- * header actions (Share, delete-folder) stay out — no backend support. Data
- * comes from the page's file-list query; no new endpoint.
+ * Add to folder stay reachable. The design's Filter button renders disabled
+ * (no filtering backend); folder-only header actions (Share, delete-folder)
+ * stay out. Data comes from the page's file-list query; no new endpoint.
  */
 export function BrainAllFilesView({
   files,
@@ -199,6 +200,19 @@ export function BrainAllFilesView({
               aria-label="Search files"
               className="h-8 w-full max-w-[21.25rem] rounded-lg border-transparent bg-background-main-secondary px-4 text-sm"
             />
+            {/* Design frame order: search, Filter, Export Data. File
+                filtering has no backend, so Filter stays visible but
+                disabled per product decision. */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2"
+              disabled
+              title="Filtering is not available yet"
+            >
+              <FunnelSimple className="size-4" weight="regular" />
+              Filter
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -206,7 +220,7 @@ export function BrainAllFilesView({
               disabled={files.length === 0}
               onClick={exportCsv}
             >
-              <Download className="size-4" weight="regular" />
+              <Database className="size-4" weight="regular" />
               Export Data
             </Button>
 
