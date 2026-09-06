@@ -176,10 +176,12 @@ export function FileStatusChip({
 /**
  * The design's five-column file table (File name / Date uploaded / Time
  * uploaded / Size / Action), shared by the folder detail view and the
- * all-files view. Action-cell content is a slot: folder detail passes its
- * Delete|View pills, all-files passes the FileCardMenu. When `retry` is
- * provided, a not-ready file also shows its FileStatusChip under the name —
- * folder detail omits it (design has no status column there).
+ * all-files view. Body rows separate columns with a vertical rule (left
+ * border on every cell but the first); the gray header band stays unbroken
+ * per product direction. Action-cell content is a slot: folder detail passes
+ * its Delete|View pills, all-files passes pills plus the FileCardMenu. When
+ * `retry` is provided, a not-ready file also shows its FileStatusChip under
+ * the name — folder detail omits it (design has no status column there).
  */
 export function FileListTable({
   files,
@@ -239,16 +241,16 @@ export function FileListTable({
                   {retry ? <FileStatusChip file={file} retry={retry} /> : null}
                 </span>
               </td>
-              <td className="px-6 py-5 text-center text-text-neutral-default">
+              <td className="border-l border-border-default px-6 py-5 text-center text-text-neutral-default">
                 {formatUploadedDate(file.uploadedAt)}
               </td>
-              <td className="px-6 py-5 text-center text-text-neutral-default">
+              <td className="border-l border-border-default px-6 py-5 text-center text-text-neutral-default">
                 {formatUploadedTime(file.uploadedAt)}
               </td>
-              <td className="px-6 py-5 text-center text-text-neutral-default">
+              <td className="border-l border-border-default px-6 py-5 text-center text-text-neutral-default">
                 {formatFileSize(file.sizeBytes)}
               </td>
-              <td className="px-6 py-5">
+              <td className="border-l border-border-default px-6 py-5">
                 <span className="flex items-center justify-center gap-2">
                   {renderActions(file)}
                 </span>

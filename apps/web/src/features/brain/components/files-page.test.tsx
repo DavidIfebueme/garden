@@ -1604,6 +1604,31 @@ describe('BrainFilesPage', () => {
     expect(mockRetryBrainFile).toHaveBeenCalledWith('failed-file-1')
   })
 
+  it('separates table columns with vertical lines in body rows only', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    const rows = await screen.findAllByRole('row')
+    const bodyCells = within(rows[1]!).getAllByRole('cell')
+    expect(bodyCells[0]).not.toHaveClass('border-l')
+    for (const cell of bodyCells.slice(1)) {
+      expect(cell).toHaveClass('border-l')
+    }
+
+    for (const header of screen.getAllByRole('columnheader')) {
+      expect(header).not.toHaveClass('border-l')
+    }
+  })
+
   it('keeps View and Delete out of the table row menu but on grid cards', async () => {
     // Submenu popups animate in with pointer-events disabled briefly.
     const user = userEvent.setup({ pointerEventsCheck: 0 })
