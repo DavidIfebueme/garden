@@ -94,7 +94,8 @@
     },
     "patchedDependencies": {
       "agents@0.17.3": "patches/agents@0.17.3.patch",
-      "@helix-db/helix-db@3.0.2": "patches/@helix-db__helix-db@3.0.2.patch"
+      "@helix-db/helix-db@3.0.2": "patches/@helix-db__helix-db@3.0.2.patch",
+      "miniflare@4.20260520.0": "patches/miniflare@4.20260520.0.patch"
     }
   },
   "dependencies": {
