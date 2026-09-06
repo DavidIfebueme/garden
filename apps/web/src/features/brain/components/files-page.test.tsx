@@ -1425,6 +1425,50 @@ describe('BrainFilesPage', () => {
     expect(screen.queryByText('saved-notes.txt')).not.toBeInTheDocument()
   })
 
+  it('orders the recent row and the all-files view newest-first', async () => {
+    const user = userEvent.setup()
+
+    // Deliberately oldest-first: the list API passes Helix order through
+    // unsorted, so the page must enforce recency itself.
+    renderFilesPage([
+      {
+        id: 'file-old',
+        name: 'oldest.txt',
+        status: 'ready',
+        uploadedAt: '2024-01-01T09:00:00.000Z',
+      },
+      {
+        id: 'file-new',
+        name: 'newest.txt',
+        status: 'ready',
+        uploadedAt: '2024-03-03T09:00:00.000Z',
+      },
+      {
+        id: 'file-mid',
+        name: 'middle.txt',
+        status: 'ready',
+        uploadedAt: '2024-02-02T09:00:00.000Z',
+      },
+    ])
+
+    const recentList = await recentFilesRegion()
+    const recentNames = within(recentList)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+    expect(recentNames[0]).toContain('newest.txt')
+    expect(recentNames[1]).toContain('middle.txt')
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    const rows = await screen.findAllByRole('row')
+    const bodyNames = rows
+      .slice(1)
+      .map((row) => within(row).queryByText(/\.txt$/)?.textContent)
+    expect(bodyNames).toEqual(['newest.txt', 'middle.txt', 'oldest.txt'])
+  })
+
   it('shows the view-all trigger only when files exceed the recent row', async () => {
     renderFilesPage([
       { id: 'file-1', name: 'one.txt', status: 'ready' },

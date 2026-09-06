@@ -200,7 +200,15 @@ export function BrainFilesPage() {
 
   const queryClient = useQueryClient()
   const filesQuery = useQuery(brainFileListOptions(sessionUploadIds))
-  const files = filesQuery.data ?? []
+  /**
+   * Newest upload first. The list route passes Helix's order straight through
+   * (no ORDER BY), so recency is enforced here at the display layer — this one
+   * sorted list feeds both the recent row and the all-files view. ISO strings
+   * sort lexicographically; a missing timestamp (synthetic rows) sinks last.
+   */
+  const files = [...(filesQuery.data ?? [])].sort((a, b) =>
+    (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? ''),
+  )
   const sessionUploadIdSet = new Set(sessionUploadIds)
   /** The Penpot top row shows the two newest uploads beside the dropzone. */
   const recentFiles = files.slice(0, 2)
