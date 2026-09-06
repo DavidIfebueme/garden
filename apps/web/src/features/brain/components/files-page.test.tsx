@@ -1616,14 +1616,12 @@ describe('BrainFilesPage', () => {
     await user.click(
       await screen.findByRole('button', { name: 'View all 3 files' }),
     )
-    await user.click(
-      await screen.findByRole('button', {
-        name: 'File actions for third.txt',
-      }),
+
+    // The design frame's Action column carries a Delete pill per row.
+    const row = (await screen.findAllByRole('row')).find(
+      (tableRow) => within(tableRow).queryByText('third.txt') !== null,
     )
-    await user.click(
-      await screen.findByRole('menuitem', { name: 'Delete file' }),
-    )
+    await user.click(within(row!).getByRole('button', { name: 'Delete' }))
 
     const dialog = await screen.findByRole('alertdialog')
     expect(dialog).toHaveTextContent(
@@ -1636,5 +1634,76 @@ describe('BrainFilesPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('third.txt')).not.toBeInTheDocument()
     })
+  })
+
+  it('uploads a file from the all-files view', async () => {
+    const user = userEvent.setup()
+    const file = new File(['Garden notes'], 'notes.txt', {
+      type: 'text/plain',
+    })
+    const inputClick = vi.spyOn(HTMLInputElement.prototype, 'click')
+
+    mockUploadBrainFile.mockImplementationOnce(() => new Promise(() => {}))
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Upload file' }))
+    expect(inputClick).toHaveBeenCalled()
+
+    await user.upload(
+      screen.getByLabelText('Choose a document to upload'),
+      file,
+    )
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent('notes.txt')
+
+    await confirmSelectedFile(user)
+
+    expect(mockUploadBrainFile).toHaveBeenCalledWith(file, expect.any(Function))
+  })
+
+  it('exports the full file list as CSV from the all-files view', async () => {
+    const user = userEvent.setup()
+    const createObjectURL = vi.fn(() => 'blob:mock')
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() })
+    let downloadName: string | undefined
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
+      function (this: HTMLAnchorElement) {
+        downloadName = this.download
+      },
+    )
+
+    renderFilesPage([
+      {
+        id: 'file-1',
+        name: 'report.pdf',
+        status: 'ready',
+        sizeBytes: 11_264,
+        uploadedAt: '2024-07-07T13:42:00.000Z',
+      },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Export Data' }))
+
+    expect(downloadName).toBe('All files.csv')
+    const blob = createObjectURL.mock.calls[0]?.[0] as Blob
+    const csv = await blob.text()
+    expect(csv).toContain('File name,Date uploaded,Time uploaded,Size')
+    expect(csv).toContain('"report.pdf",07 July, 2024')
+
+    vi.unstubAllGlobals()
   })
 })

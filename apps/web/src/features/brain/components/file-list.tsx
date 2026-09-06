@@ -188,20 +188,20 @@ export function FileListTable({
     <div className="overflow-hidden rounded-2xl border border-border-default">
       <table className="w-full table-fixed text-sm">
         <thead>
-          <tr className="bg-background-main-secondary text-left">
-            <th className="px-6 py-4 font-semibold text-text-neutral-default">
+          <tr className="bg-background-main-secondary">
+            <th className="px-6 py-4 text-center font-semibold text-text-neutral-default">
               File name
             </th>
-            <th className="px-6 py-4 font-semibold text-text-neutral-default">
+            <th className="px-6 py-4 text-center font-semibold text-text-neutral-default">
               Date uploaded
             </th>
-            <th className="px-6 py-4 font-semibold text-text-neutral-default">
+            <th className="px-6 py-4 text-center font-semibold text-text-neutral-default">
               Time uploaded
             </th>
-            <th className="px-6 py-4 font-semibold text-text-neutral-default">
+            <th className="px-6 py-4 text-center font-semibold text-text-neutral-default">
               Size
             </th>
-            <th className="px-6 py-4 text-right font-semibold text-text-neutral-default">
+            <th className="px-6 py-4 text-center font-semibold text-text-neutral-default">
               Action
             </th>
           </tr>
@@ -213,8 +213,10 @@ export function FileListTable({
               className="border-t border-border-default bg-background-main-default"
             >
               <td className="px-6 py-5">
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span className="flex min-w-0 items-center gap-2">
+                {/* The name block (icon + name + status chip) centers as one
+                    unit within its column, matching the design frame. */}
+                <span className="flex min-w-0 flex-col items-center gap-1">
+                  <span className="flex min-w-0 max-w-full items-center gap-2">
                     <BrainFileTypeIcon
                       fileName={file.name}
                       className="size-4.5 shrink-0"
@@ -229,17 +231,17 @@ export function FileListTable({
                   {retry ? <FileStatusChip file={file} retry={retry} /> : null}
                 </span>
               </td>
-              <td className="px-6 py-5 text-text-neutral-default">
+              <td className="px-6 py-5 text-center text-text-neutral-default">
                 {formatUploadedDate(file.uploadedAt)}
               </td>
-              <td className="px-6 py-5 text-text-neutral-default">
+              <td className="px-6 py-5 text-center text-text-neutral-default">
                 {formatUploadedTime(file.uploadedAt)}
               </td>
-              <td className="px-6 py-5 text-text-neutral-default">
+              <td className="px-6 py-5 text-center text-text-neutral-default">
                 {formatFileSize(file.sizeBytes)}
               </td>
               <td className="px-6 py-5">
-                <span className="flex justify-end gap-2">
+                <span className="flex items-center justify-center gap-2">
                   {renderActions(file)}
                 </span>
               </td>

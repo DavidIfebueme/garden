@@ -545,10 +545,12 @@ export function BrainFilesPage() {
         <BrainAllFilesView
           files={files}
           folders={folders}
+          uploading={uploadMutation.isPending}
           isListError={filesQuery.isError}
           isRefetchError={filesQuery.isRefetchError}
           isFetchingList={filesQuery.isFetching}
           onRetryList={() => void filesQuery.refetch()}
+          onUploadFile={() => openFilePicker()}
           retry={fileRetry}
           onBack={() => setAllFilesOpen(false)}
           onPreview={setPreviewFile}

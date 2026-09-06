@@ -1,10 +1,20 @@
 import { useMemo, useState } from 'react'
-import { Files } from '@phosphor-icons/react'
+import {
+  Download,
+  Eye,
+  Files,
+  Trash,
+  UploadSimple,
+} from '@phosphor-icons/react'
 import { Button } from '@garden/ui/components/ui/button'
 import { Input } from '@garden/ui/components/ui/input'
 import type { BrainFileSummary } from '../api'
 import type { BrainFolderSummary } from '../contract'
-import { formatFileSize } from '../format'
+import {
+  formatFileSize,
+  formatUploadedDate,
+  formatUploadedTime,
+} from '../format'
 import {
   FileCardMenu,
   FileGridCard,
@@ -17,21 +27,25 @@ import { ViewModePill, type ViewMode } from './view-mode-pill'
  * Full files list, reached via the "View all N files" affordance on the
  * recent-files row. The main page's design references carry no always-on file
  * list, so older files would be unreachable (no preview / delete / retry /
- * add-to-folder) without this drill-in. The view mirrors the folder-detail
- * frame — breadcrumb band, search, grid/list pill, and the shared five-column
- * table or card grid — but has no design board of its own, so the row action
- * is the existing FileCardMenu (View file / Download / Add to folder /
- * Delete) rather than folder detail's Delete|View pills, and Delete here is
- * the real file delete (parent renders the destructive confirm). Data comes
- * from the page's file-list query; no new endpoint.
+ * add-to-folder) without this drill-in. The view matches the folder-detail
+ * frame — breadcrumb band, header with Upload file, search + Export Data
+ * toolbar, grid/list pill, and the shared five-column table with Delete|View
+ * pills — with two deliberate deviations: Delete is the real file delete
+ * (parent renders the destructive confirm; there is no folder to detach
+ * from), and each row keeps the FileCardMenu beside the pills so Download and
+ * Add to folder stay reachable. The design's Filter button and folder-only
+ * header actions (Share, delete-folder) stay out — no backend support. Data
+ * comes from the page's file-list query; no new endpoint.
  */
 export function BrainAllFilesView({
   files,
   folders,
+  uploading,
   isListError,
   isRefetchError,
   isFetchingList,
   onRetryList,
+  onUploadFile,
   retry,
   onBack,
   onPreview,
@@ -40,10 +54,12 @@ export function BrainAllFilesView({
 }: {
   files: readonly BrainFileSummary[]
   folders: readonly BrainFolderSummary[]
+  uploading: boolean
   isListError: boolean
   isRefetchError: boolean
   isFetchingList: boolean
   onRetryList: () => void
+  onUploadFile: () => void
   retry: FileRetryState
   onBack: () => void
   onPreview: (file: BrainFileSummary) => void
@@ -64,6 +80,28 @@ export function BrainAllFilesView({
     () => files.reduce((sum, file) => sum + (file.sizeBytes ?? 0), 0),
     [files],
   )
+
+  /** Same CSV shape as the folder detail export, named for this view. */
+  const exportCsv = () => {
+    const header = 'File name,Date uploaded,Time uploaded,Size\n'
+    const rows = files
+      .map((file) =>
+        [
+          `"${file.name.replaceAll('"', '""')}"`,
+          formatUploadedDate(file.uploadedAt),
+          formatUploadedTime(file.uploadedAt),
+          file.sizeBytes ?? '',
+        ].join(','),
+      )
+      .join('\n')
+    const blob = new Blob([header + rows], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'All files.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
 
   const renderMenu = (file: BrainFileSummary) => (
     <FileCardMenu
@@ -99,19 +137,30 @@ export function BrainAllFilesView({
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6 px-6 py-8">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 className="flex min-w-0 items-center gap-2.5 text-2xl font-semibold tracking-[-0.04em] text-text-neutral-default">
-              <Files
-                className="size-5 shrink-0 text-text-brand-secondary"
-                weight="fill"
-                aria-hidden="true"
-              />
-              <span className="truncate">All files</span>
-            </h2>
-            <p className="text-sm text-text-secondary">
-              {files.length} {files.length === 1 ? 'file' : 'files'} (
-              {formatFileSize(totalSize)})
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <h2 className="flex min-w-0 items-center gap-2.5 text-2xl font-semibold tracking-[-0.04em] text-text-neutral-default">
+                <Files
+                  className="size-5 shrink-0 text-text-brand-secondary"
+                  weight="fill"
+                  aria-hidden="true"
+                />
+                <span className="truncate">All files</span>
+              </h2>
+              <p className="text-sm text-text-secondary">
+                {files.length} {files.length === 1 ? 'file' : 'files'} (
+                {formatFileSize(totalSize)})
+              </p>
+            </div>
+
+            <Button
+              className="h-10 gap-2"
+              disabled={uploading}
+              onClick={onUploadFile}
+            >
+              <UploadSimple className="size-4" weight="regular" />
+              Upload file
+            </Button>
           </div>
 
           {isListError ? (
@@ -140,6 +189,16 @@ export function BrainAllFilesView({
               aria-label="Search files"
               className="h-8 w-full max-w-[21.25rem] rounded-lg border-transparent bg-background-main-secondary px-4 text-sm"
             />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2"
+              disabled={files.length === 0}
+              onClick={exportCsv}
+            >
+              <Download className="size-4" weight="regular" />
+              Export Data
+            </Button>
 
             <div className="ml-auto">
               <ViewModePill
@@ -172,7 +231,30 @@ export function BrainAllFilesView({
               files={visibleFiles}
               search={search}
               retry={retry}
-              renderActions={renderMenu}
+              renderActions={(file) => (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => onDelete(file)}
+                  >
+                    <Trash className="size-3.5" weight="regular" />
+                    Delete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    disabled={file.status !== 'ready'}
+                    onClick={() => onPreview(file)}
+                  >
+                    <Eye className="size-3.5" weight="regular" />
+                    View
+                  </Button>
+                  {renderMenu(file)}
+                </>
+              )}
             />
           )}
         </div>
