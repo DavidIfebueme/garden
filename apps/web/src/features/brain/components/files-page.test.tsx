@@ -1604,6 +1604,53 @@ describe('BrainFilesPage', () => {
     expect(mockRetryBrainFile).toHaveBeenCalledWith('failed-file-1')
   })
 
+  it('keeps View and Delete out of the table row menu but on grid cards', async () => {
+    // Submenu popups animate in with pointer-events disabled briefly.
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    // Table rows carry Delete|View pills, so the ⋯ menu skips both.
+    await user.click(
+      await screen.findByRole('button', { name: 'File actions for third.txt' }),
+    )
+    expect(
+      await screen.findByRole('menuitem', { name: 'Download' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('menuitem', { name: /add to folder/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('menuitem', { name: 'View file' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('menuitem', { name: 'Delete file' }),
+    ).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    // Grid cards have no pills, so their ⋯ menu keeps the full action set.
+    await user.click(
+      screen.getByRole('button', { name: 'All files: grid view' }),
+    )
+    await user.click(
+      await screen.findByRole('button', { name: 'File actions for third.txt' }),
+    )
+    expect(
+      await screen.findByRole('menuitem', { name: 'View file' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('menuitem', { name: 'Delete file' }),
+    ).toBeInTheDocument()
+  })
+
   it('deletes a file from the all-files view after confirmation', async () => {
     const user = userEvent.setup()
 

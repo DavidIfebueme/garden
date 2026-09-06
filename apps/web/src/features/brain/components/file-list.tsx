@@ -40,27 +40,29 @@ export type FileRetryState = {
 }
 
 /**
- * The honest ⋯ file menu shared by the recent-file cards and the all-files
- * view: View file / Download / Add to folder / Delete file. The design also
- * lists Edit and Add to knowledge base; neither maps to existing behavior (no
- * file rename API, and these files already live in the workspace knowledge
- * base), so they stay out per scope decision. (Moved here from files-page.tsx
- * when the all-files view became the third consumer.)
+ * The honest ⋯ file menu: Download / Add to folder always; View file and
+ * Delete file render only when their handlers are passed. Table rows in the
+ * all-files view omit both because the design frame's Delete|View pills
+ * already carry those actions beside the menu; surfaces without pills
+ * (recent cards, grid cards) pass the handlers and keep the full menu. The
+ * design also lists Edit and Add to knowledge base; neither maps to existing
+ * behavior (no file rename API, and these files already live in the workspace
+ * knowledge base), so they stay out per scope decision.
  */
 export function FileCardMenu({
   uploadedFile,
   folders,
-  canPreview,
+  canPreview = false,
   onPreview,
   onAddToFolder,
   onDelete,
 }: {
   uploadedFile: BrainFileSummary
   folders: readonly BrainFolderSummary[]
-  canPreview: boolean
-  onPreview: (file: BrainFileSummary) => void
+  canPreview?: boolean
+  onPreview?: (file: BrainFileSummary) => void
   onAddToFolder: (file: BrainFileSummary, folderId: string) => void
-  onDelete: (file: BrainFileSummary) => void
+  onDelete?: (file: BrainFileSummary) => void
 }) {
   return (
     <DropdownMenu>
@@ -71,13 +73,15 @@ export function FileCardMenu({
         <DotsThreeVertical className="size-4" weight="regular" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          disabled={!canPreview}
-          onClick={() => onPreview(uploadedFile)}
-        >
-          <Eye />
-          View file
-        </DropdownMenuItem>
+        {onPreview ? (
+          <DropdownMenuItem
+            disabled={!canPreview}
+            onClick={() => onPreview(uploadedFile)}
+          >
+            <Eye />
+            View file
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           onClick={() => {
             const anchor = document.createElement('a')
@@ -106,14 +110,18 @@ export function FileCardMenu({
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => onDelete(uploadedFile)}
-        >
-          <Trash />
-          Delete file
-        </DropdownMenuItem>
+        {onDelete ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDelete(uploadedFile)}
+            >
+              <Trash />
+              Delete file
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

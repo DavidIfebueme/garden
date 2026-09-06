@@ -103,7 +103,8 @@ export function BrainAllFilesView({
     URL.revokeObjectURL(url)
   }
 
-  const renderMenu = (file: BrainFileSummary) => (
+  /** Grid cards have no pills, so their ⋯ menu keeps View file / Delete file. */
+  const renderCardMenu = (file: BrainFileSummary) => (
     <FileCardMenu
       uploadedFile={file}
       folders={folders}
@@ -111,6 +112,15 @@ export function BrainAllFilesView({
       onPreview={onPreview}
       onAddToFolder={onAddToFolder}
       onDelete={onDelete}
+    />
+  )
+
+  /** Table rows already carry Delete|View pills; the ⋯ menu adds the rest. */
+  const renderRowMenu = (file: BrainFileSummary) => (
+    <FileCardMenu
+      uploadedFile={file}
+      folders={folders}
+      onAddToFolder={onAddToFolder}
     />
   )
 
@@ -216,7 +226,7 @@ export function BrainAllFilesView({
                   key={file.id}
                   file={file}
                   onPreview={onPreview}
-                  menu={renderMenu(file)}
+                  menu={renderCardMenu(file)}
                   retry={retry}
                 />
               ))}
@@ -252,7 +262,7 @@ export function BrainAllFilesView({
                     <Eye className="size-3.5" weight="regular" />
                     View
                   </Button>
-                  {renderMenu(file)}
+                  {renderRowMenu(file)}
                 </>
               )}
             />
