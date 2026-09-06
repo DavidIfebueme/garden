@@ -1369,6 +1369,67 @@ describe('BrainFilesPage', () => {
     })
   })
 
+  it('orders the folder header actions per design (filter, pill, create)', async () => {
+    renderFilesPage()
+
+    const foldersRegion = await screen.findByRole('region', {
+      name: 'Folders',
+    })
+    const filter = within(foldersRegion).getByRole('button', {
+      name: 'Filter folders',
+    })
+    const pill = within(foldersRegion).getByRole('group', {
+      name: 'Folders view mode',
+    })
+    const create = within(foldersRegion).getAllByRole('button', {
+      name: /create a folder/i,
+    })[0]!
+
+    // No folder filtering backend exists, so the funnel stays disabled.
+    expect(filter).toBeDisabled()
+    expect(
+      filter.compareDocumentPosition(pill) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      pill.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('orders folder card actions per design with unavailable ones disabled', async () => {
+    const user = userEvent.setup()
+
+    mockListBrainFolders.mockResolvedValue([
+      {
+        id: 'folder-1',
+        name: 'Test Case',
+        privacy: 'private',
+        fileCount: 0,
+        createdByName: 'Fred',
+        createdAt: new Date().toISOString(),
+      },
+    ])
+
+    renderFilesPage()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Folder actions for Test Case',
+      }),
+    )
+
+    const items = await screen.findAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual([
+      'View',
+      'Rename',
+      'Download',
+      'Make a knowledge base',
+      'Delete folder',
+    ])
+    // No backend for these two; they stay visible but disabled.
+    expect(items[2]).toHaveAttribute('aria-disabled', 'true')
+    expect(items[3]).toHaveAttribute('aria-disabled', 'true')
+  })
+
   it('deletes a folder after confirmation', async () => {
     const user = userEvent.setup()
     const folder = {

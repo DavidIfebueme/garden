@@ -1,7 +1,12 @@
 import {
+  ArrowsClockwise,
+  Download,
+  Eye,
   Folder as FolderIcon,
   Lock,
+  PencilSimple,
   DotsThreeVertical,
+  Trash,
 } from '@phosphor-icons/react'
 import {
   DropdownMenu,
@@ -14,10 +19,12 @@ import type { BrainFolderSummary } from '../contract'
 
 /**
  * One folder tile in the Folders grid (Penpot populated frame): 72px gray
- * card, folder glyph + name + "Private · N files" meta, and a ⋯ menu carrying
- * the design's folder actions that exist this pass (View / Rename / Delete).
- * `layout="list"` stretches the same card to full width for the design's
- * list-view toggle.
+ * card, folder glyph + name + "Private · N files" meta, and a ⋯ menu in the
+ * design's order (View / Rename / Download / Make a knowledge base / Delete
+ * folder, with icons). Folder download and make-a-knowledge-base have no
+ * backend, so they render disabled per product decision rather than being
+ * dropped. `layout="list"` stretches the same card to full width for the
+ * design's list-view toggle.
  */
 export function BrainFolderCard({
   folder,
@@ -76,18 +83,29 @@ export function BrainFolderCard({
           >
             <DotsThreeVertical className="size-5" weight="regular" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={() => onOpen(folder)}>
+              <Eye className="size-4" weight="regular" />
               View
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onRename(folder)}>
+              <PencilSimple className="size-4" weight="regular" />
               Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled title="Not available yet">
+              <Download className="size-4" weight="regular" />
+              Download
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled title="Not available yet">
+              <ArrowsClockwise className="size-4" weight="regular" />
+              Make a knowledge base
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
               onClick={() => onDelete(folder)}
             >
+              <Trash className="size-4" weight="regular" />
               Delete folder
             </DropdownMenuItem>
           </DropdownMenuContent>

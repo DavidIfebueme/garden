@@ -7,6 +7,7 @@ import {
   Plus,
   ArrowRight,
 } from 'lucide-react'
+import { FunnelSimple } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -739,12 +740,17 @@ export function BrainFilesPage() {
               </div>
 
               <div className="flex items-center gap-4">
+                {/* Design order: filter, view pill, create. Folder filtering
+                    has no backend, so the funnel stays visible but disabled
+                    per product decision. */}
                 <Button
-                  className="h-10 gap-2"
-                  onClick={() => setFolderDialog({})}
+                  variant="outline"
+                  size="icon-lg"
+                  disabled
+                  aria-label="Filter folders"
+                  title="Filtering is not available yet"
                 >
-                  <Plus className="size-4" />
-                  Create a folder
+                  <FunnelSimple className="size-4" weight="regular" />
                 </Button>
 
                 <ViewModePill
@@ -752,6 +758,14 @@ export function BrainFilesPage() {
                   onChange={setFoldersView}
                   label="Folders"
                 />
+
+                <Button
+                  className="h-10 gap-2"
+                  onClick={() => setFolderDialog({})}
+                >
+                  <Plus className="size-4" />
+                  Create a folder
+                </Button>
               </div>
             </div>
           </div>
