@@ -127,11 +127,18 @@ const remoteBindings = process.env.CLOUDFLARE_VITE_REMOTE_BINDINGS !== '0'
 const postHogSourcemapApiKey = process.env.POSTHOG_CLI_API_KEY
 const postHogSourcemapProjectId = process.env.POSTHOG_CLI_PROJECT_ID
 const postHogSourcemapHost = process.env.POSTHOG_HOST
-const postHogReleaseVersion =
-  process.env.POSTHOG_RELEASE_VERSION ??
-  process.env.WORKERS_CI_COMMIT_SHA ??
-  process.env.CF_PAGES_COMMIT_SHA ??
-  process.env.GITHUB_SHA
+// First non-empty wins, not first-defined: a local `.env` with an empty
+// `POSTHOG_RELEASE_VERSION=` placeholder used to leak `''` through `??` into
+// `__GARDEN_RELEASE_VERSION__`. Dev bundles then reported `''` instead of
+// `'development'`, so app-version.ts started polling `/garden-version.json`
+// every 60s — a manifest emitted only at build time — and every poll 500'd
+// through TanStack Start's "Only HTML requests are supported here".
+const postHogReleaseVersion = [
+  process.env.POSTHOG_RELEASE_VERSION,
+  process.env.WORKERS_CI_COMMIT_SHA,
+  process.env.CF_PAGES_COMMIT_SHA,
+  process.env.GITHUB_SHA,
+].find((value) => value !== undefined && value.trim() !== '')
 const gardenReleaseVersion = postHogReleaseVersion ?? 'development'
 const requirePostHogSourcemaps = process.env.GARDEN_REQUIRE_POSTHOG === '1'
 const baseLogger = createLogger()
