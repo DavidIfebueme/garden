@@ -77,7 +77,8 @@ export function BrainFolderDialog({
         if (!open && !pending) onClose()
       }}
     >
-      <DialogContent className="gap-6 rounded-2xl p-6 sm:max-w-[37rem]">
+      {/* Design dialog is 512px wide. */}
+      <DialogContent className="gap-6 rounded-2xl p-6 sm:max-w-[32rem]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-text-neutral-default">
             {editing ? 'Rename folder' : 'Create a folder'}
