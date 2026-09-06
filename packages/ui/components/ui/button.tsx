@@ -16,7 +16,11 @@ const buttonVariants = cva(
         ghost:
           'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
         destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+          // Dark mode: --destructive is the deep danger red (#c00f0c), which
+          // as text on the 20% danger wash measured ~2.7:1 — far below WCAG
+          // AA. Switch dark-mode text to the lighter danger tone used by the
+          // app's error text (#f4776a, ~6:1 on the wash).
+          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:text-text-danger-secondary dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
