@@ -32,7 +32,7 @@ import type { MemberRole } from '@garden/core/types'
  * copy + role badge, Settings / Invite members actions, Theme segmented
  * control (System/Light/Dark), an expandable "Add workspace" row that carries
  * workspace switching + creation, and Sign out. The card itself shows avatar +
- * name + role badge (design's profile strip).
+ * name only; the role badge is exclusive to the flyout's User ID row.
  */
 
 const themeOptions = [
@@ -100,11 +100,8 @@ export function UserCard({
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-neutral-default">
               {user.name}
             </span>
-            {role ? (
-              <span className="rounded-pill bg-badge-blue-background px-1.5 py-0.5 text-[10px] font-medium text-badge-blue-text">
-                {roleLabel(role)}
-              </span>
-            ) : null}
+            {/* Role badge lives only in the expanded flyout (User ID row);
+                the collapsed profile strip stays avatar + name. */}
             <CaretUpDown className="size-3.5 shrink-0 text-icon-neutral-tertiary" />
           </>
         ) : null}
