@@ -1,7 +1,7 @@
 /**
  * Display formatting for the Files & Folders surface. The Penpot table shows
- * "07 July, 2024" / "13:42" style columns and cards show "1 hr ago" relative
- * times and "24 KB" sizes.
+ * "07 July, 2024" / "02:23 AM" style columns and cards show "1 hr ago"
+ * relative times and "24 KB" sizes.
  */
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -10,9 +10,10 @@ const dateFormatter = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 })
 
-const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+const timeFormatter = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit',
   minute: '2-digit',
+  hour12: true,
 })
 
 /**
@@ -27,6 +28,10 @@ export function formatUploadedDate(iso: string | undefined): string {
   return `${valueOf('day')} ${valueOf('month')}, ${valueOf('year')}`
 }
 
+/**
+ * Renders the Penpot "Time uploaded" format ("02:23 AM"): 12-hour clock with
+ * an AM/PM suffix, matching the folder table reference.
+ */
 export function formatUploadedTime(iso: string | undefined): string {
   if (iso === undefined) return '—'
   return timeFormatter.format(new Date(iso))

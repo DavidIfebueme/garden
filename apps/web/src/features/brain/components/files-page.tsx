@@ -1,10 +1,4 @@
-import {
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type ReactNode,
-} from 'react'
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -47,6 +41,7 @@ import {
 import { BrainFileTypeIcon } from './file-type-icon'
 import {
   addFileToBrainFolder,
+  brainFileDownloadUrl,
   createBrainFolder,
   deleteBrainFile,
   deleteBrainFolder,
@@ -72,11 +67,10 @@ import { BrainFileUploadDialog } from './file-upload-dialog'
 import { BrainFolderDialog } from './folder-dialog'
 import { BrainFolderCard } from './folder-card'
 import { BrainFolderDetail } from './folder-detail'
+import { PdfThumbnail } from './pdf-file-preview'
+import { ViewModePill, type ViewMode } from './view-mode-pill'
 
 type FolderScope = 'all' | 'private' | 'shared'
-
-/** Section layout driven by the design's squares-four/list-dashes toggles. */
-type ViewMode = 'grid' | 'list'
 
 const FOLDER_TABS: readonly { id: FolderScope; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -84,53 +78,86 @@ const FOLDER_TABS: readonly { id: FolderScope; label: string }[] = [
   { id: 'shared', label: 'Shared' },
 ]
 
-function fileDownloadUrl(file: BrainFileSummary) {
-  return `/api/brain/files/${encodeURIComponent(file.id)}/content?download`
-}
-
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
 /**
- * The Folders section's segmented view toggle from the Penpot header (74×40
- * pill, white active segment): squares-four for the card grid, list-dashes
- * for full-width rows.
+ * The honest ⋯ file menu shared by the KB cards and the recent-file cards:
+ * View file / Download / Add to folder / Delete file. The design also lists
+ * Edit and Add to knowledge base; neither maps to existing behavior (no file
+ * rename API, and these files already live in the workspace knowledge base),
+ * so they stay out per scope decision.
  */
-function ViewModePill({
-  mode,
-  onChange,
-  label,
+function FileCardMenu({
+  uploadedFile,
+  folders,
+  canPreview,
+  onPreview,
+  onAddToFolder,
+  onDelete,
 }: {
-  mode: ViewMode
-  onChange: (mode: ViewMode) => void
-  label: string
+  uploadedFile: BrainFileSummary
+  folders: readonly BrainFolderSummary[]
+  canPreview: boolean
+  onPreview: (file: BrainFileSummary) => void
+  onAddToFolder: (file: BrainFileSummary, folderId: string) => void
+  onDelete: (file: BrainFileSummary) => void
 }) {
-  const segment = (segmentMode: ViewMode, icon: ReactNode) => (
-    <button
-      type="button"
-      aria-pressed={mode === segmentMode}
-      aria-label={`${label}: ${segmentMode} view`}
-      onClick={() => onChange(segmentMode)}
-      className={
-        mode === segmentMode
-          ? 'flex size-8 cursor-pointer items-center justify-center rounded-md bg-background-main-default text-icon-neutral-default'
-          : 'flex size-8 cursor-pointer items-center justify-center rounded-md text-icon-neutral-secondary transition-colors hover:text-icon-neutral-default'
-      }
-    >
-      {icon}
-    </button>
-  )
-
   return (
-    <div
-      role="group"
-      aria-label={`${label} view mode`}
-      className="flex h-10 items-center gap-1 rounded-lg bg-background-main-secondary p-1"
-    >
-      {segment('grid', <SquaresFour className="size-4" weight="regular" />)}
-      {segment('list', <ListDashes className="size-4" weight="regular" />)}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`File actions for ${uploadedFile.name}`}
+        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
+      >
+        <DotsThreeVertical className="size-4" weight="regular" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          disabled={!canPreview}
+          onClick={() => onPreview(uploadedFile)}
+        >
+          <Eye />
+          View file
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            const anchor = document.createElement('a')
+            anchor.href = brainFileDownloadUrl(uploadedFile)
+            anchor.download = uploadedFile.name
+            anchor.click()
+          }}
+        >
+          <Download />
+          Download
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger disabled={folders.length === 0}>
+            <FolderPlus />
+            Add to folder
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-44">
+            {folders.map((folder) => (
+              <DropdownMenuItem
+                key={folder.id}
+                onClick={() => onAddToFolder(uploadedFile, folder.id)}
+              >
+                <FolderIcon />
+                <span className="min-w-0 truncate">{folder.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => onDelete(uploadedFile)}
+        >
+          <Trash />
+          Delete file
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -192,59 +219,14 @@ function BrainFileCard({
   )
 
   const menu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`File actions for ${uploadedFile.name}`}
-        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
-      >
-        <DotsThreeVertical className="size-4" weight="regular" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          disabled={!canPreview}
-          onClick={() => onPreview(uploadedFile)}
-        >
-          <Eye />
-          View file
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            const anchor = document.createElement('a')
-            anchor.href = fileDownloadUrl(uploadedFile)
-            anchor.download = uploadedFile.name
-            anchor.click()
-          }}
-        >
-          <Download />
-          Download
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger disabled={folders.length === 0}>
-            <FolderPlus />
-            Add to folder
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-44">
-            {folders.map((folder) => (
-              <DropdownMenuItem
-                key={folder.id}
-                onClick={() => onAddToFolder(uploadedFile, folder.id)}
-              >
-                <FolderIcon />
-                <span className="min-w-0 truncate">{folder.name}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => onDelete(uploadedFile)}
-        >
-          <Trash />
-          Delete file
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <FileCardMenu
+      uploadedFile={uploadedFile}
+      folders={folders}
+      canPreview={canPreview}
+      onPreview={onPreview}
+      onAddToFolder={onAddToFolder}
+      onDelete={onDelete}
+    />
   )
 
   const statusLine = (
@@ -313,12 +295,93 @@ function BrainFileCard({
 }
 
 /**
+ * Card thumbnail body: page 1 of a ready PDF through the shared pdfjs cache;
+ * any other type (or a file still processing) degrades to the type glyph.
+ */
+function FileCardThumbnail({ file }: { file: BrainFileSummary }) {
+  const fallback = (
+    <span className="flex h-full items-center justify-center">
+      <BrainFileTypeIcon fileName={file.name} className="size-8" />
+    </span>
+  )
+
+  if (file.status !== 'ready' || !file.name.toLowerCase().endsWith('.pdf')) {
+    return fallback
+  }
+
+  return <PdfThumbnail fileId={file.id} fallback={fallback} />
+}
+
+/**
+ * One of the two most recent files beside the dropzone (Penpot top row shows
+ * document preview cards next to the upload card): name strip over a rendered
+ * thumbnail. A quick-access mirror of the Knowledge Base list below; indexing
+ * status and retry stay on the KB cards so this card can stay visual.
+ */
+function RecentFileCard({
+  uploadedFile,
+  folders,
+  onAddToFolder,
+  onDelete,
+  onPreview,
+}: {
+  uploadedFile: BrainFileSummary
+  folders: readonly BrainFolderSummary[]
+  onAddToFolder: (file: BrainFileSummary, folderId: string) => void
+  onDelete: (file: BrainFileSummary) => void
+  onPreview: (file: BrainFileSummary) => void
+}) {
+  const canPreview = uploadedFile.status === 'ready'
+
+  return (
+    <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
+      <div className="flex items-center gap-2 bg-border-default px-3 py-2">
+        <button
+          type="button"
+          disabled={!canPreview}
+          onClick={() => onPreview(uploadedFile)}
+          aria-label={`Preview ${uploadedFile.name}`}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
+        >
+          <BrainFileTypeIcon fileName={uploadedFile.name} className="size-4" />
+          <span
+            className="min-w-0 truncate text-sm text-text-neutral-default"
+            title={uploadedFile.name}
+          >
+            {truncateMiddle(uploadedFile.name, 36)}
+          </span>
+        </button>
+        <FileCardMenu
+          uploadedFile={uploadedFile}
+          folders={folders}
+          canPreview={canPreview}
+          onPreview={onPreview}
+          onAddToFolder={onAddToFolder}
+          onDelete={onDelete}
+        />
+      </div>
+
+      <button
+        type="button"
+        disabled={!canPreview}
+        onClick={() => onPreview(uploadedFile)}
+        aria-label={`Open preview of ${uploadedFile.name}`}
+        className="block h-[7.25rem] w-full cursor-pointer overflow-hidden disabled:cursor-default"
+      >
+        <FileCardThumbnail file={uploadedFile} />
+      </button>
+    </li>
+  )
+}
+
+/**
  * Files & Folders page (Penpot "Files & Folders [DEV READY]"): header band,
- * upload dropzone, Folders section with All/Private/Shared scope tabs, the
- * create-folder dialog, and the Knowledge Base section with per-file actions.
- * Both sections carry the design's grid/list view toggles; the KB header also
- * repeats the "Setup knowledge base" upload entry point. Folder selection
- * swaps the sections for the folder detail table.
+ * upload dropzone with the two most recent files beside it, Folders section
+ * with All/Private/Shared scope tabs, the create-folder dialog, and the
+ * Knowledge Base section with per-file actions. Both sections carry the
+ * design's grid/list view toggles; the KB header also repeats the "Setup
+ * knowledge base" upload entry point. Folder selection swaps the sections for
+ * the folder detail view.
  */
 export function BrainFilesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -353,6 +416,8 @@ export function BrainFilesPage() {
   const filesQuery = useQuery(brainFileListOptions(sessionUploadIds))
   const files = filesQuery.data ?? []
   const sessionUploadIdSet = new Set(sessionUploadIds)
+  /** The Penpot top row shows the two newest uploads beside the dropzone. */
+  const recentFiles = files.slice(0, 2)
 
   const foldersQuery = useQuery(brainFolderListOptions())
   const folders = foldersQuery.data ?? []
@@ -681,27 +746,49 @@ export function BrainFilesPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-10 px-6 py-8">
-        {/* Dropzone (design: 520×152 dashed gray card) */}
+        {/* Top row (design: 520×152 dashed dropzone + recent document cards) */}
         <section aria-label="Upload">
-          <button
-            type="button"
-            disabled={uploadMutation.isPending}
-            onClick={() => openFilePicker()}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={handleDrop}
-            className="flex h-[9.5rem] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-default bg-background-main-secondary text-center transition-colors hover:bg-background-main-secondary-hover disabled:cursor-wait disabled:opacity-70 sm:w-[32.5rem]"
-          >
-            <FilePlus className="size-6 text-text-neutral-default" />
+          <div className="flex flex-wrap items-start gap-4">
+            <button
+              type="button"
+              disabled={uploadMutation.isPending}
+              onClick={() => openFilePicker()}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop}
+              className="flex h-[9.5rem] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-default bg-background-main-secondary text-center transition-colors hover:bg-background-main-secondary-hover disabled:cursor-wait disabled:opacity-70 sm:w-[32.5rem]"
+            >
+              <FilePlus className="size-6 text-text-neutral-default" />
 
-            <span className="flex flex-col gap-1">
-              <span className="text-sm text-text-neutral-default">
-                Add your documents or drag &amp; drop it here
+              <span className="flex flex-col gap-1">
+                <span className="text-sm text-text-neutral-default">
+                  Add your documents or drag &amp; drop it here
+                </span>
+                <span className="text-sm text-text-secondary">
+                  Sample docs include: docx, xlx, pdf, etc.
+                </span>
               </span>
-              <span className="text-sm text-text-secondary">
-                Sample docs include: docx, xlx, pdf, etc.
-              </span>
-            </span>
-          </button>
+            </button>
+
+            {recentFiles.length > 0 ? (
+              <ul aria-label="Recent files" className="flex flex-wrap gap-4">
+                {recentFiles.map((file) => (
+                  <RecentFileCard
+                    key={file.id}
+                    uploadedFile={file}
+                    folders={folders}
+                    onPreview={setPreviewFile}
+                    onAddToFolder={(fileToAdd, folderId) =>
+                      addToFolderMutation.mutate({
+                        folderId,
+                        fileId: fileToAdd.id,
+                      })
+                    }
+                    onDelete={setPendingDeleteFile}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </div>
 
           {uploadError ? (
             <p role="alert" className="mt-3 text-sm text-text-danger-secondary">

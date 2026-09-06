@@ -198,6 +198,15 @@ export async function getBrainFileExtractedText(id: string): Promise<string> {
 }
 
 /**
+ * Browser-navigable URL for the content route with the download disposition.
+ * Used by anchor-based downloads (file menus, folder detail), which ride the
+ * session cookie instead of the fetch transport's workspace header.
+ */
+export function brainFileDownloadUrl(file: { id: string }) {
+  return `/api/brain/files/${encodeURIComponent(file.id)}/content?download`
+}
+
+/**
  * Loads binary file content through the workspace-scoped content route.
  * PDF.js needs the original bytes instead of decoded text.
  */

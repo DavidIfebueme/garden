@@ -1,11 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { formatFileSize, formatUploadedDate, truncateMiddle } from './format'
+import {
+  formatFileSize,
+  formatUploadedDate,
+  formatUploadedTime,
+  truncateMiddle,
+} from './format'
 
 describe('formatUploadedDate', () => {
   it('renders the designed comma format', () => {
     expect(formatUploadedDate(undefined)).toBe('—')
     expect(formatUploadedDate('2024-07-07T13:42:00.000Z')).toMatch(
       /^\d{2} [A-Za-z]+, \d{4}$/,
+    )
+  })
+})
+
+describe('formatUploadedTime', () => {
+  it('renders the designed 12-hour AM/PM format', () => {
+    expect(formatUploadedTime(undefined)).toBe('—')
+    // Local-time constructor keeps the expectation timezone-independent.
+    expect(formatUploadedTime(new Date(2024, 6, 7, 14, 23).toISOString())).toBe(
+      '02:23 PM',
+    )
+    expect(formatUploadedTime(new Date(2024, 6, 7, 2, 23).toISOString())).toBe(
+      '02:23 AM',
     )
   })
 })

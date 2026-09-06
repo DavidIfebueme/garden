@@ -1,18 +1,37 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowLeft,
+  DotsThreeVertical,
   Download,
   Eye,
+  File as FileIcon,
+  Folder as FolderIcon,
   Lock,
   Plus,
   Trash,
   UploadSimple,
 } from '@phosphor-icons/react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@garden/ui/components/ui/alert-dialog'
 import { Button } from '@garden/ui/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@garden/ui/components/ui/dropdown-menu'
 import { Input } from '@garden/ui/components/ui/input'
 import { Skeleton } from '@garden/ui/components/ui/skeleton'
-import type { BrainFileSummary } from '../api'
+import { brainFileDownloadUrl, type BrainFileSummary } from '../api'
 import type { BrainFolderSummary } from '../contract'
 import { brainFolderDetailOptions } from '../queries'
 import {
@@ -22,15 +41,19 @@ import {
   truncateMiddle,
 } from '../format'
 import { BrainFileTypeIcon } from './file-type-icon'
+import { ViewModePill, type ViewMode } from './view-mode-pill'
 
 /**
  * Folder detail view (Penpot folder frame): breadcrumb back to Files &
- * Folders, folder title with privacy/count meta, search + export + upload
- * toolbar, and the five-column table (File name / Date uploaded / Time
- * uploaded / Size / Action). The design's "Share" button and "Filter" control
- * are omitted by scope decision — neither has backend support or defined
- * behavior yet — and the row action keeps the honest "Remove" label because
- * it detaches the file from the folder instead of deleting it.
+ * Folders, folder title with brand folder glyph + privacy/count/size meta,
+ * search + export toolbar with the shared grid/list pill, and the
+ * five-column table (File name / Date uploaded / Time uploaded / Size /
+ * Action) or a grid of KB-style file cards. The design's "Share" button,
+ * "Filter" control, and header copy icon are omitted by scope decision —
+ * none has backend support or defined behavior yet. The row/card action
+ * carries the design's "Delete" label even though it detaches the file from
+ * the folder; the confirm dialog states honestly that the file stays in the
+ * knowledge base.
  */
 export function BrainFolderDetail({
   folderId,
@@ -52,6 +75,10 @@ export function BrainFolderDetail({
   const detailQuery = useQuery(brainFolderDetailOptions(folderId))
   const detail = detailQuery.data
   const [search, setSearch] = useState('')
+  /** Design default is the table; the pill flips to the card grid. */
+  const [filesView, setFilesView] = useState<ViewMode>('list')
+  const [pendingRemoveFile, setPendingRemoveFile] =
+    useState<BrainFileSummary | null>(null)
 
   const visibleFiles = useMemo(() => {
     const files = detail?.files ?? []
@@ -93,19 +120,18 @@ export function BrainFolderDetail({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Breadcrumb band (design: white strip, "Files & Folders | {name}") */}
+      {/* Breadcrumb band (design: "Files & Folders / {name}" on the strip) */}
       <div className="border-b border-border-default bg-background-main-default px-6 py-3">
         <div className="mx-auto flex w-full max-w-[80rem] items-center gap-2 text-sm">
           <button
             type="button"
             onClick={onBack}
-            className="flex cursor-pointer items-center gap-1.5 text-text-secondary transition-colors hover:text-text-neutral-default"
+            className="cursor-pointer text-text-secondary transition-colors hover:text-text-neutral-default"
           >
-            <ArrowLeft className="size-4" weight="regular" />
             Files &amp; Folders
           </button>
           <span aria-hidden="true" className="shrink-0 text-text-secondary">
-            |
+            /
           </span>
           <span className="min-w-0 truncate text-text-neutral-default">
             {detail?.item.name ?? '…'}
@@ -135,8 +161,13 @@ export function BrainFolderDetail({
             <>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <h2 className="truncate text-2xl font-semibold tracking-[-0.04em] text-text-neutral-default">
-                    {detail.item.name}
+                  <h2 className="flex min-w-0 items-center gap-2.5 text-2xl font-semibold tracking-[-0.04em] text-text-neutral-default">
+                    <FolderIcon
+                      className="size-5 shrink-0 text-text-brand-secondary"
+                      weight="fill"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{detail.item.name}</span>
                   </h2>
                   <p className="flex items-center gap-2 text-sm text-text-secondary">
                     {detail.item.privacy === 'private' ? (
@@ -194,10 +225,25 @@ export function BrainFolderDetail({
                   <Download className="size-4" weight="regular" />
                   Export Data
                 </Button>
+
+                <div className="ml-auto">
+                  <ViewModePill
+                    mode={filesView}
+                    onChange={setFilesView}
+                    label="Folder files"
+                  />
+                </div>
               </div>
 
               {detail.files.length === 0 ? (
                 <div className="flex min-h-[18.5rem] flex-col items-center justify-center gap-4 rounded-xl bg-background-main-secondary px-6 text-center">
+                  <span className="flex size-12 items-center justify-center">
+                    <FileIcon
+                      className="size-8 text-icon-neutral-tertiary"
+                      weight="regular"
+                      aria-hidden="true"
+                    />
+                  </span>
                   <p className="text-sm text-text-neutral-default">
                     No files yet
                   </p>
@@ -215,6 +261,22 @@ export function BrainFolderDetail({
                     Browse file
                   </Button>
                 </div>
+              ) : filesView === 'grid' ? (
+                <ul className="flex flex-wrap gap-4" aria-live="polite">
+                  {visibleFiles.map((file) => (
+                    <FolderFileCard
+                      key={file.id}
+                      file={file}
+                      onPreview={onPreviewFile}
+                      onDelete={setPendingRemoveFile}
+                    />
+                  ))}
+                  {visibleFiles.length === 0 ? (
+                    <li className="w-full rounded-xl bg-background-main-secondary px-6 py-8 text-center text-sm text-text-secondary">
+                      No files match “{search}”.
+                    </li>
+                  ) : null}
+                </ul>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-border-default">
                   <table className="w-full table-fixed text-sm">
@@ -272,20 +334,20 @@ export function BrainFolderDetail({
                                 variant="outline"
                                 size="sm"
                                 className="h-8"
-                                disabled={file.status !== 'ready'}
-                                onClick={() => onPreviewFile(file)}
+                                onClick={() => setPendingRemoveFile(file)}
                               >
-                                <Eye className="size-3.5" weight="regular" />
-                                View
+                                <Trash className="size-3.5" weight="regular" />
+                                Delete
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-8"
-                                onClick={() => onRemoveFile(file)}
+                                disabled={file.status !== 'ready'}
+                                onClick={() => onPreviewFile(file)}
                               >
-                                <Trash className="size-3.5" weight="regular" />
-                                Remove
+                                <Eye className="size-3.5" weight="regular" />
+                                View
                               </Button>
                             </span>
                           </td>
@@ -309,7 +371,128 @@ export function BrainFolderDetail({
           )}
         </div>
       </div>
+
+      {/* The pill says "Delete" per design; the dialog keeps the promise
+          honest — the file is detached, not destroyed. */}
+      {pendingRemoveFile ? (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPendingRemoveFile(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete file from folder</AlertDialogTitle>
+              <AlertDialogDescription className="break-words">
+                Remove{' '}
+                <span className="break-all" title={pendingRemoveFile.name}>
+                  {truncateMiddle(pendingRemoveFile.name, 64)}
+                </span>
+                ? The file stays in your knowledge base.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  onRemoveFile(pendingRemoveFile)
+                  setPendingRemoveFile(null)
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </div>
+  )
+}
+
+/**
+ * Grid-view card for one folder file, mirroring the KB card shape (name strip
+ * over meta) since the design shows the toggle but not the grid state. The ⋯
+ * menu carries the folder-honest actions: View file / Download / Delete
+ * (detach — same confirm dialog as the table pill).
+ */
+function FolderFileCard({
+  file,
+  onPreview,
+  onDelete,
+}: {
+  file: BrainFileSummary
+  onPreview: (file: BrainFileSummary) => void
+  onDelete: (file: BrainFileSummary) => void
+}) {
+  const canPreview = file.status === 'ready'
+
+  return (
+    <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
+      <div className="flex items-center gap-2 bg-border-default px-3 py-2">
+        <button
+          type="button"
+          disabled={!canPreview}
+          onClick={() => onPreview(file)}
+          aria-label={`Preview ${file.name}`}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
+        >
+          <BrainFileTypeIcon fileName={file.name} className="size-4" />
+          <span
+            className="min-w-0 truncate text-sm text-text-neutral-default"
+            title={file.name}
+          >
+            {truncateMiddle(file.name, 36)}
+          </span>
+        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={`File actions for ${file.name}`}
+            className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary-hover"
+          >
+            <DotsThreeVertical className="size-4" weight="regular" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              disabled={!canPreview}
+              onClick={() => onPreview(file)}
+            >
+              <Eye className="size-4" weight="regular" />
+              View file
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                const anchor = document.createElement('a')
+                anchor.href = brainFileDownloadUrl(file)
+                anchor.download = file.name
+                anchor.click()
+              }}
+            >
+              <Download className="size-4" weight="regular" />
+              Download
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDelete(file)}
+            >
+              <Trash className="size-4" weight="regular" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex min-h-[5.5rem] flex-col justify-center gap-1 px-3 py-2.5">
+        <p className="text-xs text-text-secondary">
+          {formatUploadedDate(file.uploadedAt)}
+          <span aria-hidden="true"> · </span>
+          {formatFileSize(file.sizeBytes)}
+        </p>
+      </div>
+    </li>
   )
 }
 

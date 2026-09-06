@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 import { Loader2 } from 'lucide-react'
@@ -26,11 +26,14 @@ function PdfPageCanvas({
   pageNumber,
   pdf,
   thumbnail = false,
+  thumbnailScale = 0.2,
 }: {
   fileId: string
   pageNumber: number
   pdf: PDFDocumentProxy
   thumbnail?: boolean
+  /** Render scale for thumbnails; the rail uses 0.2, wider cards need more. */
+  thumbnailScale?: number
 }) {
   const [renderFailed, setRenderFailed] = useState(false)
   const pageQuery = useQuery({
@@ -44,7 +47,7 @@ function PdfPageCanvas({
       if (!canvas || !pageQuery.data) return
 
       const page: PDFPageProxy = pageQuery.data
-      const scale = thumbnail ? 0.2 : 1
+      const scale = thumbnail ? thumbnailScale : 1
       const viewport = page.getViewport({ scale })
       const context = canvas.getContext('2d')
 
@@ -71,7 +74,7 @@ function PdfPageCanvas({
 
       return () => renderTask.cancel()
     },
-    [pageQuery.data, thumbnail],
+    [pageQuery.data, thumbnail, thumbnailScale],
   )
 
   if (pageQuery.isPending) {
@@ -212,5 +215,35 @@ export function PdfFilePreview({ fileId }: { fileId: string }) {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Page-1 document thumbnail for the Files page recent-file cards (Penpot top
+ * row shows rendered document previews beside the dropzone). Reuses the cached
+ * PDF.js document query; while loading or on failure it renders `fallback`
+ * instead of the rail's spinner/error chrome, because a decorative card should
+ * degrade quietly to the caller's type glyph. Scale 0.45 keeps an A4 page
+ * sharp at the 15.5rem card width (the rail's 0.2 would upscale blurry).
+ */
+export function PdfThumbnail({
+  fileId,
+  fallback,
+}: {
+  fileId: string
+  fallback: ReactNode
+}) {
+  const pdfQuery = useQuery(brainFilePdfOptions(fileId))
+
+  if (!pdfQuery.data) return <>{fallback}</>
+
+  return (
+    <PdfPageCanvas
+      fileId={fileId}
+      pageNumber={1}
+      pdf={pdfQuery.data}
+      thumbnail
+      thumbnailScale={0.45}
+    />
   )
 }
