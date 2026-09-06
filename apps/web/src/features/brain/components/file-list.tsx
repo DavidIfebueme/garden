@@ -72,7 +72,9 @@ export function FileCardMenu({
       >
         <DotsThreeVertical className="size-4" weight="regular" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      {/* sideOffset lifts the popup off the trigger row so it doesn't touch
+          the Delete|View pills beside it. */}
+      <DropdownMenuContent align="end" sideOffset={4} className="w-48">
         {onPreview ? (
           <DropdownMenuItem
             disabled={!canPreview}
