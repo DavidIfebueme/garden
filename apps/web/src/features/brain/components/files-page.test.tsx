@@ -97,11 +97,12 @@ async function confirmSelectedFile(user: ReturnType<typeof userEvent.setup>) {
 }
 
 /**
- * The Knowledge Base region. The recent-files row beside the dropzone mirrors
- * the newest files, so file-card queries scope here to stay unique.
+ * The recent-files list beside the dropzone — the page's only file surface
+ * since the references carry no separate Knowledge Base section. Awaitable
+ * because the list only renders once files exist.
  */
-function knowledgeBaseRegion() {
-  return screen.getByRole('region', { name: 'Knowledge Base' })
+async function recentFilesRegion() {
+  return screen.findByRole('list', { name: 'Recent files' })
 }
 
 beforeAll(() => {
@@ -155,7 +156,7 @@ describe('BrainFilesPage', () => {
 
     renderFilesPage([{ id: 'long-file', name: longName, status: 'ready' }])
 
-    const card = await within(knowledgeBaseRegion()).findByTitle(longName)
+    const card = await within(await recentFilesRegion()).findByTitle(longName)
     expect(card.textContent?.length).toBeLessThanOrEqual(36)
     expect(card.textContent).toContain('…')
     expect(card.textContent?.endsWith('final.pdf')).toBe(true)
@@ -174,56 +175,25 @@ describe('BrainFilesPage', () => {
     renderFilesPage()
 
     expect(
-      await within(knowledgeBaseRegion()).findByText('saved-notes.txt'),
+      await within(await recentFilesRegion()).findByText('saved-notes.txt'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Ready')).toBeInTheDocument()
     expect(mockListBrainFiles).toHaveBeenCalledOnce()
   })
 
-  it('shows file-type icons for stored files', async () => {
-    renderFilesPage([
-      {
-        id: 'pdf-file',
-        name: 'report.pdf',
-        status: 'ready',
-      },
-      {
-        id: 'docx-file',
-        name: 'brief.docx',
-        status: 'ready',
-      },
-      {
-        id: 'xlsx-file',
-        name: 'budget.xlsx',
-        status: 'ready',
-      },
-      {
-        id: 'txt-file',
-        name: 'notes.txt',
-        status: 'ready',
-      },
-      {
-        id: 'md-file',
-        name: 'readme.md',
-        status: 'ready',
-      },
-    ])
+  it.each([
+    ['report.pdf', 'PDF file'],
+    ['brief.docx', 'DOC file'],
+    ['budget.xlsx', 'XLS file'],
+    ['notes.txt', 'TXT file'],
+    ['readme.md', 'MD file'],
+  ])('shows the %s type icon on its recent file card', async (name, label) => {
+    renderFilesPage([{ id: 'file-1', name, status: 'ready' }])
 
-    const fileList = await within(knowledgeBaseRegion()).findByRole('list')
+    const recentList = await recentFilesRegion()
 
     expect(
-      within(fileList).getByRole('img', { name: 'PDF file' }),
-    ).toBeVisible()
-    expect(
-      within(fileList).getByRole('img', { name: 'DOC file' }),
-    ).toBeVisible()
-    expect(
-      within(fileList).getByRole('img', { name: 'XLS file' }),
-    ).toBeVisible()
-    expect(
-      within(fileList).getByRole('img', { name: 'TXT file' }),
-    ).toBeVisible()
-    expect(within(fileList).getByRole('img', { name: 'MD file' })).toBeVisible()
+      within(recentList).getAllByRole('img', { name: label }).length,
+    ).toBeGreaterThan(0)
   })
 
   it('shows the two most recent files beside the dropzone', async () => {
@@ -284,8 +254,11 @@ describe('BrainFilesPage', () => {
       await vi.advanceTimersByTimeAsync(0)
     })
 
+    // Sync query on purpose: findBy* hangs under fake timers.
     expect(
-      within(knowledgeBaseRegion()).getByText('stuck-report.xlsx'),
+      within(screen.getByRole('list', { name: 'Recent files' })).getByText(
+        'stuck-report.xlsx',
+      ),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Retry stuck-report.xlsx' }),
@@ -315,10 +288,12 @@ describe('BrainFilesPage', () => {
     })
 
     expect(screen.getByText('Failed')).toBeInTheDocument()
+    // Sync query on purpose: findBy* hangs under fake timers.
     expect(
-      within(knowledgeBaseRegion()).getByRole('button', {
-        name: 'Preview broken-sheet.xlsx',
-      }),
+      within(screen.getByRole('list', { name: 'Recent files' })).getByRole(
+        'button',
+        { name: 'Preview broken-sheet.xlsx' },
+      ),
     ).toBeDisabled()
 
     await act(async () => {
@@ -359,7 +334,12 @@ describe('BrainFilesPage', () => {
     )
 
     expect(mockRetryBrainFile).toHaveBeenCalledWith('failed-file-1')
-    expect(await screen.findByText('Ready')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText('Failed')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Retry broken-sheet.xlsx' }),
+      ).not.toBeInTheDocument()
+    })
   })
 
   it('shows a retry error and keeps the recovery action available', async () => {
@@ -399,7 +379,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview saved-notes.txt',
       }),
     )
@@ -436,7 +416,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview saved-notes.txt',
       }),
     )
@@ -460,7 +440,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview saved-notes.txt',
       }),
     )
@@ -489,7 +469,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview quarterly-report.pdf',
       }),
     )
@@ -522,7 +502,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview quarterly-report.pdf',
       }),
     )
@@ -553,7 +533,7 @@ describe('BrainFilesPage', () => {
       { id: 'stored-pdf-1', name: 'report.pdf', status: 'ready' },
     ])
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview report.pdf',
       }),
     )
@@ -577,7 +557,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview quarterly-report.docx',
       }),
     )
@@ -620,7 +600,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'Preview quarterly-report.xlsx',
       }),
     )
@@ -684,7 +664,7 @@ describe('BrainFilesPage', () => {
     await confirmSelectedFile(user)
 
     expect(
-      await within(knowledgeBaseRegion()).findByText('notes.txt'),
+      await within(await recentFilesRegion()).findByText('notes.txt'),
     ).toBeInTheDocument()
 
     await act(async () => {
@@ -693,7 +673,7 @@ describe('BrainFilesPage', () => {
     })
 
     expect(
-      within(knowledgeBaseRegion()).getByText('notes.txt'),
+      within(await recentFilesRegion()).getByText('notes.txt'),
     ).toBeInTheDocument()
   })
 
@@ -712,44 +692,13 @@ describe('BrainFilesPage', () => {
     })
     expect(uploadTile).toHaveClass('h-[9.5rem]', 'sm:w-[32.5rem]')
 
-    const recentRegion = screen.getByRole('region', {
-      name: 'Knowledge Base',
-    })
-    const fileTile = await within(recentRegion).findByRole('listitem')
+    const recentList = await recentFilesRegion()
+    const fileTile = within(recentList).getByRole('listitem')
     const previewButton = within(fileTile).getByRole('button', {
       name: 'Preview saved-notes.txt',
     })
     expect(fileTile).toHaveClass('sm:w-[15.5rem]')
     expect(previewButton).toHaveClass('cursor-pointer')
-  })
-
-  it('switches the Knowledge Base section between grid and list view', async () => {
-    const user = userEvent.setup()
-
-    renderFilesPage([
-      { id: 'stored-file-1', name: 'saved-notes.txt', status: 'ready' },
-    ])
-
-    const knowledgeBaseRegion = await screen.findByRole('region', {
-      name: 'Knowledge Base',
-    })
-    const gridTile = await within(knowledgeBaseRegion).findByRole('listitem')
-    expect(gridTile).toHaveClass('sm:w-[15.5rem]')
-
-    await user.click(
-      screen.getByRole('button', { name: 'Switch to list view' }),
-    )
-
-    const listRow = await within(knowledgeBaseRegion).findByRole('listitem')
-    expect(listRow).not.toHaveClass('sm:w-[15.5rem]')
-    expect(
-      within(listRow).getByRole('button', {
-        name: 'Preview saved-notes.txt',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Switch to grid view' }),
-    ).toBeInTheDocument()
   })
 
   it('switches the Folders section between grid and list view', async () => {
@@ -808,7 +757,7 @@ describe('BrainFilesPage', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(
-      await within(knowledgeBaseRegion()).findByText('recovered-notes.txt'),
+      await within(await recentFilesRegion()).findByText('recovered-notes.txt'),
     ).toBeInTheDocument()
     expect(mockListBrainFiles).toHaveBeenCalledTimes(2)
   })
@@ -944,7 +893,7 @@ describe('BrainFilesPage', () => {
     })
 
     expect(
-      await within(knowledgeBaseRegion()).findByText('notes.txt'),
+      await within(await recentFilesRegion()).findByText('notes.txt'),
     ).toBeInTheDocument()
     expect(screen.getByText('Processing')).toBeInTheDocument()
   })
@@ -981,9 +930,8 @@ describe('BrainFilesPage', () => {
     })
 
     expect(
-      await within(knowledgeBaseRegion()).findByText('report.pdf'),
+      await within(await recentFilesRegion()).findByText('report.pdf'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Ready')).toBeInTheDocument()
   })
 
   it('shows the upload error near the upload surface', async () => {
@@ -1039,7 +987,9 @@ describe('BrainFilesPage', () => {
 
     await confirmSelectedFile(user)
 
-    expect(await screen.findByText('Ready')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText('Processing')).not.toBeInTheDocument()
+    })
     expect(mockListBrainFiles).toHaveBeenCalledOnce()
   })
 
@@ -1082,7 +1032,9 @@ describe('BrainFilesPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
-    expect(await screen.findByText('Ready')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText('Processing')).not.toBeInTheDocument()
+    })
   })
 
   it('creates a folder from the dialog with privacy', async () => {
@@ -1400,7 +1352,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'File actions for saved-notes.txt',
       }),
     )
@@ -1458,7 +1410,7 @@ describe('BrainFilesPage', () => {
     ])
 
     await user.click(
-      await within(knowledgeBaseRegion()).findByRole('button', {
+      await within(await recentFilesRegion()).findByRole('button', {
         name: 'File actions for saved-notes.txt',
       }),
     )

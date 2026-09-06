@@ -10,13 +10,8 @@ import {
   Loader2,
   Plus,
   Trash,
-  Upload,
 } from 'lucide-react'
-import {
-  DotsThreeVertical,
-  ListDashes,
-  SquaresFour,
-} from '@phosphor-icons/react'
+import { DotsThreeVertical } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,7 +56,7 @@ import {
   BRAIN_ACCEPTED_FILE_TYPES,
   type BrainFolderSummary,
 } from '../contract'
-import { formatRelativeTime, truncateMiddle } from '../format'
+import { truncateMiddle } from '../format'
 import { BrainFilePreviewDialog } from './file-preview-dialog'
 import { BrainFileUploadDialog } from './file-upload-dialog'
 import { BrainFolderDialog } from './folder-dialog'
@@ -162,176 +157,43 @@ function FileCardMenu({
 }
 
 /**
- * One file in the Knowledge Base section (Penpot recent-upload card): gray
- * header strip with name + ⋯ menu (View / Download / Add to folder / Delete),
- * body with the type icon and indexing status / owner / age. `layout="list"`
- * collapses the same content into one full-width row for the section's view
- * toggle.
+ * One of the two most recent files beside the dropzone (Penpot top row shows
+ * document preview cards next to the upload card): name strip over a rendered
+ * thumbnail — page 1 of a ready PDF through the shared pdfjs cache, the type
+ * glyph otherwise. This is the page's only file surface (the references carry
+ * no separate Knowledge Base list), so a not-yet-ready file shows its indexing
+ * status and retry action under the glyph instead of a bare fallback.
  */
-function BrainFileCard({
+function RecentFileCard({
+  uploadedFile,
   folders,
   isPolling,
   isRetrying,
-  layout = 'grid',
   onAddToFolder,
   onDelete,
   onPreview,
   onRetry,
-  uploadedFile,
 }: {
+  uploadedFile: BrainFileSummary
   folders: readonly BrainFolderSummary[]
   isPolling: boolean
   isRetrying: boolean
-  layout?: ViewMode
   onAddToFolder: (file: BrainFileSummary, folderId: string) => void
   onDelete: (file: BrainFileSummary) => void
   onPreview: (file: BrainFileSummary) => void
   onRetry: (file: BrainFileSummary) => void
-  uploadedFile: BrainFileSummary
 }) {
   const canPreview = uploadedFile.status === 'ready'
   const canRetry =
     uploadedFile.status === 'failed' ||
     (uploadedFile.status === 'processing' && !isPolling)
-  const statusLabel =
-    uploadedFile.status === 'ready'
-      ? 'Ready'
-      : uploadedFile.status === 'failed'
-        ? 'Failed'
-        : 'Processing'
+  const isPdf = uploadedFile.name.toLowerCase().endsWith('.pdf')
 
-  const nameButton = (
-    <button
-      type="button"
-      disabled={!canPreview}
-      onClick={() => onPreview(uploadedFile)}
-      aria-label={`Preview ${uploadedFile.name}`}
-      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
-    >
-      <BrainFileTypeIcon fileName={uploadedFile.name} className="size-4" />
-      <span
-        className="min-w-0 truncate text-sm text-text-neutral-default"
-        title={uploadedFile.name}
-      >
-        {truncateMiddle(uploadedFile.name, 36)}
-      </span>
-    </button>
-  )
-
-  const menu = (
-    <FileCardMenu
-      uploadedFile={uploadedFile}
-      folders={folders}
-      canPreview={canPreview}
-      onPreview={onPreview}
-      onAddToFolder={onAddToFolder}
-      onDelete={onDelete}
-    />
-  )
-
-  const statusLine = (
-    <p className="flex items-center gap-1.5 text-xs text-text-secondary">
-      {isPolling || isRetrying ? (
-        <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-      ) : null}
-      {isRetrying ? 'Retrying' : statusLabel}
-      {canRetry ? (
-        <button
-          type="button"
-          aria-label={`Retry ${uploadedFile.name}`}
-          disabled={isRetrying}
-          onClick={() => onRetry(uploadedFile)}
-          className="cursor-pointer font-medium text-text-neutral-default underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-70"
-        >
-          Retry
-        </button>
-      ) : null}
-    </p>
-  )
-
-  const metaLine = (
-    <p className="max-w-[16rem] truncate text-xs text-text-secondary">
-      {[
-        uploadedFile.createdByName
-          ? `Made by ${uploadedFile.createdByName}`
-          : null,
-        uploadedFile.uploadedAt
-          ? formatRelativeTime(uploadedFile.uploadedAt)
-          : null,
-      ]
-        .filter(Boolean)
-        .join(' · ')}
-    </p>
-  )
-
-  if (layout === 'list') {
-    return (
-      <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary">
-        <div className="flex h-[4.5rem] items-center gap-4 px-4">
-          {nameButton}
-          <div className="flex shrink-0 items-center gap-4">
-            {statusLine}
-            {metaLine}
-          </div>
-          {menu}
-        </div>
-      </li>
-    )
-  }
-
-  return (
-    <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
-      <div className="flex items-center gap-2 bg-border-default px-3 py-2">
-        {nameButton}
-        {menu}
-      </div>
-
-      <div className="flex min-h-[5.5rem] flex-col justify-between gap-1 px-3 py-2.5">
-        {statusLine}
-        {metaLine}
-      </div>
-    </li>
-  )
-}
-
-/**
- * Card thumbnail body: page 1 of a ready PDF through the shared pdfjs cache;
- * any other type (or a file still processing) degrades to the type glyph.
- */
-function FileCardThumbnail({ file }: { file: BrainFileSummary }) {
-  const fallback = (
+  const glyph = (
     <span className="flex h-full items-center justify-center">
-      <BrainFileTypeIcon fileName={file.name} className="size-8" />
+      <BrainFileTypeIcon fileName={uploadedFile.name} className="size-8" />
     </span>
   )
-
-  if (file.status !== 'ready' || !file.name.toLowerCase().endsWith('.pdf')) {
-    return fallback
-  }
-
-  return <PdfThumbnail fileId={file.id} fallback={fallback} />
-}
-
-/**
- * One of the two most recent files beside the dropzone (Penpot top row shows
- * document preview cards next to the upload card): name strip over a rendered
- * thumbnail. A quick-access mirror of the Knowledge Base list below; indexing
- * status and retry stay on the KB cards so this card can stay visual.
- */
-function RecentFileCard({
-  uploadedFile,
-  folders,
-  onAddToFolder,
-  onDelete,
-  onPreview,
-}: {
-  uploadedFile: BrainFileSummary
-  folders: readonly BrainFolderSummary[]
-  onAddToFolder: (file: BrainFileSummary, folderId: string) => void
-  onDelete: (file: BrainFileSummary) => void
-  onPreview: (file: BrainFileSummary) => void
-}) {
-  const canPreview = uploadedFile.status === 'ready'
 
   return (
     <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
@@ -361,26 +223,59 @@ function RecentFileCard({
         />
       </div>
 
-      <button
-        type="button"
-        disabled={!canPreview}
-        onClick={() => onPreview(uploadedFile)}
-        aria-label={`Open preview of ${uploadedFile.name}`}
-        className="block h-[7.25rem] w-full cursor-pointer overflow-hidden disabled:cursor-default"
-      >
-        <FileCardThumbnail file={uploadedFile} />
-      </button>
+      {canPreview ? (
+        <button
+          type="button"
+          onClick={() => onPreview(uploadedFile)}
+          aria-label={`Open preview of ${uploadedFile.name}`}
+          className="block h-[7.25rem] w-full cursor-pointer overflow-hidden"
+        >
+          {isPdf ? (
+            <PdfThumbnail fileId={uploadedFile.id} fallback={glyph} />
+          ) : (
+            glyph
+          )}
+        </button>
+      ) : (
+        // Not-ready body stays a plain container: the Retry control must not
+        // sit inside a disabled preview button or its clicks get swallowed.
+        <div className="flex h-[7.25rem] w-full flex-col items-center justify-center gap-1.5 px-2">
+          <BrainFileTypeIcon fileName={uploadedFile.name} className="size-8" />
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
+            {isPolling || isRetrying ? (
+              <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+            ) : null}
+            {isRetrying
+              ? 'Retrying'
+              : uploadedFile.status === 'failed'
+                ? 'Failed'
+                : 'Processing'}
+            {canRetry ? (
+              <button
+                type="button"
+                aria-label={`Retry ${uploadedFile.name}`}
+                disabled={isRetrying}
+                onClick={() => onRetry(uploadedFile)}
+                className="cursor-pointer font-medium text-text-neutral-default underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-70"
+              >
+                Retry
+              </button>
+            ) : null}
+          </span>
+        </div>
+      )}
     </li>
   )
 }
 
 /**
  * Files & Folders page (Penpot "Files & Folders [DEV READY]"): header band,
- * upload dropzone with the two most recent files beside it, Folders section
- * with All/Private/Shared scope tabs, the create-folder dialog, and the
- * Knowledge Base section with per-file actions. Both sections carry the
- * design's grid/list view toggles; the KB header also repeats the "Setup
- * knowledge base" upload entry point. Folder selection swaps the sections for
+ * upload dropzone with the two most recent files beside it, and the Folders
+ * section with All/Private/Shared scope tabs, grid/list toggle, and the
+ * create-folder dialog. The design references carry no separate Knowledge
+ * Base list, so the recent-files row is the page's file surface; the file
+ * list query still powers it (plus upload status polling), and its load
+ * error surfaces under the top row. Folder selection swaps the sections for
  * the folder detail view.
  */
 export function BrainFilesPage() {
@@ -393,7 +288,6 @@ export function BrainFilesPage() {
   )
   const [folderScope, setFolderScope] = useState<FolderScope>('all')
   const [foldersView, setFoldersView] = useState<ViewMode>('grid')
-  const [filesView, setFilesView] = useState<ViewMode>('grid')
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<{
     folder?: BrainFolderSummary
@@ -770,7 +664,11 @@ export function BrainFilesPage() {
             </button>
 
             {recentFiles.length > 0 ? (
-              <ul aria-label="Recent files" className="flex flex-wrap gap-4">
+              <ul
+                aria-label="Recent files"
+                aria-live="polite"
+                className="flex flex-wrap gap-4"
+              >
                 {recentFiles.map((file) => (
                   <RecentFileCard
                     key={file.id}
@@ -784,11 +682,41 @@ export function BrainFilesPage() {
                       })
                     }
                     onDelete={setPendingDeleteFile}
+                    isPolling={
+                      file.status === 'processing' &&
+                      sessionUploadIdSet.has(file.id) &&
+                      !filesQuery.isError
+                    }
+                    isRetrying={
+                      retryMutation.isPending &&
+                      retryMutation.variables === file.id
+                    }
+                    onRetry={(fileToRetry) =>
+                      retryMutation.mutate(fileToRetry.id)
+                    }
                   />
                 ))}
               </ul>
             ) : null}
           </div>
+
+          {filesQuery.isError ? (
+            <div className="mt-3 flex items-center gap-3 text-sm">
+              <p role="alert" className="text-text-danger-secondary">
+                {filesQuery.isRefetchError
+                  ? 'Could not refresh file statuses.'
+                  : 'Could not load files.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={filesQuery.isFetching}
+                onClick={() => void filesQuery.refetch()}
+              >
+                {filesQuery.isFetching ? 'Trying…' : 'Try again'}
+              </Button>
+            </div>
+          ) : null}
 
           {uploadError ? (
             <p role="alert" className="mt-3 text-sm text-text-danger-secondary">
@@ -906,134 +834,6 @@ export function BrainFilesPage() {
                   onOpen={(entry) => setActiveFolderId(entry.id)}
                   onRename={(entry) => setFolderDialog({ folder: entry })}
                   onDelete={setPendingDeleteFolder}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* Knowledge Base section (design title; the old "Your Recent Files"
-            label is hidden in the Penpot component) */}
-        <section aria-label="Knowledge Base" className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-text-neutral-default">
-              Knowledge Base
-            </h2>
-
-            <div className="flex items-center gap-4">
-              <Button
-                className="h-10 gap-2"
-                disabled={uploadMutation.isPending}
-                onClick={() => openFilePicker()}
-              >
-                <Upload className="size-4" />
-                Setup knowledge base
-              </Button>
-
-              {/* Design pairs a lone list-dashes icon with the (out-of-scope)
-                  filter button; it flips the section between grid and list. */}
-              <button
-                type="button"
-                onClick={() =>
-                  setFilesView(filesView === 'grid' ? 'list' : 'grid')
-                }
-                aria-label={
-                  filesView === 'grid'
-                    ? 'Switch to list view'
-                    : 'Switch to grid view'
-                }
-                title={
-                  filesView === 'grid'
-                    ? 'Switch to list view'
-                    : 'Switch to grid view'
-                }
-                className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
-              >
-                {filesView === 'grid' ? (
-                  <ListDashes className="size-4" weight="regular" />
-                ) : (
-                  <SquaresFour className="size-4" weight="regular" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {filesQuery.isError ? (
-            <div className="flex items-center gap-3 text-sm">
-              <p role="alert" className="text-text-danger-secondary">
-                {filesQuery.isRefetchError
-                  ? 'Could not refresh file statuses.'
-                  : 'Could not load files.'}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={filesQuery.isFetching}
-                onClick={() => void filesQuery.refetch()}
-              >
-                {filesQuery.isFetching ? 'Trying…' : 'Try again'}
-              </Button>
-            </div>
-          ) : files.length === 0 ? (
-            <div className="flex min-h-[18.5rem] flex-col items-center justify-center gap-4 rounded-xl bg-background-main-secondary px-6 text-center">
-              <span className="flex items-center -space-x-2">
-                <img src="/file-types/pdf.svg" alt="" className="size-8" />
-                <img src="/file-types/xlsx.svg" alt="" className="size-8" />
-                <img src="/file-types/docx.svg" alt="" className="size-8" />
-              </span>
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-text-neutral-default">
-                  Nothing is here yet
-                </p>
-                <p className="text-sm text-text-secondary">
-                  All files or folders used as knowledge base will be shown here
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                className="h-10 gap-2"
-                disabled={uploadMutation.isPending}
-                onClick={() => openFilePicker()}
-              >
-                <Upload className="size-4" />
-                Setup knowledge base
-              </Button>
-            </div>
-          ) : (
-            <ul
-              className={
-                filesView === 'list'
-                  ? 'flex flex-col gap-3'
-                  : 'flex flex-wrap gap-4'
-              }
-              aria-live="polite"
-            >
-              {files.map((file) => (
-                <BrainFileCard
-                  key={file.id}
-                  uploadedFile={file}
-                  folders={folders}
-                  layout={filesView}
-                  onPreview={setPreviewFile}
-                  onAddToFolder={(fileToAdd, folderId) =>
-                    addToFolderMutation.mutate({
-                      folderId,
-                      fileId: fileToAdd.id,
-                    })
-                  }
-                  onDelete={setPendingDeleteFile}
-                  isPolling={
-                    file.status === 'processing' &&
-                    sessionUploadIdSet.has(file.id) &&
-                    !filesQuery.isError
-                  }
-                  isRetrying={
-                    retryMutation.isPending &&
-                    retryMutation.variables === file.id
-                  }
-                  onRetry={(fileToRetry) =>
-                    retryMutation.mutate(fileToRetry.id)
-                  }
                 />
               ))}
             </ul>
