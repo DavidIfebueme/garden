@@ -8,6 +8,10 @@ import {
   resolveWorkspaceId,
   unauthorized,
 } from '@/lib/server/control-plane'
+import {
+  requireWorkspacePermission,
+  workspacePermissions,
+} from '@/lib/server/workspace-permissions'
 import { schema, type Db } from '@/lib/server/db'
 import { appEnv } from '@/lib/server/env'
 import { captureApiFailure } from '@/lib/server/api-logging'
@@ -73,6 +77,15 @@ export const Route = createFileRoute('/api/github/install')({
 
         const workspaceId = await resolveWorkspaceId(request, session.user.id)
         if (!workspaceId) return badRequest('Workspace not found')
+
+        const permission = await requireWorkspacePermission({
+          appContext,
+          request,
+          workspaceId,
+          permissions: workspacePermissions.connectionManage,
+        })
+        if (permission) return permission
+
         const flowId = readConnectorFlowId(request)
         const db = await appContext.db()
 

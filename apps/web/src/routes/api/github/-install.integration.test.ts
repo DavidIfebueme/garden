@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   createGitHubSetupState: vi.fn(async () => 'signed-state'),
   requireSession: vi.fn(),
   resolveWorkspaceId: vi.fn(),
+  requireWorkspacePermission: vi.fn(),
 }))
 
 vi.mock('@garden/connectors/github-app', async (importOriginal) => {
@@ -39,6 +40,13 @@ vi.mock('@/lib/server/env', () => ({
   },
 }))
 
+vi.mock('@/lib/server/workspace-permissions', () => ({
+  requireWorkspacePermission: mocks.requireWorkspacePermission,
+  workspacePermissions: {
+    connectionManage: { connection: ['update'] },
+  },
+}))
+
 vi.mock('@/lib/server/github-app', () => ({
   buildGitHubAppInstallUrl: ({
     appSlug,
@@ -65,6 +73,39 @@ describe('GitHub install recovery', () => {
     vi.clearAllMocks()
     mocks.requireSession.mockResolvedValue({ user: { id: 'user-id' } })
     mocks.resolveWorkspaceId.mockResolvedValue('workspace-id')
+    mocks.requireWorkspacePermission.mockResolvedValue(null)
+  })
+
+  it('refuses installation changes without connection management permission', async () => {
+    const forbidden = Response.json({ error: 'Forbidden' }, { status: 403 })
+    const db = {
+      select: vi.fn(),
+      update: vi.fn(),
+    }
+    mocks.requireWorkspacePermission.mockResolvedValue(forbidden)
+
+    const request = new Request(
+      'https://garden.test/api/github/install?connector_flow=flow-id',
+    )
+    const response = await getHandler()({
+      context: { db: async () => db } as unknown as AppRequestContext,
+      request,
+      params: {},
+      pathname: '/api/github/install',
+      next: () => ({ isNext: true, context: undefined }),
+    })
+
+    expect(response).toBe(forbidden)
+    expect(mocks.requireWorkspacePermission).toHaveBeenCalledWith({
+      appContext: expect.anything(),
+      request,
+      workspaceId: 'workspace-id',
+      permissions: { connection: ['update'] },
+    })
+    expect(db.select).not.toHaveBeenCalled()
+    expect(db.update).not.toHaveBeenCalled()
+    expect(mocks.getGitHubAppInstallation).not.toHaveBeenCalled()
+    expect(mocks.createGitHubSetupState).not.toHaveBeenCalled()
   })
 
   it('marks a stale connected row degraded and starts a signed repair flow', async () => {
