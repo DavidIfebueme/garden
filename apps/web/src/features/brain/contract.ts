@@ -75,6 +75,12 @@ export const BrainFolderDetailResponseSchema = z
 /** Design limit: the create-folder dialog shows a "n/50" character counter. */
 export const BRAIN_FOLDER_NAME_MAX = 50
 
+/**
+ * File-picker filter shared by the page dropzone and the create-folder
+ * dialog's "Add file to folder" zone so both accept the same Brain types.
+ */
+export const BRAIN_ACCEPTED_FILE_TYPES = '.txt,.md,.pdf,.docx,.xlsx'
+
 export const BrainFolderCreateInputSchema = z
   .object({
     name: z.string().trim().min(1).max(BRAIN_FOLDER_NAME_MAX),

@@ -20,7 +20,8 @@ type BrainFileUploadDialogProps = {
 
 /**
  * Lets the user review a selected file before upload. After confirmation, the
- * same modal shows byte-level upload progress.
+ * same modal shows byte-level upload progress. Width follows the Penpot
+ * "Uploading your file" dialog (479px, radius 12 — the DialogContent default).
  */
 export function BrainFileUploadDialog({
   file,
@@ -40,7 +41,7 @@ export function BrainFileUploadDialog({
     >
       <DialogContent
         showCloseButton={!uploading}
-        className="gap-5 p-5 sm:max-w-[24rem]"
+        className="gap-5 p-5 sm:max-w-[479px]"
       >
         <DialogHeader>
           <DialogTitle>

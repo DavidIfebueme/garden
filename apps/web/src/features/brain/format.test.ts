@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { formatFileSize, truncateMiddle } from './format'
+import { formatFileSize, formatUploadedDate, truncateMiddle } from './format'
+
+describe('formatUploadedDate', () => {
+  it('renders the designed comma format', () => {
+    expect(formatUploadedDate(undefined)).toBe('—')
+    expect(formatUploadedDate('2024-07-07T13:42:00.000Z')).toMatch(
+      /^\d{2} [A-Za-z]+, \d{4}$/,
+    )
+  })
+})
 
 describe('truncateMiddle', () => {
   it('returns short names unchanged', () => {

@@ -27,8 +27,10 @@ import { BrainFileTypeIcon } from './file-type-icon'
  * Folder detail view (Penpot folder frame): breadcrumb back to Files &
  * Folders, folder title with privacy/count meta, search + export + upload
  * toolbar, and the five-column table (File name / Date uploaded / Time
- * uploaded / Size / Action). "Share" and the grid/list toggle from the design
- * are omitted — they have no product semantics yet.
+ * uploaded / Size / Action). The design's "Share" button and "Filter" control
+ * are omitted by scope decision — neither has backend support or defined
+ * behavior yet — and the row action keeps the honest "Remove" label because
+ * it detaches the file from the folder instead of deleting it.
  */
 export function BrainFolderDetail({
   folderId,
@@ -133,7 +135,7 @@ export function BrainFolderDetail({
             <>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <h2 className="truncate text-xl text-text-neutral-default">
+                  <h2 className="truncate text-2xl font-semibold tracking-[-0.04em] text-text-neutral-default">
                     {detail.item.name}
                   </h2>
                   <p className="flex items-center gap-2 text-sm text-text-secondary">

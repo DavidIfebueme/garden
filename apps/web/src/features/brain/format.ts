@@ -15,9 +15,16 @@ const timeFormatter = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
 })
 
+/**
+ * Renders the Penpot "Date uploaded" format ("07 July, 2024"). Plain en-GB
+ * output omits the comma the design shows, so the parts are rejoined here.
+ */
 export function formatUploadedDate(iso: string | undefined): string {
   if (iso === undefined) return '—'
-  return dateFormatter.format(new Date(iso))
+  const parts = dateFormatter.formatToParts(new Date(iso))
+  const valueOf = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+  return `${valueOf('day')} ${valueOf('month')}, ${valueOf('year')}`
 }
 
 export function formatUploadedTime(iso: string | undefined): string {

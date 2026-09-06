@@ -1,4 +1,10 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type ReactNode,
+} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -12,7 +18,11 @@ import {
   Trash,
   Upload,
 } from 'lucide-react'
-import { DotsThreeVertical } from '@phosphor-icons/react'
+import {
+  DotsThreeVertical,
+  ListDashes,
+  SquaresFour,
+} from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +62,10 @@ import {
   brainFolderKeys,
   brainFolderListOptions,
 } from '../queries'
-import type { BrainFolderSummary } from '../contract'
+import {
+  BRAIN_ACCEPTED_FILE_TYPES,
+  type BrainFolderSummary,
+} from '../contract'
 import { formatRelativeTime, truncateMiddle } from '../format'
 import { BrainFilePreviewDialog } from './file-preview-dialog'
 import { BrainFileUploadDialog } from './file-upload-dialog'
@@ -60,9 +73,10 @@ import { BrainFolderDialog } from './folder-dialog'
 import { BrainFolderCard } from './folder-card'
 import { BrainFolderDetail } from './folder-detail'
 
-const ACCEPTED_FILE_TYPES = '.txt,.md,.pdf,.docx,.xlsx'
-
 type FolderScope = 'all' | 'private' | 'shared'
+
+/** Section layout driven by the design's squares-four/list-dashes toggles. */
+type ViewMode = 'grid' | 'list'
 
 const FOLDER_TABS: readonly { id: FolderScope; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -79,14 +93,59 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 /**
- * One file tile in "Your Recent Files" (Penpot recent-upload card): gray
+ * The Folders section's segmented view toggle from the Penpot header (74×40
+ * pill, white active segment): squares-four for the card grid, list-dashes
+ * for full-width rows.
+ */
+function ViewModePill({
+  mode,
+  onChange,
+  label,
+}: {
+  mode: ViewMode
+  onChange: (mode: ViewMode) => void
+  label: string
+}) {
+  const segment = (segmentMode: ViewMode, icon: ReactNode) => (
+    <button
+      type="button"
+      aria-pressed={mode === segmentMode}
+      aria-label={`${label}: ${segmentMode} view`}
+      onClick={() => onChange(segmentMode)}
+      className={
+        mode === segmentMode
+          ? 'flex size-8 cursor-pointer items-center justify-center rounded-md bg-background-main-default text-icon-neutral-default'
+          : 'flex size-8 cursor-pointer items-center justify-center rounded-md text-icon-neutral-secondary transition-colors hover:text-icon-neutral-default'
+      }
+    >
+      {icon}
+    </button>
+  )
+
+  return (
+    <div
+      role="group"
+      aria-label={`${label} view mode`}
+      className="flex h-10 items-center gap-1 rounded-lg bg-background-main-secondary p-1"
+    >
+      {segment('grid', <SquaresFour className="size-4" weight="regular" />)}
+      {segment('list', <ListDashes className="size-4" weight="regular" />)}
+    </div>
+  )
+}
+
+/**
+ * One file in the Knowledge Base section (Penpot recent-upload card): gray
  * header strip with name + ⋯ menu (View / Download / Add to folder / Delete),
- * body with the type icon and indexing status / owner / age.
+ * body with the type icon and indexing status / owner / age. `layout="list"`
+ * collapses the same content into one full-width row for the section's view
+ * toggle.
  */
 function BrainFileCard({
   folders,
   isPolling,
   isRetrying,
+  layout = 'grid',
   onAddToFolder,
   onDelete,
   onPreview,
@@ -96,6 +155,7 @@ function BrainFileCard({
   folders: readonly BrainFolderSummary[]
   isPolling: boolean
   isRetrying: boolean
+  layout?: ViewMode
   onAddToFolder: (file: BrainFileSummary, folderId: string) => void
   onDelete: (file: BrainFileSummary) => void
   onPreview: (file: BrainFileSummary) => void
@@ -113,111 +173,140 @@ function BrainFileCard({
         ? 'Failed'
         : 'Processing'
 
+  const nameButton = (
+    <button
+      type="button"
+      disabled={!canPreview}
+      onClick={() => onPreview(uploadedFile)}
+      aria-label={`Preview ${uploadedFile.name}`}
+      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
+    >
+      <BrainFileTypeIcon fileName={uploadedFile.name} className="size-4" />
+      <span
+        className="min-w-0 truncate text-sm text-text-neutral-default"
+        title={uploadedFile.name}
+      >
+        {truncateMiddle(uploadedFile.name, 36)}
+      </span>
+    </button>
+  )
+
+  const menu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`File actions for ${uploadedFile.name}`}
+        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
+      >
+        <DotsThreeVertical className="size-4" weight="regular" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          disabled={!canPreview}
+          onClick={() => onPreview(uploadedFile)}
+        >
+          <Eye />
+          View file
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            const anchor = document.createElement('a')
+            anchor.href = fileDownloadUrl(uploadedFile)
+            anchor.download = uploadedFile.name
+            anchor.click()
+          }}
+        >
+          <Download />
+          Download
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger disabled={folders.length === 0}>
+            <FolderPlus />
+            Add to folder
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-44">
+            {folders.map((folder) => (
+              <DropdownMenuItem
+                key={folder.id}
+                onClick={() => onAddToFolder(uploadedFile, folder.id)}
+              >
+                <FolderIcon />
+                <span className="min-w-0 truncate">{folder.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => onDelete(uploadedFile)}
+        >
+          <Trash />
+          Delete file
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
+  const statusLine = (
+    <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+      {isPolling || isRetrying ? (
+        <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+      ) : null}
+      {isRetrying ? 'Retrying' : statusLabel}
+      {canRetry ? (
+        <button
+          type="button"
+          aria-label={`Retry ${uploadedFile.name}`}
+          disabled={isRetrying}
+          onClick={() => onRetry(uploadedFile)}
+          className="cursor-pointer font-medium text-text-neutral-default underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-70"
+        >
+          Retry
+        </button>
+      ) : null}
+    </p>
+  )
+
+  const metaLine = (
+    <p className="max-w-[16rem] truncate text-xs text-text-secondary">
+      {[
+        uploadedFile.createdByName
+          ? `Made by ${uploadedFile.createdByName}`
+          : null,
+        uploadedFile.uploadedAt
+          ? formatRelativeTime(uploadedFile.uploadedAt)
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+    </p>
+  )
+
+  if (layout === 'list') {
+    return (
+      <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary">
+        <div className="flex h-[4.5rem] items-center gap-4 px-4">
+          {nameButton}
+          <div className="flex shrink-0 items-center gap-4">
+            {statusLine}
+            {metaLine}
+          </div>
+          {menu}
+        </div>
+      </li>
+    )
+  }
+
   return (
     <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
       <div className="flex items-center gap-2 bg-border-default px-3 py-2">
-        <button
-          type="button"
-          disabled={!canPreview}
-          onClick={() => onPreview(uploadedFile)}
-          aria-label={`Preview ${uploadedFile.name}`}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
-        >
-          <BrainFileTypeIcon fileName={uploadedFile.name} className="size-4" />
-          <span
-            className="min-w-0 truncate text-sm text-text-neutral-default"
-            title={uploadedFile.name}
-          >
-            {truncateMiddle(uploadedFile.name, 36)}
-          </span>
-        </button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`File actions for ${uploadedFile.name}`}
-            className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
-          >
-            <DotsThreeVertical className="size-4" weight="regular" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem
-              disabled={!canPreview}
-              onClick={() => onPreview(uploadedFile)}
-            >
-              <Eye />
-              View file
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                const anchor = document.createElement('a')
-                anchor.href = fileDownloadUrl(uploadedFile)
-                anchor.download = uploadedFile.name
-                anchor.click()
-              }}
-            >
-              <Download />
-              Download
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger disabled={folders.length === 0}>
-                <FolderPlus />
-                Add to folder
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-44">
-                {folders.map((folder) => (
-                  <DropdownMenuItem
-                    key={folder.id}
-                    onClick={() => onAddToFolder(uploadedFile, folder.id)}
-                  >
-                    <FolderIcon />
-                    <span className="min-w-0 truncate">{folder.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(uploadedFile)}
-            >
-              <Trash />
-              Delete file
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {nameButton}
+        {menu}
       </div>
 
-      <div className="flex min-h-[5.5rem] flex-col justify-between px-3 py-2.5">
-        <p className="flex items-center gap-1.5 text-xs text-text-secondary">
-          {isPolling || isRetrying ? (
-            <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-          ) : null}
-          {isRetrying ? 'Retrying' : statusLabel}
-          {canRetry ? (
-            <button
-              type="button"
-              aria-label={`Retry ${uploadedFile.name}`}
-              disabled={isRetrying}
-              onClick={() => onRetry(uploadedFile)}
-              className="cursor-pointer font-medium text-text-neutral-default underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-70"
-            >
-              Retry
-            </button>
-          ) : null}
-        </p>
-
-        <p className="mt-1 truncate text-xs text-text-secondary">
-          {[
-            uploadedFile.createdByName
-              ? `Made by ${uploadedFile.createdByName}`
-              : null,
-            uploadedFile.uploadedAt
-              ? formatRelativeTime(uploadedFile.uploadedAt)
-              : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
+      <div className="flex min-h-[5.5rem] flex-col justify-between gap-1 px-3 py-2.5">
+        {statusLine}
+        {metaLine}
       </div>
     </li>
   )
@@ -225,9 +314,11 @@ function BrainFileCard({
 
 /**
  * Files & Folders page (Penpot "Files & Folders [DEV READY]"): header band,
- * upload dropzone, Folders section with All/Private/Shared scope tabs and the
- * create-folder dialog, and "Your Recent Files" with per-file actions. Folder
- * selection swaps the sections for the folder detail table.
+ * upload dropzone, Folders section with All/Private/Shared scope tabs, the
+ * create-folder dialog, and the Knowledge Base section with per-file actions.
+ * Both sections carry the design's grid/list view toggles; the KB header also
+ * repeats the "Setup knowledge base" upload entry point. Folder selection
+ * swaps the sections for the folder detail table.
  */
 export function BrainFilesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -238,6 +329,8 @@ export function BrainFilesPage() {
     [],
   )
   const [folderScope, setFolderScope] = useState<FolderScope>('all')
+  const [foldersView, setFoldersView] = useState<ViewMode>('grid')
+  const [filesView, setFilesView] = useState<ViewMode>('grid')
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
   const [folderDialog, setFolderDialog] = useState<{
     folder?: BrainFolderSummary
@@ -248,6 +341,13 @@ export function BrainFilesPage() {
     useState<BrainFileSummary | null>(null)
   /** Set when the upload was started from inside a folder detail view. */
   const uploadFolderIdRef = useRef<string | null>(null)
+  /**
+   * File attached in the create-folder dialog. Held in a ref because the
+   * folder must exist before the upload-review flow can target it: the create
+   * mutation's success handler picks this up and calls reviewFile with the new
+   * folder id, reusing the standard upload → attach pipeline.
+   */
+  const folderDialogFileRef = useRef<File | null>(null)
 
   const queryClient = useQueryClient()
   const filesQuery = useQuery(brainFileListOptions(sessionUploadIds))
@@ -371,6 +471,10 @@ export function BrainFilesPage() {
       toast.success('A new folder has been created', {
         description: truncateMiddle(folder.name, 56),
       })
+
+      const attachedFile = folderDialogFileRef.current
+      folderDialogFileRef.current = null
+      if (attachedFile !== null) reviewFile(attachedFile, folder.id)
     },
   })
 
@@ -526,7 +630,7 @@ export function BrainFilesPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPTED_FILE_TYPES}
+          accept={BRAIN_ACCEPTED_FILE_TYPES}
           className="hidden"
           onChange={handleFileChange}
           aria-label="Choose a document to upload"
@@ -644,13 +748,21 @@ export function BrainFilesPage() {
                 })}
               </div>
 
-              <Button
-                className="h-10 gap-2"
-                onClick={() => setFolderDialog({})}
-              >
-                <Plus className="size-4" />
-                Create a folder
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  className="h-10 gap-2"
+                  onClick={() => setFolderDialog({})}
+                >
+                  <Plus className="size-4" />
+                  Create a folder
+                </Button>
+
+                <ViewModePill
+                  mode={foldersView}
+                  onChange={setFoldersView}
+                  label="Folders"
+                />
+              </div>
             </div>
           </div>
 
@@ -692,11 +804,18 @@ export function BrainFilesPage() {
               </Button>
             </div>
           ) : (
-            <ul className="flex flex-wrap gap-4">
+            <ul
+              className={
+                foldersView === 'list'
+                  ? 'flex flex-col gap-3'
+                  : 'flex flex-wrap gap-4'
+              }
+            >
               {visibleFolders.map((folder) => (
                 <BrainFolderCard
                   key={folder.id}
                   folder={folder}
+                  layout={foldersView}
                   onOpen={(entry) => setActiveFolderId(entry.id)}
                   onRename={(entry) => setFolderDialog({ folder: entry })}
                   onDelete={setPendingDeleteFolder}
@@ -706,11 +825,51 @@ export function BrainFilesPage() {
           )}
         </section>
 
-        {/* Recent files section */}
-        <section aria-label="Your Recent Files" className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold text-text-neutral-default">
-            Your Recent Files
-          </h2>
+        {/* Knowledge Base section (design title; the old "Your Recent Files"
+            label is hidden in the Penpot component) */}
+        <section aria-label="Knowledge Base" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-text-neutral-default">
+              Knowledge Base
+            </h2>
+
+            <div className="flex items-center gap-4">
+              <Button
+                className="h-10 gap-2"
+                disabled={uploadMutation.isPending}
+                onClick={() => openFilePicker()}
+              >
+                <Upload className="size-4" />
+                Setup knowledge base
+              </Button>
+
+              {/* Design pairs a lone list-dashes icon with the (out-of-scope)
+                  filter button; it flips the section between grid and list. */}
+              <button
+                type="button"
+                onClick={() =>
+                  setFilesView(filesView === 'grid' ? 'list' : 'grid')
+                }
+                aria-label={
+                  filesView === 'grid'
+                    ? 'Switch to list view'
+                    : 'Switch to grid view'
+                }
+                title={
+                  filesView === 'grid'
+                    ? 'Switch to list view'
+                    : 'Switch to grid view'
+                }
+                className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
+              >
+                {filesView === 'grid' ? (
+                  <ListDashes className="size-4" weight="regular" />
+                ) : (
+                  <SquaresFour className="size-4" weight="regular" />
+                )}
+              </button>
+            </div>
+          </div>
 
           {filesQuery.isError ? (
             <div className="flex items-center gap-3 text-sm">
@@ -754,12 +913,20 @@ export function BrainFilesPage() {
               </Button>
             </div>
           ) : (
-            <ul className="flex flex-wrap gap-4" aria-live="polite">
+            <ul
+              className={
+                filesView === 'list'
+                  ? 'flex flex-col gap-3'
+                  : 'flex flex-wrap gap-4'
+              }
+              aria-live="polite"
+            >
               {files.map((file) => (
                 <BrainFileCard
                   key={file.id}
                   uploadedFile={file}
                   folders={folders}
+                  layout={filesView}
                   onPreview={setPreviewFile}
                   onAddToFolder={(fileToAdd, folderId) =>
                     addToFolderMutation.mutate({
@@ -790,7 +957,7 @@ export function BrainFilesPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept={ACCEPTED_FILE_TYPES}
+        accept={BRAIN_ACCEPTED_FILE_TYPES}
         className="hidden"
         onChange={handleFileChange}
         aria-label="Choose a document to upload"
@@ -830,14 +997,20 @@ export function BrainFilesPage() {
             if (folderDialog.folder) {
               updateFolderMutation.mutate({
                 id: folderDialog.folder.id,
-                ...input,
+                name: input.name,
+                privacy: input.privacy,
               })
             } else {
-              createFolderMutation.mutate(input)
+              folderDialogFileRef.current = input.file ?? null
+              createFolderMutation.mutate({
+                name: input.name,
+                privacy: input.privacy,
+              })
             }
           }}
           onClose={() => {
             setFolderDialog(null)
+            folderDialogFileRef.current = null
             createFolderMutation.reset()
             updateFolderMutation.reset()
           }}

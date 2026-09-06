@@ -348,7 +348,9 @@ describe('BrainFilesPage', () => {
 
     const dialog = screen.getByRole('dialog')
 
-    expect(within(dialog).getByText('saved-notes.txt')).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('heading', { name: 'saved-notes.txt' }),
+    ).toBeInTheDocument()
     expect(
       await within(dialog).findByText('Garden preview notes'),
     ).toBeInTheDocument()
@@ -357,7 +359,7 @@ describe('BrainFilesPage', () => {
       within(dialog).getByRole('link', { name: 'Download' }),
     ).toHaveAttribute('href', '/api/brain/files/stored-file-1/content?download')
 
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -452,6 +454,24 @@ describe('BrainFilesPage', () => {
 
     expect(within(dialog).getByText('Page 2 of 2')).toBeInTheDocument()
     expect(mockGetBrainFileBytes).toHaveBeenCalledWith('stored-pdf-1')
+  })
+
+  it('shows the PDF page count in the preview header', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'stored-pdf-1', name: 'quarterly-report.pdf', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Preview quarterly-report.pdf',
+      }),
+    )
+
+    const dialog = screen.getByRole('dialog')
+
+    expect(await within(dialog).findByText('2 pages')).toBeInTheDocument()
   })
 
   it('shows an unexpected PDF render failure', async () => {
@@ -629,7 +649,7 @@ describe('BrainFilesPage', () => {
     expect(uploadTile).toHaveClass('h-[9.5rem]', 'sm:w-[32.5rem]')
 
     const recentRegion = screen.getByRole('region', {
-      name: 'Your Recent Files',
+      name: 'Knowledge Base',
     })
     const fileTile = await within(recentRegion).findByRole('listitem')
     const previewButton = within(fileTile).getByRole('button', {
@@ -637,6 +657,67 @@ describe('BrainFilesPage', () => {
     })
     expect(fileTile).toHaveClass('sm:w-[15.5rem]')
     expect(previewButton).toHaveClass('cursor-pointer')
+  })
+
+  it('switches the Knowledge Base section between grid and list view', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'stored-file-1', name: 'saved-notes.txt', status: 'ready' },
+    ])
+
+    const knowledgeBaseRegion = await screen.findByRole('region', {
+      name: 'Knowledge Base',
+    })
+    const gridTile = await within(knowledgeBaseRegion).findByRole('listitem')
+    expect(gridTile).toHaveClass('sm:w-[15.5rem]')
+
+    await user.click(
+      screen.getByRole('button', { name: 'Switch to list view' }),
+    )
+
+    const listRow = await within(knowledgeBaseRegion).findByRole('listitem')
+    expect(listRow).not.toHaveClass('sm:w-[15.5rem]')
+    expect(
+      within(listRow).getByRole('button', {
+        name: 'Preview saved-notes.txt',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Switch to grid view' }),
+    ).toBeInTheDocument()
+  })
+
+  it('switches the Folders section between grid and list view', async () => {
+    const user = userEvent.setup()
+
+    mockListBrainFolders.mockResolvedValue([
+      {
+        id: 'folder-1',
+        name: 'Test Case',
+        privacy: 'private',
+        fileCount: 0,
+        createdByName: 'Fred',
+        createdAt: new Date().toISOString(),
+      },
+    ])
+
+    renderFilesPage()
+
+    const foldersRegion = await screen.findByRole('region', {
+      name: 'Folders',
+    })
+    const gridCard = await within(foldersRegion).findByRole('listitem')
+    expect(gridCard).toHaveClass('sm:w-[26rem]')
+
+    await user.click(
+      within(foldersRegion).getByRole('button', {
+        name: 'Folders: list view',
+      }),
+    )
+
+    const listCard = await within(foldersRegion).findByRole('listitem')
+    expect(listCard).not.toHaveClass('sm:w-[26rem]')
   })
 
   it('shows a list error and lets the user try again', async () => {
@@ -996,6 +1077,70 @@ describe('BrainFilesPage', () => {
     expect(within(dialog).getByText('0/50')).toBeInTheDocument()
   })
 
+  it('creates a folder and routes its attached file through upload review', async () => {
+    const user = userEvent.setup()
+    const file = new File(['Quarterly report'], 'report.pdf', {
+      type: 'application/pdf',
+    })
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'shared' as const,
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockCreateBrainFolder.mockResolvedValue(folder)
+    mockUploadBrainFile.mockResolvedValue({
+      id: 'brain-file-1',
+      name: 'report.pdf',
+      status: 'ready',
+    })
+    mockAddFileToBrainFolder.mockResolvedValue({
+      item: { ...folder, fileCount: 1 },
+      files: [{ id: 'brain-file-1', name: 'report.pdf', status: 'ready' }],
+    })
+
+    renderFilesPage()
+
+    const foldersRegion = await screen.findByRole('region', {
+      name: 'Folders',
+    })
+    await user.click(
+      within(foldersRegion).getAllByRole('button', {
+        name: /create a folder/i,
+      })[0]!,
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Folder Name/), 'Test Case')
+    await user.upload(
+      within(dialog).getByLabelText('Choose a file for the folder'),
+      file,
+    )
+
+    expect(within(dialog).getByText('report.pdf')).toBeInTheDocument()
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Create folder' }),
+    )
+
+    expect(mockCreateBrainFolder).toHaveBeenCalledWith({
+      name: 'Test Case',
+      privacy: 'shared',
+    })
+
+    await confirmSelectedFile(user)
+
+    await waitFor(() => {
+      expect(mockAddFileToBrainFolder).toHaveBeenCalledWith(
+        'folder-1',
+        'brain-file-1',
+      )
+    })
+  })
+
   it('filters folders by the scope tabs', async () => {
     const user = userEvent.setup()
 
@@ -1071,7 +1216,7 @@ describe('BrainFilesPage', () => {
       await screen.findByRole('columnheader', { name: 'File name' }),
     ).toBeInTheDocument()
     expect(screen.getByText('dots-payee.pdf')).toBeInTheDocument()
-    expect(screen.getByText('07 July 2024')).toBeInTheDocument()
+    expect(screen.getByText('07 July, 2024')).toBeInTheDocument()
     expect(screen.getByText('11 KB')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Remove' }))

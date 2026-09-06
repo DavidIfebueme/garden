@@ -121,7 +121,10 @@ function PdfPageCanvas({
 
 /**
  * Shows one PDF with page thumbnails and explicit page navigation.
- * PDF pages reuse the cached document and page queries.
+ * PDF pages reuse the cached document and page queries. Layout follows the
+ * Penpot preview modal body: a 210px thumbnail rail on the design's #d9d9d9
+ * surface (the border-default token, matching the file-card header strip) and
+ * the page on the #f5f5f5 background-main-secondary surface.
  */
 export function PdfFilePreview({ fileId }: { fileId: string }) {
   const [selectedPage, setSelectedPage] = useState(1)
@@ -156,12 +159,12 @@ export function PdfFilePreview({ fileId }: { fileId: string }) {
   )
 
   return (
-    <div className="grid h-[65vh] grid-cols-[7rem_minmax(0,1fr)] bg-muted/30">
+    <div className="grid h-[65vh] grid-cols-[13.125rem_minmax(0,1fr)]">
       <nav
         aria-label="PDF pages"
-        className="overflow-y-auto border-r bg-background/60 p-3"
+        className="overflow-y-auto bg-border-default px-4 py-3"
       >
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {pageNumbers.map((pageNumber) => {
             const selected = pageNumber === selectedPage
 
@@ -194,8 +197,8 @@ export function PdfFilePreview({ fileId }: { fileId: string }) {
         </div>
       </nav>
 
-      <div className="flex min-h-0 flex-col">
-        <div className="border-b bg-background/70 px-4 py-2 text-center text-xs text-muted-foreground">
+      <div className="flex min-h-0 flex-col bg-background-main-secondary">
+        <div className="border-b border-border-default bg-background-main-default px-4 py-2 text-center text-xs text-muted-foreground">
           Page {selectedPage} of {pdf.numPages}
         </div>
 

@@ -16,20 +16,24 @@ import type { BrainFolderSummary } from '../contract'
  * One folder tile in the Folders grid (Penpot populated frame): 72px gray
  * card, folder glyph + name + "Private · N files" meta, and a ⋯ menu carrying
  * the design's folder actions that exist this pass (View / Rename / Delete).
+ * `layout="list"` stretches the same card to full width for the design's
+ * list-view toggle.
  */
 export function BrainFolderCard({
   folder,
+  layout = 'grid',
   onOpen,
   onRename,
   onDelete,
 }: {
   folder: BrainFolderSummary
+  layout?: 'grid' | 'list'
   onOpen: (folder: BrainFolderSummary) => void
   onRename: (folder: BrainFolderSummary) => void
   onDelete: (folder: BrainFolderSummary) => void
 }) {
   return (
-    <li className="w-full sm:w-[26rem]">
+    <li className={layout === 'list' ? 'w-full' : 'w-full sm:w-[26rem]'}>
       <div className="flex h-[4.5rem] items-center gap-3 rounded-xl bg-background-main-secondary px-4 py-3">
         <button
           type="button"
