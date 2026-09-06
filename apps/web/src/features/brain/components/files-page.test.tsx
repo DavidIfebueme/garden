@@ -1424,4 +1424,173 @@ describe('BrainFilesPage', () => {
     expect(mockDeleteBrainFile).toHaveBeenCalledWith('stored-file-1')
     expect(screen.queryByText('saved-notes.txt')).not.toBeInTheDocument()
   })
+
+  it('shows the view-all trigger only when files exceed the recent row', async () => {
+    renderFilesPage([
+      { id: 'file-1', name: 'one.txt', status: 'ready' },
+      { id: 'file-2', name: 'two.txt', status: 'ready' },
+    ])
+
+    await recentFilesRegion()
+
+    expect(
+      screen.queryByRole('button', { name: /view all/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opens the full file list from the recent row and returns', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    // Table is the default; every file appears, not just the two recents.
+    expect(
+      await screen.findByRole('columnheader', { name: 'File name' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'All files' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('latest.pdf')).toBeInTheDocument()
+    expect(screen.getByText('third.txt')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Folders' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: /files & folders/i }),
+    )
+
+    expect(
+      await screen.findByRole('region', { name: 'Folders' }),
+    ).toBeInTheDocument()
+  })
+
+  it('switches the all-files view between table and grid', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+    expect(
+      await screen.findByRole('columnheader', { name: 'File name' }),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'All files: grid view' }),
+    )
+
+    expect(
+      screen.queryByRole('columnheader', { name: 'File name' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+
+    await user.click(
+      screen.getByRole('button', { name: 'All files: list view' }),
+    )
+
+    expect(
+      await screen.findByRole('columnheader', { name: 'File name' }),
+    ).toBeInTheDocument()
+  })
+
+  it('filters the full file list by search', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'report.pdf', status: 'ready' },
+      { id: 'file-2', name: 'notes.txt', status: 'ready' },
+      { id: 'file-3', name: 'budget.xlsx', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    await user.type(screen.getByLabelText('Search files'), 'notes')
+
+    expect(screen.getByText('notes.txt')).toBeInTheDocument()
+    expect(screen.queryByText('report.pdf')).not.toBeInTheDocument()
+    expect(screen.queryByText('budget.xlsx')).not.toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Search files'))
+    await user.type(screen.getByLabelText('Search files'), 'zzz')
+
+    expect(screen.getByText(/No files match/)).toBeInTheDocument()
+  })
+
+  it('retries a failed file from the all-files view', async () => {
+    const user = userEvent.setup()
+
+    mockRetryBrainFile.mockResolvedValue({
+      id: 'failed-file-1',
+      name: 'broken-sheet.xlsx',
+      status: 'processing',
+    })
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'failed-file-1', name: 'broken-sheet.xlsx', status: 'failed' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+
+    expect(await screen.findByText('Failed')).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Retry broken-sheet.xlsx' }),
+    )
+
+    expect(mockRetryBrainFile).toHaveBeenCalledWith('failed-file-1')
+  })
+
+  it('deletes a file from the all-files view after confirmation', async () => {
+    const user = userEvent.setup()
+
+    renderFilesPage([
+      { id: 'file-1', name: 'latest.pdf', status: 'ready' },
+      { id: 'file-2', name: 'second.docx', status: 'ready' },
+      { id: 'file-3', name: 'third.txt', status: 'ready' },
+    ])
+
+    await user.click(
+      await screen.findByRole('button', { name: 'View all 3 files' }),
+    )
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'File actions for third.txt',
+      }),
+    )
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Delete file' }),
+    )
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent(
+      'removes it from the knowledge base and any folders',
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    expect(mockDeleteBrainFile).toHaveBeenCalledWith('file-3')
+    await waitFor(() => {
+      expect(screen.queryByText('third.txt')).not.toBeInTheDocument()
+    })
+  })
 })

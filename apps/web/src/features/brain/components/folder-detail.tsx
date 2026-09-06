@@ -40,7 +40,7 @@ import {
   formatUploadedTime,
   truncateMiddle,
 } from '../format'
-import { BrainFileTypeIcon } from './file-type-icon'
+import { FileGridCard, FileListTable } from './file-list'
 import { ViewModePill, type ViewMode } from './view-mode-pill'
 
 /**
@@ -264,11 +264,17 @@ export function BrainFolderDetail({
               ) : filesView === 'grid' ? (
                 <ul className="flex flex-wrap gap-4" aria-live="polite">
                   {visibleFiles.map((file) => (
-                    <FolderFileCard
+                    <FileGridCard
                       key={file.id}
                       file={file}
                       onPreview={onPreviewFile}
-                      onDelete={setPendingRemoveFile}
+                      menu={
+                        <FolderFileMenu
+                          file={file}
+                          onPreview={onPreviewFile}
+                          onDelete={setPendingRemoveFile}
+                        />
+                      }
                     />
                   ))}
                   {visibleFiles.length === 0 ? (
@@ -278,94 +284,33 @@ export function BrainFolderDetail({
                   ) : null}
                 </ul>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-border-default">
-                  <table className="w-full table-fixed text-sm">
-                    <thead>
-                      <tr className="bg-background-main-secondary text-left">
-                        <th className="px-6 py-4 font-semibold text-text-neutral-default">
-                          File name
-                        </th>
-                        <th className="px-6 py-4 font-semibold text-text-neutral-default">
-                          Date uploaded
-                        </th>
-                        <th className="px-6 py-4 font-semibold text-text-neutral-default">
-                          Time uploaded
-                        </th>
-                        <th className="px-6 py-4 font-semibold text-text-neutral-default">
-                          Size
-                        </th>
-                        <th className="px-6 py-4 text-right font-semibold text-text-neutral-default">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleFiles.map((file) => (
-                        <tr
-                          key={file.id}
-                          className="border-t border-border-default bg-background-main-default"
-                        >
-                          <td className="px-6 py-5">
-                            <span className="flex min-w-0 items-center gap-2">
-                              <BrainFileTypeIcon
-                                fileName={file.name}
-                                className="size-4.5 shrink-0"
-                              />
-                              <span
-                                className="min-w-0 truncate text-text-neutral-default"
-                                title={file.name}
-                              >
-                                {truncateMiddle(file.name, 44)}
-                              </span>
-                            </span>
-                          </td>
-                          <td className="px-6 py-5 text-text-neutral-default">
-                            {formatUploadedDate(file.uploadedAt)}
-                          </td>
-                          <td className="px-6 py-5 text-text-neutral-default">
-                            {formatUploadedTime(file.uploadedAt)}
-                          </td>
-                          <td className="px-6 py-5 text-text-neutral-default">
-                            {formatFileSize(file.sizeBytes)}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => setPendingRemoveFile(file)}
-                              >
-                                <Trash className="size-3.5" weight="regular" />
-                                Delete
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                disabled={file.status !== 'ready'}
-                                onClick={() => onPreviewFile(file)}
-                              >
-                                <Eye className="size-3.5" weight="regular" />
-                                View
-                              </Button>
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                      {visibleFiles.length === 0 ? (
-                        <tr className="border-t border-border-default bg-background-main-default">
-                          <td
-                            colSpan={5}
-                            className="px-6 py-8 text-center text-text-secondary"
-                          >
-                            No files match “{search}”.
-                          </td>
-                        </tr>
-                      ) : null}
-                    </tbody>
-                  </table>
-                </div>
+                <FileListTable
+                  files={visibleFiles}
+                  search={search}
+                  renderActions={(file) => (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => setPendingRemoveFile(file)}
+                      >
+                        <Trash className="size-3.5" weight="regular" />
+                        Delete
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        disabled={file.status !== 'ready'}
+                        onClick={() => onPreviewFile(file)}
+                      >
+                        <Eye className="size-3.5" weight="regular" />
+                        View
+                      </Button>
+                    </>
+                  )}
+                />
               )}
             </>
           )}
@@ -412,12 +357,11 @@ export function BrainFolderDetail({
 }
 
 /**
- * Grid-view card for one folder file, mirroring the KB card shape (name strip
- * over meta) since the design shows the toggle but not the grid state. The ⋯
- * menu carries the folder-honest actions: View file / Download / Delete
- * (detach — same confirm dialog as the table pill).
+ * The ⋯ menu for a folder-detail file card (the card shell is the shared
+ * FileGridCard): View file / Download / Delete (detach — same confirm dialog
+ * as the table pill).
  */
-function FolderFileCard({
+function FolderFileMenu({
   file,
   onPreview,
   onDelete,
@@ -429,70 +373,42 @@ function FolderFileCard({
   const canPreview = file.status === 'ready'
 
   return (
-    <li className="w-full overflow-hidden rounded-xl bg-background-main-secondary sm:w-[15.5rem]">
-      <div className="flex items-center gap-2 bg-border-default px-3 py-2">
-        <button
-          type="button"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`File actions for ${file.name}`}
+        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary-hover"
+      >
+        <DotsThreeVertical className="size-4" weight="regular" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem
           disabled={!canPreview}
           onClick={() => onPreview(file)}
-          aria-label={`Preview ${file.name}`}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left disabled:cursor-default"
         >
-          <BrainFileTypeIcon fileName={file.name} className="size-4" />
-          <span
-            className="min-w-0 truncate text-sm text-text-neutral-default"
-            title={file.name}
-          >
-            {truncateMiddle(file.name, 36)}
-          </span>
-        </button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`File actions for ${file.name}`}
-            className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary-hover"
-          >
-            <DotsThreeVertical className="size-4" weight="regular" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              disabled={!canPreview}
-              onClick={() => onPreview(file)}
-            >
-              <Eye className="size-4" weight="regular" />
-              View file
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                const anchor = document.createElement('a')
-                anchor.href = brainFileDownloadUrl(file)
-                anchor.download = file.name
-                anchor.click()
-              }}
-            >
-              <Download className="size-4" weight="regular" />
-              Download
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(file)}
-            >
-              <Trash className="size-4" weight="regular" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="flex min-h-[5.5rem] flex-col justify-center gap-1 px-3 py-2.5">
-        <p className="text-xs text-text-secondary">
-          {formatUploadedDate(file.uploadedAt)}
-          <span aria-hidden="true"> · </span>
-          {formatFileSize(file.sizeBytes)}
-        </p>
-      </div>
-    </li>
+          <Eye className="size-4" weight="regular" />
+          View file
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            const anchor = document.createElement('a')
+            anchor.href = brainFileDownloadUrl(file)
+            anchor.download = file.name
+            anchor.click()
+          }}
+        >
+          <Download className="size-4" weight="regular" />
+          Download
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => onDelete(file)}
+        >
+          <Trash className="size-4" weight="regular" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -2,16 +2,11 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  Download,
-  Eye,
   FilePlus,
-  FolderPlus,
   Folder as FolderIcon,
-  Loader2,
   Plus,
-  Trash,
+  ArrowRight,
 } from 'lucide-react'
-import { DotsThreeVertical } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,20 +18,15 @@ import {
   AlertDialogTitle,
 } from '@garden/ui/components/ui/alert-dialog'
 import { Button } from '@garden/ui/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '@garden/ui/components/ui/dropdown-menu'
 import { BrainFileTypeIcon } from './file-type-icon'
+import { BrainAllFilesView } from './all-files-view'
+import {
+  FileCardMenu,
+  FileStatusChip,
+  type FileRetryState,
+} from './file-list'
 import {
   addFileToBrainFolder,
-  brainFileDownloadUrl,
   createBrainFolder,
   deleteBrainFile,
   deleteBrainFolder,
@@ -78,85 +68,6 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 /**
- * The honest ⋯ file menu shared by the KB cards and the recent-file cards:
- * View file / Download / Add to folder / Delete file. The design also lists
- * Edit and Add to knowledge base; neither maps to existing behavior (no file
- * rename API, and these files already live in the workspace knowledge base),
- * so they stay out per scope decision.
- */
-function FileCardMenu({
-  uploadedFile,
-  folders,
-  canPreview,
-  onPreview,
-  onAddToFolder,
-  onDelete,
-}: {
-  uploadedFile: BrainFileSummary
-  folders: readonly BrainFolderSummary[]
-  canPreview: boolean
-  onPreview: (file: BrainFileSummary) => void
-  onAddToFolder: (file: BrainFileSummary, folderId: string) => void
-  onDelete: (file: BrainFileSummary) => void
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`File actions for ${uploadedFile.name}`}
-        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-icon-neutral-default transition-colors hover:bg-background-main-secondary"
-      >
-        <DotsThreeVertical className="size-4" weight="regular" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          disabled={!canPreview}
-          onClick={() => onPreview(uploadedFile)}
-        >
-          <Eye />
-          View file
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            const anchor = document.createElement('a')
-            anchor.href = brainFileDownloadUrl(uploadedFile)
-            anchor.download = uploadedFile.name
-            anchor.click()
-          }}
-        >
-          <Download />
-          Download
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger disabled={folders.length === 0}>
-            <FolderPlus />
-            Add to folder
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-44">
-            {folders.map((folder) => (
-              <DropdownMenuItem
-                key={folder.id}
-                onClick={() => onAddToFolder(uploadedFile, folder.id)}
-              >
-                <FolderIcon />
-                <span className="min-w-0 truncate">{folder.name}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => onDelete(uploadedFile)}
-        >
-          <Trash />
-          Delete file
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-/**
  * One of the two most recent files beside the dropzone (Penpot top row shows
  * document preview cards next to the upload card): name strip over a rendered
  * thumbnail — page 1 of a ready PDF through the shared pdfjs cache, the type
@@ -167,26 +78,19 @@ function FileCardMenu({
 function RecentFileCard({
   uploadedFile,
   folders,
-  isPolling,
-  isRetrying,
+  retry,
   onAddToFolder,
   onDelete,
   onPreview,
-  onRetry,
 }: {
   uploadedFile: BrainFileSummary
   folders: readonly BrainFolderSummary[]
-  isPolling: boolean
-  isRetrying: boolean
+  retry: FileRetryState
   onAddToFolder: (file: BrainFileSummary, folderId: string) => void
   onDelete: (file: BrainFileSummary) => void
   onPreview: (file: BrainFileSummary) => void
-  onRetry: (file: BrainFileSummary) => void
 }) {
   const canPreview = uploadedFile.status === 'ready'
-  const canRetry =
-    uploadedFile.status === 'failed' ||
-    (uploadedFile.status === 'processing' && !isPolling)
   const isPdf = uploadedFile.name.toLowerCase().endsWith('.pdf')
 
   const glyph = (
@@ -241,27 +145,7 @@ function RecentFileCard({
         // sit inside a disabled preview button or its clicks get swallowed.
         <div className="flex h-[7.25rem] w-full flex-col items-center justify-center gap-1.5 px-2">
           <BrainFileTypeIcon fileName={uploadedFile.name} className="size-8" />
-          <span className="flex items-center gap-1.5 text-xs text-text-secondary">
-            {isPolling || isRetrying ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-            ) : null}
-            {isRetrying
-              ? 'Retrying'
-              : uploadedFile.status === 'failed'
-                ? 'Failed'
-                : 'Processing'}
-            {canRetry ? (
-              <button
-                type="button"
-                aria-label={`Retry ${uploadedFile.name}`}
-                disabled={isRetrying}
-                onClick={() => onRetry(uploadedFile)}
-                className="cursor-pointer font-medium text-text-neutral-default underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-70"
-              >
-                Retry
-              </button>
-            ) : null}
-          </span>
+          <FileStatusChip file={uploadedFile} retry={retry} />
         </div>
       )}
     </li>
@@ -272,11 +156,13 @@ function RecentFileCard({
  * Files & Folders page (Penpot "Files & Folders [DEV READY]"): header band,
  * upload dropzone with the two most recent files beside it, and the Folders
  * section with All/Private/Shared scope tabs, grid/list toggle, and the
- * create-folder dialog. The design references carry no separate Knowledge
- * Base list, so the recent-files row is the page's file surface; the file
- * list query still powers it (plus upload status polling), and its load
- * error surfaces under the top row. Folder selection swaps the sections for
- * the folder detail view.
+ * create-folder dialog. The design references carry no always-on file list,
+ * so the recent-files row is the page's file surface; when more than two
+ * files exist, a "View all N files" affordance on that row swaps the page to
+ * the all-files view (the full list with search, table/grid, and per-file
+ * actions). The file list query powers both (plus upload status polling), and
+ * its load error surfaces under the top row. Folder selection swaps the
+ * sections for the folder detail view.
  */
 export function BrainFilesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -289,6 +175,12 @@ export function BrainFilesPage() {
   const [folderScope, setFolderScope] = useState<FolderScope>('all')
   const [foldersView, setFoldersView] = useState<ViewMode>('grid')
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
+  /**
+   * The main page shows only the two recents by design; when more files exist
+   * a "View all N files" affordance swaps the page to the full-list view so
+   * older files stay reachable (preview / delete / retry / add-to-folder).
+   */
+  const [allFilesOpen, setAllFilesOpen] = useState(false)
   const [folderDialog, setFolderDialog] = useState<{
     folder?: BrainFolderSummary
   } | null>(null)
@@ -555,6 +447,21 @@ export function BrainFilesPage() {
     fileInputRef.current?.click()
   }
 
+  /**
+   * Shared per-file retry state for every list surface (recent cards,
+   * all-files view): polling only tracks files uploaded this session, and a
+   * list error pauses it so a stalled file offers Retry instead of spinning.
+   */
+  const fileRetry: FileRetryState = {
+    isPolling: (file) =>
+      file.status === 'processing' &&
+      sessionUploadIdSet.has(file.id) &&
+      !filesQuery.isError,
+    isRetrying: (file) =>
+      retryMutation.isPending && retryMutation.variables === file.id,
+    onRetry: (fileToRetry) => retryMutation.mutate(fileToRetry.id),
+  }
+
   const uploadError =
     uploadMutation.error instanceof Error
       ? uploadMutation.error.message
@@ -624,6 +531,64 @@ export function BrainFilesPage() {
     )
   }
 
+  if (allFilesOpen) {
+    return (
+      <main className="h-full bg-background">
+        <BrainAllFilesView
+          files={files}
+          folders={folders}
+          isListError={filesQuery.isError}
+          isRefetchError={filesQuery.isRefetchError}
+          isFetchingList={filesQuery.isFetching}
+          onRetryList={() => void filesQuery.refetch()}
+          retry={fileRetry}
+          onBack={() => setAllFilesOpen(false)}
+          onPreview={setPreviewFile}
+          onDelete={setPendingDeleteFile}
+          onAddToFolder={(fileToAdd, folderId) =>
+            addToFolderMutation.mutate({
+              folderId,
+              fileId: fileToAdd.id,
+            })
+          }
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={BRAIN_ACCEPTED_FILE_TYPES}
+          className="hidden"
+          onChange={handleFileChange}
+          aria-label="Choose a document to upload"
+        />
+
+        {previewFile ? (
+          <BrainFilePreviewDialog
+            file={previewFile}
+            onClose={() => setPreviewFile(null)}
+          />
+        ) : null}
+
+        <BrainFileUploadDialog
+          file={selectedFile}
+          uploading={uploadMutation.isPending}
+          progress={uploadProgress}
+          onConfirm={confirmUpload}
+          onClose={() => setSelectedFile(null)}
+        />
+
+        {pendingDeleteFile ? (
+          <DeleteFileDialog
+            file={pendingDeleteFile}
+            pending={deleteFileMutation.isPending}
+            onConfirm={() => deleteFileMutation.mutate(pendingDeleteFile.id)}
+            onClose={() => setPendingDeleteFile(null)}
+          />
+        ) : null}
+      </main>
+    )
+  }
+
   return (
     <main className="h-full overflow-y-auto bg-background">
       {/* Header band (design: white strip, 24px title + 16px subtitle) */}
@@ -674,6 +639,7 @@ export function BrainFilesPage() {
                     key={file.id}
                     uploadedFile={file}
                     folders={folders}
+                    retry={fileRetry}
                     onPreview={setPreviewFile}
                     onAddToFolder={(fileToAdd, folderId) =>
                       addToFolderMutation.mutate({
@@ -682,21 +648,20 @@ export function BrainFilesPage() {
                       })
                     }
                     onDelete={setPendingDeleteFile}
-                    isPolling={
-                      file.status === 'processing' &&
-                      sessionUploadIdSet.has(file.id) &&
-                      !filesQuery.isError
-                    }
-                    isRetrying={
-                      retryMutation.isPending &&
-                      retryMutation.variables === file.id
-                    }
-                    onRetry={(fileToRetry) =>
-                      retryMutation.mutate(fileToRetry.id)
-                    }
                   />
                 ))}
               </ul>
+            ) : null}
+
+            {files.length > recentFiles.length ? (
+              <Button
+                variant="outline"
+                className="h-10 gap-2 self-center"
+                onClick={() => setAllFilesOpen(true)}
+              >
+                View all {files.length} files
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
             ) : null}
           </div>
 
@@ -914,40 +879,63 @@ export function BrainFilesPage() {
       ) : null}
 
       {pendingDeleteFile ? (
-        <AlertDialog
-          open
-          onOpenChange={(open) => {
-            if (!open && !deleteFileMutation.isPending)
-              setPendingDeleteFile(null)
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete file</AlertDialogTitle>
-              <AlertDialogDescription className="break-words">
-                Delete{' '}
-                <span className="break-all" title={pendingDeleteFile.name}>
-                  {truncateMiddle(pendingDeleteFile.name, 64)}
-                </span>
-                ? This removes it from the knowledge base and any folders.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteFileMutation.isPending}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={deleteFileMutation.isPending}
-                onClick={() => deleteFileMutation.mutate(pendingDeleteFile.id)}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteFileDialog
+          file={pendingDeleteFile}
+          pending={deleteFileMutation.isPending}
+          onConfirm={() => deleteFileMutation.mutate(pendingDeleteFile.id)}
+          onClose={() => setPendingDeleteFile(null)}
+        />
       ) : null}
     </main>
+  )
+}
+
+/**
+ * Shared confirm dialog for real file deletion (recent cards, all-files
+ * view): unlike the folder-detach dialog this destroys the file, and the copy
+ * says so.
+ */
+function DeleteFileDialog({
+  file,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  file: BrainFileSummary
+  pending: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  return (
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !pending) onClose()
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete file</AlertDialogTitle>
+          <AlertDialogDescription className="break-words">
+            Delete{' '}
+            <span className="break-all" title={file.name}>
+              {truncateMiddle(file.name, 64)}
+            </span>
+            ? This removes it from the knowledge base and any folders.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={pending}
+            onClick={onConfirm}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
