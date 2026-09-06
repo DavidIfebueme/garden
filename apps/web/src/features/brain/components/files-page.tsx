@@ -7,7 +7,7 @@ import {
   Plus,
   ArrowRight,
 } from 'lucide-react'
-import { FunnelSimple } from '@phosphor-icons/react'
+import { FunnelSimple, PlugsConnected, CaretRight } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,12 @@ import {
   AlertDialogTitle,
 } from '@garden/ui/components/ui/alert-dialog'
 import { Button } from '@garden/ui/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@garden/ui/components/ui/dropdown-menu'
 import { BrainFileTypeIcon } from './file-type-icon'
 import { BrainAllFilesView } from './all-files-view'
 import {
@@ -622,25 +628,49 @@ export function BrainFilesPage() {
         {/* Top row (design: 520×152 dashed dropzone + recent document cards) */}
         <section aria-label="Upload">
           <div className="flex flex-wrap items-start gap-4">
-            <button
-              type="button"
-              disabled={uploadMutation.isPending}
-              onClick={() => openFilePicker()}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDrop}
-              className="flex h-[9.5rem] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-default bg-background-main-secondary text-center transition-colors hover:bg-background-main-secondary-hover disabled:cursor-wait disabled:opacity-70 sm:w-[32.5rem]"
-            >
-              <FilePlus className="size-6 text-text-neutral-default" />
+            {/* Clicking the dropzone opens the design's source menu (Add
+                files / Use connector) instead of the picker directly; drag &
+                drop still goes straight to review. Connector import has no
+                backend, so that item stays visible but disabled. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    disabled={uploadMutation.isPending}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleDrop}
+                    className="flex h-[9.5rem] w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border-default bg-background-main-secondary text-center transition-colors hover:bg-background-main-secondary-hover disabled:cursor-wait disabled:opacity-70 sm:w-[32.5rem]"
+                  />
+                }
+              >
+                <FilePlus className="size-6 text-text-neutral-default" />
 
-              <span className="flex flex-col gap-1">
-                <span className="text-sm text-text-neutral-default">
-                  Add your documents or drag &amp; drop it here
+                <span className="flex flex-col gap-1">
+                  <span className="text-sm text-text-neutral-default">
+                    Add your documents or drag &amp; drop it here
+                  </span>
+                  <span className="text-sm text-text-secondary">
+                    Sample docs include: docx, xlx, pdf, etc.
+                  </span>
                 </span>
-                <span className="text-sm text-text-secondary">
-                  Sample docs include: docx, xlx, pdf, etc.
-                </span>
-              </span>
-            </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={4} className="w-48">
+                <DropdownMenuItem onClick={() => openFilePicker()}>
+                  <Plus className="size-4" />
+                  Add files
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled title="Not available yet">
+                  <PlugsConnected className="size-4" weight="regular" />
+                  Use connector
+                  <CaretRight
+                    className="ml-auto size-4"
+                    weight="regular"
+                    aria-hidden="true"
+                  />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {recentFiles.length > 0 ? (
               <ul

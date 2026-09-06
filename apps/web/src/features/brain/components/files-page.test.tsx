@@ -762,6 +762,31 @@ describe('BrainFilesPage', () => {
     expect(mockListBrainFiles).toHaveBeenCalledTimes(2)
   })
 
+  it('opens the add-source menu from the dropzone and starts a pick', async () => {
+    const user = userEvent.setup()
+    const inputClick = vi.spyOn(HTMLInputElement.prototype, 'click')
+
+    renderFilesPage()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /add your documents or drag & drop it here/i,
+      }),
+    )
+
+    expect(
+      await screen.findByRole('menuitem', { name: 'Add files' }),
+    ).toBeInTheDocument()
+    // Connector import has no backend; the item stays visible but disabled.
+    expect(
+      screen.getByRole('menuitem', { name: /use connector/i }),
+    ).toHaveAttribute('aria-disabled', 'true')
+
+    await user.click(screen.getByRole('menuitem', { name: 'Add files' }))
+
+    expect(inputClick).toHaveBeenCalled()
+  })
+
   it('reviews a selected file before adding it to the knowledge base', async () => {
     const user = userEvent.setup()
     const file = new File(['Quarterly report'], 'report.pdf', {
