@@ -2,7 +2,7 @@ import { Result, TaggedError } from 'better-result'
 import { and, eq } from 'drizzle-orm'
 import { createFileRoute } from '@tanstack/react-router'
 import {
-  defaultTrustLevelForRisk,
+  resolveEffectiveTrust,
   type PermissionTrustLevel,
 } from '@garden/connectors/capabilities'
 import { requireAppRequestContext } from '@/lib/server/context'
@@ -126,20 +126,24 @@ export const Route = createFileRoute('/api/agents/$id/access')({
             capabilityIdByKey.get(
               `${capability.connectorType}:${capability.name}`,
             ) ?? ''
-          const toolTrust = toolGrantByCapability.get(capabilityId)
-          const connectionTrust = connectionGrantByConnector.get(
-            capability.connectorType,
-          )
-          const trust: PermissionTrustLevel =
-            (toolTrust as PermissionTrustLevel | undefined) ??
-            (connectionTrust as PermissionTrustLevel | undefined) ??
-            defaultTrustLevelForRisk(capability.riskClass)
+          const { trust, visible } = resolveEffectiveTrust({
+            toolTrust:
+              toolGrantByCapability.get(capabilityId) as
+                | PermissionTrustLevel
+                | undefined,
+            connectionTrust:
+              connectionGrantByConnector.get(capability.connectorType) as
+                | PermissionTrustLevel
+                | undefined,
+            riskClass: capability.riskClass,
+          })
           return {
             connector_id: capability.connectorType,
             tool_name: capability.name,
             risk_class: capability.riskClass,
             trust,
-            granted: toolTrust !== undefined,
+            granted: toolGrantByCapability.has(capabilityId),
+            visible,
           }
         })
 
@@ -149,6 +153,7 @@ export const Route = createFileRoute('/api/agents/$id/access')({
               connector_id,
               trust,
               granted: true,
+              visible: (trust as PermissionTrustLevel) !== 'ask',
             }),
           ),
           tools,

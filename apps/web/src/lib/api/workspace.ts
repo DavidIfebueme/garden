@@ -141,6 +141,7 @@ export interface AgentConnectionTrust {
   connector_id: string
   trust: PermissionTrustLevel
   granted: boolean
+  visible: boolean
 }
 
 export interface AgentToolTrust {
@@ -149,6 +150,7 @@ export interface AgentToolTrust {
   risk_class: string
   trust: PermissionTrustLevel
   granted: boolean
+  visible: boolean
 }
 
 export function getAgentAccess(id: string): Promise<{

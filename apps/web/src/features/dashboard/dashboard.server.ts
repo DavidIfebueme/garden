@@ -166,6 +166,7 @@ async function loadDashboardConnections(
     availableConnectors,
     capabilities,
     permissionGrants,
+    connectionGrants,
     toolCallAudits,
   ] = await Promise.all([
     db
@@ -183,6 +184,7 @@ async function loadDashboardConnections(
     }),
     db.select().from(schema.capability),
     db.select().from(schema.permissionGrant),
+    db.select().from(schema.connectionGrant),
     db
       .select()
       .from(schema.toolCallAudit)
@@ -197,6 +199,7 @@ async function loadDashboardConnections(
     availableConnectors,
     capabilities,
     permissionGrants,
+    connectionGrants,
     toolCallAudits,
   })
 }

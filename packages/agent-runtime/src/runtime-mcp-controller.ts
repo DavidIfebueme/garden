@@ -18,8 +18,8 @@ import { isNativeConnector } from '@garden/connectors/sdk'
 import {
   buildMcpAiToolKey,
   canonicalJsonString,
-  defaultTrustLevelForRisk,
   guardedMcpToolDescription,
+  resolveEffectiveTrust,
 } from '@garden/connectors/capabilities'
 import * as schema from '@garden/db/schema'
 import { captureGardenAnalyticsEvent } from '@garden/observability/analytics/client'
@@ -880,10 +880,11 @@ export class RuntimeMcpController {
     })
     if (connectionGrantResult.isErr()) return connectionGrantResult
 
-    const trustLevel =
-      grantResult.value[0]?.trustLevel ??
-      connectionGrantResult.value[0]?.trustLevel ??
-      defaultTrustLevelForRisk(capability.riskClass)
+    const { trust: trustLevel } = resolveEffectiveTrust({
+      toolTrust: grantResult.value[0]?.trustLevel,
+      connectionTrust: connectionGrantResult.value[0]?.trustLevel,
+      riskClass: capability.riskClass,
+    })
     if (trustLevel !== 'ask') {
       return Result.ok(false)
     }

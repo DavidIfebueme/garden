@@ -26,6 +26,31 @@ export function defaultTrustLevelForRisk(
   }
 }
 
+export type EffectiveTrustInput = {
+  toolTrust?: PermissionTrustLevel | string | null
+  connectionTrust?: PermissionTrustLevel | string | null
+  riskClass: RiskClass | string | null | undefined
+}
+
+export type EffectiveTrust = {
+  trust: PermissionTrustLevel
+  visible: boolean
+}
+
+/**
+ * Single source of truth for effective tool trust. Resolution order is tool
+ * grant, connection grant, risk default; visibility derives last as
+ * granted-visible so the access view, the runtime gate, and the connection
+ * surface can never disagree about what an agent may use.
+ */
+export function resolveEffectiveTrust(input: EffectiveTrustInput): EffectiveTrust {
+  const trust =
+    (input.toolTrust as PermissionTrustLevel | undefined) ??
+    (input.connectionTrust as PermissionTrustLevel | undefined) ??
+    defaultTrustLevelForRisk(input.riskClass)
+  return { trust, visible: trust !== 'ask' }
+}
+
 export function canonicalizeJson(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) => canonicalizeJson(entry))

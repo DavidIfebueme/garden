@@ -72,13 +72,19 @@ describe('agent access route', () => {
       [
         {
           id: 'capability-id',
+          connectorType: 'slack',
+          name: 'post_message',
+          riskClass: 'write',
+        },
+        {
+          id: 'capability-destructive',
           connectorType: 'github',
-          name: 'add_issue_comment',
+          name: 'create_issue',
           riskClass: 'write',
         },
       ],
       [],
-      [],
+      [{ connectorId: 'github', trustLevel: 'ask' }],
     ]
     const db = {
       select: vi.fn(() => ({
@@ -99,14 +105,30 @@ describe('agent access route', () => {
     expect(response).toBeInstanceOf(Response)
     expect(response?.status).toBe(200)
     await expect(response?.json()).resolves.toEqual({
-      connections: [],
-      tools: [
+      connections: [
         {
           connector_id: 'github',
-          tool_name: 'add_issue_comment',
+          trust: 'ask',
+          granted: true,
+          visible: false,
+        },
+      ],
+      tools: [
+        {
+          connector_id: 'slack',
+          tool_name: 'post_message',
           risk_class: 'write',
           trust: 'allow',
           granted: false,
+          visible: true,
+        },
+        {
+          connector_id: 'github',
+          tool_name: 'create_issue',
+          risk_class: 'write',
+          trust: 'ask',
+          granted: false,
+          visible: false,
         },
       ],
     })
