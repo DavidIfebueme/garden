@@ -58,6 +58,7 @@ export class RuntimeMcpError extends TaggedError('RuntimeMcpError')<{
     | 'mcp_discover_failed'
     | 'mcp_readiness_failed'
     | 'mcp_register_failed'
+    | 'permission_denied'
     | 'thread_not_found'
   message: string
 }>() {}
@@ -816,11 +817,17 @@ export class RuntimeMcpController {
       return Result.ok(true)
     }
 
-    if (
-      existingRequest?.status === 'approved' ||
-      existingRequest?.status === 'denied'
-    ) {
+    if (existingRequest?.status === 'approved') {
       return Result.ok(false)
+    }
+
+    if (existingRequest?.status === 'denied') {
+      return Result.err(
+        new RuntimeMcpError({
+          code: 'permission_denied',
+          message: `Permission denied for ${args.connectorId}.${args.toolName} (tool call ${args.toolCallId}). The user denied this call; do not retry it.`,
+        }),
+      )
     }
 
     const grantResult = await Result.tryPromise({
