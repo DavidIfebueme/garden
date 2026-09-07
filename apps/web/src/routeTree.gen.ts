@@ -90,6 +90,7 @@ import { Route as ApiDocumentsIdVersionsRouteImport } from './routes/api/documen
 import { Route as ApiDocumentsIdMetadataRouteImport } from './routes/api/documents/$id/metadata'
 import { Route as ApiDocumentsIdDocxRouteImport } from './routes/api/documents/$id/docx'
 import { Route as ApiDocumentsIdDisplayRouteImport } from './routes/api/documents/$id/display'
+import { Route as ApiConnectionsConnectorIdGrantRouteImport } from './routes/api/connections/$connectorId/grant'
 import { Route as ApiConnectionsConnectorIdActivityRouteImport } from './routes/api/connections/$connectorId/activity'
 import { Route as ApiCommentsIdReactionsRouteImport } from './routes/api/comments/$id/reactions'
 import { Route as ApiChatThreadsIdRouteImport } from './routes/api/chat/threads/$id'
@@ -99,6 +100,7 @@ import { Route as ApiAutomationsIdTriggerRouteImport } from './routes/api/automa
 import { Route as ApiAutomationsIdRunsRouteImport } from './routes/api/automations/$id/runs'
 import { Route as ApiAgentsIdRestoreRouteImport } from './routes/api/agents/$id/restore'
 import { Route as ApiAgentsIdArchiveRouteImport } from './routes/api/agents/$id/archive'
+import { Route as ApiAgentsIdAccessRouteImport } from './routes/api/agents/$id/access'
 import { Route as ApiWorkspacesIdMembersMemberIdRouteImport } from './routes/api/workspaces/$id/members/$memberId'
 import { Route as ApiWorkspacesIdInvitationsInvitationIdRouteImport } from './routes/api/workspaces/$id/invitations/$invitationId'
 import { Route as ApiIssuesIdSourceBindingsBindingIdRouteImport } from './routes/api/issues/$id/source-bindings/$bindingId'
@@ -525,6 +527,12 @@ const ApiDocumentsIdDisplayRoute = ApiDocumentsIdDisplayRouteImport.update({
   path: '/api/documents/$id/display',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConnectionsConnectorIdGrantRoute =
+  ApiConnectionsConnectorIdGrantRouteImport.update({
+    id: '/grant',
+    path: '/grant',
+    getParentRoute: () => ApiConnectionsConnectorIdRoute,
+  } as any)
 const ApiConnectionsConnectorIdActivityRoute =
   ApiConnectionsConnectorIdActivityRouteImport.update({
     id: '/activity',
@@ -570,6 +578,11 @@ const ApiAgentsIdRestoreRoute = ApiAgentsIdRestoreRouteImport.update({
 const ApiAgentsIdArchiveRoute = ApiAgentsIdArchiveRouteImport.update({
   id: '/archive',
   path: '/archive',
+  getParentRoute: () => ApiAgentsIdRoute,
+} as any)
+const ApiAgentsIdAccessRoute = ApiAgentsIdAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => ApiAgentsIdRoute,
 } as any)
 const ApiWorkspacesIdMembersMemberIdRoute =
@@ -694,6 +707,7 @@ export interface FileRoutesByFullPath {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/automations/': typeof AuthenticatedAutomationsIndexRoute
+  '/api/agents/$id/access': typeof ApiAgentsIdAccessRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -703,6 +717,7 @@ export interface FileRoutesByFullPath {
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
+  '/api/connections/$connectorId/grant': typeof ApiConnectionsConnectorIdGrantRoute
   '/api/documents/$id/display': typeof ApiDocumentsIdDisplayRoute
   '/api/documents/$id/docx': typeof ApiDocumentsIdDocxRoute
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
@@ -796,6 +811,7 @@ export interface FileRoutesByTo {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/automations': typeof AuthenticatedAutomationsIndexRoute
+  '/api/agents/$id/access': typeof ApiAgentsIdAccessRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -805,6 +821,7 @@ export interface FileRoutesByTo {
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
+  '/api/connections/$connectorId/grant': typeof ApiConnectionsConnectorIdGrantRoute
   '/api/documents/$id/display': typeof ApiDocumentsIdDisplayRoute
   '/api/documents/$id/docx': typeof ApiDocumentsIdDocxRoute
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
@@ -900,6 +917,7 @@ export interface FileRoutesById {
   '/api/runs/$id': typeof ApiRunsIdRoute
   '/api/workspaces/$id': typeof ApiWorkspacesIdRouteWithChildren
   '/_authenticated/automations/': typeof AuthenticatedAutomationsIndexRoute
+  '/api/agents/$id/access': typeof ApiAgentsIdAccessRoute
   '/api/agents/$id/archive': typeof ApiAgentsIdArchiveRoute
   '/api/agents/$id/restore': typeof ApiAgentsIdRestoreRoute
   '/api/automations/$id/runs': typeof ApiAutomationsIdRunsRoute
@@ -909,6 +927,7 @@ export interface FileRoutesById {
   '/api/chat/threads/$id': typeof ApiChatThreadsIdRouteWithChildren
   '/api/comments/$id/reactions': typeof ApiCommentsIdReactionsRoute
   '/api/connections/$connectorId/activity': typeof ApiConnectionsConnectorIdActivityRoute
+  '/api/connections/$connectorId/grant': typeof ApiConnectionsConnectorIdGrantRoute
   '/api/documents/$id/display': typeof ApiDocumentsIdDisplayRoute
   '/api/documents/$id/docx': typeof ApiDocumentsIdDocxRoute
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
@@ -1004,6 +1023,7 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/automations/'
+    | '/api/agents/$id/access'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1013,6 +1033,7 @@ export interface FileRouteTypes {
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
+    | '/api/connections/$connectorId/grant'
     | '/api/documents/$id/display'
     | '/api/documents/$id/docx'
     | '/api/documents/$id/metadata'
@@ -1106,6 +1127,7 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/automations'
+    | '/api/agents/$id/access'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1115,6 +1137,7 @@ export interface FileRouteTypes {
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
+    | '/api/connections/$connectorId/grant'
     | '/api/documents/$id/display'
     | '/api/documents/$id/docx'
     | '/api/documents/$id/metadata'
@@ -1209,6 +1232,7 @@ export interface FileRouteTypes {
     | '/api/runs/$id'
     | '/api/workspaces/$id'
     | '/_authenticated/automations/'
+    | '/api/agents/$id/access'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1218,6 +1242,7 @@ export interface FileRouteTypes {
     | '/api/chat/threads/$id'
     | '/api/comments/$id/reactions'
     | '/api/connections/$connectorId/activity'
+    | '/api/connections/$connectorId/grant'
     | '/api/documents/$id/display'
     | '/api/documents/$id/docx'
     | '/api/documents/$id/metadata'
@@ -1874,6 +1899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDocumentsIdDisplayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/connections/$connectorId/grant': {
+      id: '/api/connections/$connectorId/grant'
+      path: '/grant'
+      fullPath: '/api/connections/$connectorId/grant'
+      preLoaderRoute: typeof ApiConnectionsConnectorIdGrantRouteImport
+      parentRoute: typeof ApiConnectionsConnectorIdRoute
+    }
     '/api/connections/$connectorId/activity': {
       id: '/api/connections/$connectorId/activity'
       path: '/activity'
@@ -1935,6 +1967,13 @@ declare module '@tanstack/react-router' {
       path: '/archive'
       fullPath: '/api/agents/$id/archive'
       preLoaderRoute: typeof ApiAgentsIdArchiveRouteImport
+      parentRoute: typeof ApiAgentsIdRoute
+    }
+    '/api/agents/$id/access': {
+      id: '/api/agents/$id/access'
+      path: '/access'
+      fullPath: '/api/agents/$id/access'
+      preLoaderRoute: typeof ApiAgentsIdAccessRouteImport
       parentRoute: typeof ApiAgentsIdRoute
     }
     '/api/workspaces/$id/members/$memberId': {
@@ -2036,11 +2075,13 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface ApiAgentsIdRouteChildren {
+  ApiAgentsIdAccessRoute: typeof ApiAgentsIdAccessRoute
   ApiAgentsIdArchiveRoute: typeof ApiAgentsIdArchiveRoute
   ApiAgentsIdRestoreRoute: typeof ApiAgentsIdRestoreRoute
 }
 
 const ApiAgentsIdRouteChildren: ApiAgentsIdRouteChildren = {
+  ApiAgentsIdAccessRoute: ApiAgentsIdAccessRoute,
   ApiAgentsIdArchiveRoute: ApiAgentsIdArchiveRoute,
   ApiAgentsIdRestoreRoute: ApiAgentsIdRestoreRoute,
 }
@@ -2105,6 +2146,7 @@ const ApiAutomationsRouteWithChildren = ApiAutomationsRoute._addFileChildren(
 
 interface ApiConnectionsConnectorIdRouteChildren {
   ApiConnectionsConnectorIdActivityRoute: typeof ApiConnectionsConnectorIdActivityRoute
+  ApiConnectionsConnectorIdGrantRoute: typeof ApiConnectionsConnectorIdGrantRoute
   ApiConnectionsConnectorIdToolsNameGrantRoute: typeof ApiConnectionsConnectorIdToolsNameGrantRoute
 }
 
@@ -2112,6 +2154,7 @@ const ApiConnectionsConnectorIdRouteChildren: ApiConnectionsConnectorIdRouteChil
   {
     ApiConnectionsConnectorIdActivityRoute:
       ApiConnectionsConnectorIdActivityRoute,
+    ApiConnectionsConnectorIdGrantRoute: ApiConnectionsConnectorIdGrantRoute,
     ApiConnectionsConnectorIdToolsNameGrantRoute:
       ApiConnectionsConnectorIdToolsNameGrantRoute,
   }

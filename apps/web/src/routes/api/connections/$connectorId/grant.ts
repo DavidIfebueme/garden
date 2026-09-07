@@ -1,6 +1,7 @@
 import { Result, TaggedError } from 'better-result'
 import { and, eq } from 'drizzle-orm'
 import { createFileRoute } from '@tanstack/react-router'
+import { getConnectorById } from '@garden/connectors'
 import { requireAppRequestContext } from '@/lib/server/context'
 import {
   connectionGrantBodySchema,
@@ -15,49 +16,19 @@ import {
   unauthorized,
 } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
-import { GARDEN_ANALYTICS_EVENTS } from '@garden/observability/analytics/events'
-import { capturePostHogEvent } from '@/lib/posthog-server'
 import {
   requireWorkspacePermission,
   workspacePermissions,
 } from '@/lib/server/workspace-permissions'
 
-type PermissionTrustLevel = 'auto' | 'allow' | 'ask'
-
-class ConnectionGrantRouteError extends TaggedError(
-  'ConnectionGrantRouteError',
+class ConnectorGrantRouteError extends TaggedError(
+  'ConnectorGrantRouteError',
 )<{
   status: number
   message: string
 }>() {}
 
-async function parseGrantPayload(request: Request) {
-  const bodyResult = await parseJsonBody(
-    request,
-    connectionGrantBodySchema,
-    'Invalid permission grant payload',
-  )
-  if (bodyResult.isErr()) {
-    return Result.err(
-      new ConnectionGrantRouteError({
-        status: 400,
-        message: bodyResult.error.message,
-      }),
-    )
-  }
-
-  return Result.ok({
-    agentId: bodyResult.value.agentId,
-    trustLevel: bodyResult.value.trustLevel,
-  } satisfies {
-    agentId: string
-    trustLevel: PermissionTrustLevel
-  })
-}
-
-export const Route = createFileRoute(
-  '/api/connections/$connectorId/tools/$name/grant',
-)({
+export const Route = createFileRoute('/api/connections/$connectorId/grant')({
   server: {
     handlers: {
       PATCH: async ({ context, request, params }) => {
@@ -79,11 +50,23 @@ export const Route = createFileRoute(
 
         if (permission) return permission
 
-        const payloadResult = await parseGrantPayload(request)
+        const connector = getConnectorById(params.connectorId)
+        if (!connector) {
+          return notFound('Connector not found')
+        }
+
+        const payloadResult = await parseJsonBody(
+          request,
+          connectionGrantBodySchema,
+          'Invalid permission grant payload',
+        )
         if (payloadResult.isErr()) {
-          return json(
-            { error: payloadResult.error.message },
-            payloadResult.error.status,
+          return badRequest(payloadResult.error.message)
+        }
+
+        if (payloadResult.value.trustLevel === 'auto') {
+          return badRequest(
+            'Auto trust is only available for individual read tools',
           )
         }
 
@@ -102,7 +85,7 @@ export const Route = createFileRoute(
               )
               .limit(1),
           catch: () =>
-            new ConnectionGrantRouteError({
+            new ConnectorGrantRouteError({
               status: 500,
               message: 'Failed to load agent for permission grant',
             }),
@@ -118,55 +101,15 @@ export const Route = createFileRoute(
           return notFound('Agent not found')
         }
 
-        const capabilityResult = await Result.tryPromise({
-          try: async () =>
-            db
-              .select({
-                id: schema.capability.id,
-                riskClass: schema.capability.riskClass,
-              })
-              .from(schema.capability)
-              .where(
-                and(
-                  eq(schema.capability.connectorType, params.connectorId),
-                  eq(schema.capability.name, params.name),
-                ),
-              )
-              .limit(1),
-          catch: () =>
-            new ConnectionGrantRouteError({
-              status: 500,
-              message: 'Failed to load tool capability for permission grant',
-            }),
-        })
-        if (capabilityResult.isErr()) {
-          return json(
-            { error: capabilityResult.error.message },
-            capabilityResult.error.status,
-          )
-        }
-
-        const capability = capabilityResult.value[0]
-        if (!capability) {
-          return notFound('Tool not found')
-        }
-
-        if (
-          payloadResult.value.trustLevel === 'auto' &&
-          capability.riskClass !== 'read'
-        ) {
-          return badRequest('Auto trust is only available for read tools')
-        }
-
         const grantedAt = new Date()
         const upsertResult = await Result.tryPromise({
           try: async () =>
             db
-              .insert(schema.permissionGrant)
+              .insert(schema.connectionGrant)
               .values({
                 id: crypto.randomUUID(),
                 agentId: payloadResult.value.agentId,
-                capabilityId: capability.id,
+                connectorId: params.connectorId,
                 trustLevel: payloadResult.value.trustLevel,
                 grantedBy: session.user.id,
                 grantedAt,
@@ -174,8 +117,8 @@ export const Route = createFileRoute(
               })
               .onConflictDoUpdate({
                 target: [
-                  schema.permissionGrant.agentId,
-                  schema.permissionGrant.capabilityId,
+                  schema.connectionGrant.agentId,
+                  schema.connectionGrant.connectorId,
                 ],
                 set: {
                   trustLevel: payloadResult.value.trustLevel,
@@ -185,7 +128,7 @@ export const Route = createFileRoute(
                 },
               }),
           catch: () =>
-            new ConnectionGrantRouteError({
+            new ConnectorGrantRouteError({
               status: 500,
               message: 'Failed to update permission grant',
             }),
@@ -197,17 +140,6 @@ export const Route = createFileRoute(
           )
         }
 
-        capturePostHogEvent(appContext, {
-          distinctId: session.user.id,
-          event: GARDEN_ANALYTICS_EVENTS.toolPermissionGranted,
-          workspaceId,
-          properties: {
-            connector_id: params.connectorId,
-            tool_name: params.name,
-            agent_id: payloadResult.value.agentId,
-            trust_level: payloadResult.value.trustLevel,
-          },
-        })
         return Response.json({ ok: true })
       },
       DELETE: async ({ context, request, params }) => {
@@ -229,6 +161,11 @@ export const Route = createFileRoute(
 
         if (permission) return permission
 
+        const connector = getConnectorById(params.connectorId)
+        if (!connector) {
+          return notFound('Connector not found')
+        }
+
         const bodyResult = await parseJsonBody(
           request,
           connectionGrantBodySchema.pick({ agentId: true }),
@@ -240,29 +177,17 @@ export const Route = createFileRoute(
 
         const db = await appContext.db()
         const deleteResult = await Result.tryPromise({
-          try: async () => {
-            const [capability] = await db
-              .select({ id: schema.capability.id })
-              .from(schema.capability)
+          try: async () =>
+            db
+              .delete(schema.connectionGrant)
               .where(
                 and(
-                  eq(schema.capability.connectorType, params.connectorId),
-                  eq(schema.capability.name, params.name),
+                  eq(schema.connectionGrant.agentId, bodyResult.value.agentId),
+                  eq(schema.connectionGrant.connectorId, params.connectorId),
                 ),
-              )
-              .limit(1)
-            if (!capability) return
-            await db
-              .delete(schema.permissionGrant)
-              .where(
-                and(
-                  eq(schema.permissionGrant.agentId, bodyResult.value.agentId),
-                  eq(schema.permissionGrant.capabilityId, capability.id),
-                ),
-              )
-          },
+              ),
           catch: () =>
-            new ConnectionGrantRouteError({
+            new ConnectorGrantRouteError({
               status: 500,
               message: 'Failed to delete permission grant',
             }),

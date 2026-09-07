@@ -49,6 +49,14 @@ export function agentDetailOptions(agentId: string) {
   })
 }
 
+export function agentAccessOptions(agentId: string) {
+  return queryOptions({
+    queryKey: [...workspaceKeys.agent(agentId), 'access'],
+    queryFn: () => api.getAgentAccess(agentId),
+    enabled: Boolean(agentId),
+  })
+}
+
 export function agentSkillListOptions(wsId: string, agentId: string) {
   return queryOptions({
     queryKey: workspaceKeys.agentSkills(wsId, agentId),

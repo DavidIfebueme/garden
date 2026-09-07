@@ -855,8 +855,34 @@ export class RuntimeMcpController {
     })
     if (grantResult.isErr()) return grantResult
 
+    const connectionGrantResult = await Result.tryPromise({
+      try: async () =>
+        db
+          .select({
+            trustLevel: schema.connectionGrant.trustLevel,
+          })
+          .from(schema.connectionGrant)
+          .where(
+            and(
+              eq(schema.connectionGrant.agentId, identityResult.value.agentId),
+              eq(schema.connectionGrant.connectorId, args.connectorId),
+            ),
+          )
+          .limit(1),
+      catch: (cause) =>
+        new RuntimeMcpError({
+          code: 'database_failed',
+          message:
+            cause instanceof Error
+              ? cause.message
+              : `Failed to load connection grant for ${args.connectorId}`,
+        }),
+    })
+    if (connectionGrantResult.isErr()) return connectionGrantResult
+
     const trustLevel =
       grantResult.value[0]?.trustLevel ??
+      connectionGrantResult.value[0]?.trustLevel ??
       defaultTrustLevelForRisk(capability.riskClass)
     if (trustLevel !== 'ask') {
       return Result.ok(false)

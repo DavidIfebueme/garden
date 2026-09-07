@@ -76,12 +76,12 @@ async function seedBase(): Promise<Seeded> {
   return { ownerId, workspaceId, agentId, capabilityId }
 }
 
-function makeController(seeded: Seeded): RuntimeMcpController {
+function makeController(seeded: Seeded, agentId: string = seeded.agentId) {
   const identity: ThreadRuntimeIdentity = {
     threadId: randomUUID(),
     workspaceId: seeded.workspaceId,
     userId: randomUUID(),
-    agentId: seeded.agentId,
+    agentId,
   }
 
   const host = {
@@ -116,12 +116,13 @@ function makeController(seeded: Seeded): RuntimeMcpController {
 
 async function insertPermissionRequest(input: {
   seeded: Seeded
+  agentId?: string
   toolCallId: string
   status: 'pending' | 'approved' | 'denied'
 }) {
   await db.insert(schema.permissionRequest).values({
     id: randomUUID(),
-    agentId: input.seeded.agentId,
+    agentId: input.agentId ?? input.seeded.agentId,
     kind: 'connector_write',
     capabilityId: input.seeded.capabilityId,
     argsJson: TOOL_ARGS,
@@ -180,6 +181,9 @@ describe('connector tool approval gate (integration)', () => {
       .delete(schema.permissionRequest)
       .where(eq(schema.permissionRequest.agentId, seeded.agentId))
     await db
+      .delete(schema.inboxItem)
+      .where(eq(schema.inboxItem.workspaceId, seeded.workspaceId))
+    await db
       .delete(schema.permissionGrant)
       .where(eq(schema.permissionGrant.agentId, seeded.agentId))
     await db
@@ -229,5 +233,80 @@ describe('connector tool approval gate (integration)', () => {
     await expect(needsApprovalFor(controller, toolCallId)).rejects.toThrow(
       /denied/i,
     )
+  })
+
+  describe('connection grant fallback', () => {
+    let grantlessAgentId: string
+    let grantlessController: RuntimeMcpController
+
+    beforeAll(async () => {
+      grantlessAgentId = randomUUID()
+      await db.insert(schema.agent).values({
+        id: grantlessAgentId,
+        workspaceId: seeded.workspaceId,
+        ownerUserId: seeded.ownerId,
+        name: 'Grantless',
+        isDefault: false,
+      })
+      grantlessController = makeController(seeded, grantlessAgentId)
+    })
+
+    afterAll(async () => {
+      await db
+        .delete(schema.permissionRequest)
+        .where(eq(schema.permissionRequest.agentId, grantlessAgentId))
+      await db
+        .delete(schema.connectionGrant)
+        .where(eq(schema.connectionGrant.agentId, grantlessAgentId))
+      await db
+        .delete(schema.agent)
+        .where(eq(schema.agent.id, grantlessAgentId))
+    })
+
+    it('uses the connection grant when no tool grant exists', async () => {
+      await db.insert(schema.connectionGrant).values({
+        id: randomUUID(),
+        agentId: grantlessAgentId,
+        connectorId: CONNECTOR_ID,
+        trustLevel: 'allow',
+        grantedBy: seeded.ownerId,
+      })
+
+      await expect(
+        needsApprovalFor(grantlessController, `conn-${randomUUID()}`),
+      ).resolves.toBe(false)
+    })
+
+    it('asks when the connection grant is ask', async () => {
+      const agentId = randomUUID()
+      await db.insert(schema.agent).values({
+        id: agentId,
+        workspaceId: seeded.workspaceId,
+        ownerUserId: seeded.ownerId,
+        name: 'Asker',
+        isDefault: false,
+      })
+      await db.insert(schema.connectionGrant).values({
+        id: randomUUID(),
+        agentId,
+        connectorId: CONNECTOR_ID,
+        trustLevel: 'ask',
+        grantedBy: seeded.ownerId,
+      })
+      const askController = makeController(seeded, agentId)
+      try {
+        await expect(
+          needsApprovalFor(askController, `conn-${randomUUID()}`),
+        ).resolves.toBe(true)
+      } finally {
+        await db
+          .delete(schema.permissionRequest)
+          .where(eq(schema.permissionRequest.agentId, agentId))
+        await db
+          .delete(schema.connectionGrant)
+          .where(eq(schema.connectionGrant.agentId, agentId))
+        await db.delete(schema.agent).where(eq(schema.agent.id, agentId))
+      }
+    })
   })
 })
