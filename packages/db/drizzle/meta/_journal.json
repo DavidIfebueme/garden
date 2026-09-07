@@ -330,6 +330,13 @@
       "when": 1788780500716,
       "tag": "0046_sudden_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788790387452,
+      "tag": "0047_grey_vertigo",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ import { useWorkspaceId } from '@garden/app-state/hooks'
 import { api } from '@/lib/api'
 import {
   agentAccessOptions,
+  agentActivityOptions,
   connectionListOptions,
   workspaceKeys,
 } from '@/lib/workspace/queries'
@@ -39,6 +40,7 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
   const qc = useQueryClient()
   const connectionsQuery = useQuery(connectionListOptions(wsId))
   const accessQuery = useQuery(agentAccessOptions(agentId))
+  const activityQuery = useQuery(agentActivityOptions(agentId))
 
   const invalidateAccess = () => {
     qc.invalidateQueries({ queryKey: workspaceKeys.agent(agentId) })
@@ -79,7 +81,11 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
     onError: (err) => handleMutationError(err, 'Failed to update access'),
   })
 
-  if (connectionsQuery.isPending || accessQuery.isPending) {
+  if (
+    connectionsQuery.isPending ||
+    accessQuery.isPending ||
+    activityQuery.isPending
+  ) {
     return (
       <section aria-labelledby={`agent-access-${agentId}`}>
         <Skeleton className="h-4 w-40" />
@@ -91,7 +97,11 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
     )
   }
 
-  if (connectionsQuery.isError || accessQuery.isError) {
+  if (
+    connectionsQuery.isError ||
+    accessQuery.isError ||
+    activityQuery.isError
+  ) {
     return (
       <section aria-labelledby={`agent-access-${agentId}`}>
         <p className="text-sm text-muted-foreground">
@@ -245,6 +255,37 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
           )
         })}
       </ul>
+      <div className="mt-6">
+        <h3 className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Recent activity
+        </h3>
+        {(activityQuery.data?.events ?? []).length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            No approvals, denials, or grant changes recorded for this agent
+            yet.
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-border/60 rounded-md border">
+            {(activityQuery.data?.events ?? []).map((event) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-xs"
+              >
+                <span className="text-foreground">
+                  {event.kind === 'tool_decision'
+                    ? `${event.tool_name} ${event.result_status}`
+                    : `${event.scope === 'tool' ? (event.tool_name ?? event.connector_id) : event.connector_id} grant ${event.event_type === 'permission.grant.deleted' ? 'removed' : (event.trust ?? 'updated')}`}
+                </span>
+                <span className="text-muted-foreground">
+                  {event.timestamp
+                    ? new Date(event.timestamp).toLocaleString()
+                    : 'Unknown time'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }

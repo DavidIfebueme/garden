@@ -132,6 +132,7 @@ describe('connection grant route authorization', () => {
 
     const limit = vi.fn().mockResolvedValueOnce([{ id: agentId }])
     const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+    const insertedValues: unknown[] = []
 
     const db = {
       select: vi.fn(() => ({
@@ -142,9 +143,10 @@ describe('connection grant route authorization', () => {
         })),
       })),
       insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          onConflictDoUpdate,
-        })),
+        values: vi.fn((rows: unknown) => {
+          insertedValues.push(rows)
+          return { onConflictDoUpdate }
+        }),
       })),
     }
 
@@ -164,5 +166,20 @@ describe('connection grant route authorization', () => {
     expect(response?.status).toBe(200)
     await expect(response?.json()).resolves.toEqual({ ok: true })
     expect(onConflictDoUpdate).toHaveBeenCalledOnce()
+    expect(insertedValues).toHaveLength(2)
+    expect(insertedValues[1]).toEqual(
+      expect.objectContaining({
+        workspaceId: 'workspace-id',
+        subjectType: 'agent',
+        subjectId: agentId,
+        actorType: 'user',
+        eventType: 'permission.grant.set',
+        payload: expect.objectContaining({
+          scope: 'connection',
+          connector_id: 'github',
+          trust: 'allow',
+        }),
+      }),
+    )
   })
 })

@@ -212,7 +212,12 @@ async function loadMatchingPendingRequests(args: {
       )
 }
 
-async function writeDenialAuditRows(args: {
+/**
+ * Every connector-write resolution stores one audit row per tool call, so the
+ * activity feed shows approvals alongside denials. Before this, only denials
+ * wrote rows and approvals vanished from history entirely.
+ */
+async function writeResolutionAuditRows(args: {
   db: ServerDb
   requests: Array<{
     agentId: string
@@ -221,6 +226,7 @@ async function writeDenialAuditRows(args: {
     toolCallId: string
   }>
   workspaceId: string
+  approved: boolean
 }) {
   const auditRows: Array<typeof schema.toolCallAudit.$inferInsert> = []
   for (const request of args.requests) {
@@ -234,9 +240,9 @@ async function writeDenialAuditRows(args: {
       capabilityId: request.capabilityId,
       toolCallId: request.toolCallId,
       argsHash: argsHashResult.value,
-      resultStatus: 'denied',
+      resultStatus: args.approved ? 'approved' : 'denied',
       durationMs: 0,
-      error: 'User denied approval',
+      error: args.approved ? null : 'User denied approval',
     })
   }
 
@@ -250,7 +256,7 @@ async function writeDenialAuditRows(args: {
       new PermissionRequestServiceError({
         code: 'database_failed',
         status: 500,
-        message: 'Failed to write denial audit rows',
+        message: 'Failed to write resolution audit rows',
         cause,
       }),
   })
@@ -303,14 +309,13 @@ export async function resolveConnectorWritePermissionRequests(
   })
   if (updateResult.isErr()) return Result.err(updateResult.error)
 
-  if (!input.approved) {
-    const auditResult = await writeDenialAuditRows({
-      db: input.db,
-      requests: matchingRequests,
-      workspaceId: input.workspaceId,
-    })
-    if (auditResult.isErr()) return Result.err(auditResult.error)
-  }
+  const auditResult = await writeResolutionAuditRows({
+    db: input.db,
+    requests: matchingRequests,
+    workspaceId: input.workspaceId,
+    approved: input.approved,
+  })
+  if (auditResult.isErr()) return Result.err(auditResult.error)
 
   const retryToolCalls = updateResult.value.flatMap((request) =>
     request.capabilityId

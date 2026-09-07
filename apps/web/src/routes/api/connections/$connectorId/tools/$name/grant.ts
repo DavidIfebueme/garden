@@ -15,6 +15,7 @@ import {
   unauthorized,
 } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
+import { recordGrantActivity } from '@/lib/server/permission-activity'
 import { GARDEN_ANALYTICS_EVENTS } from '@garden/observability/analytics/events'
 import { capturePostHogEvent } from '@/lib/posthog-server'
 import {
@@ -208,6 +209,24 @@ export const Route = createFileRoute(
             trust_level: payloadResult.value.trustLevel,
           },
         })
+
+        const activityResult = await recordGrantActivity({
+          db,
+          workspaceId,
+          actorUserId: session.user.id,
+          agentId: payloadResult.value.agentId,
+          scope: 'tool',
+          connectorId: params.connectorId,
+          toolName: params.name,
+          trustLevel: payloadResult.value.trustLevel,
+          action: 'set',
+        })
+        if (activityResult.isErr()) {
+          return json(
+            { error: activityResult.error.message },
+            activityResult.error.status,
+          )
+        }
         return Response.json({ ok: true })
       },
       DELETE: async ({ context, request, params }) => {
@@ -271,6 +290,23 @@ export const Route = createFileRoute(
           return json(
             { error: deleteResult.error.message },
             deleteResult.error.status,
+          )
+        }
+
+        const activityResult = await recordGrantActivity({
+          db,
+          workspaceId,
+          actorUserId: session.user.id,
+          agentId: bodyResult.value.agentId,
+          scope: 'tool',
+          connectorId: params.connectorId,
+          toolName: params.name,
+          action: 'deleted',
+        })
+        if (activityResult.isErr()) {
+          return json(
+            { error: activityResult.error.message },
+            activityResult.error.status,
           )
         }
 

@@ -158,6 +158,34 @@ export function getAgentAccess(id: string): Promise<{
   return getApiTransport().request(`/api/agents/${id}/access`)
 }
 
+export type AgentActivityEvent =
+  | {
+      id: string
+      kind: 'tool_decision'
+      tool_call_id: string
+      connector_id: string
+      tool_name: string
+      result_status: string
+      error: string | null
+      timestamp: string | null
+    }
+  | {
+      id: string
+      kind: 'grant_change'
+      event_type: string
+      scope: string | null
+      connector_id: string | null
+      tool_name: string | null
+      trust: string | null
+      timestamp: string | null
+    }
+
+export function getAgentActivity(id: string): Promise<{
+  events: AgentActivityEvent[]
+}> {
+  return getApiTransport().request(`/api/agents/${id}/activity`)
+}
+
 export function setAgentConnectionTrust(
   agentId: string,
   connectorId: string,

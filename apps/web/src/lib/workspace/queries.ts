@@ -57,6 +57,14 @@ export function agentAccessOptions(agentId: string) {
   })
 }
 
+export function agentActivityOptions(agentId: string) {
+  return queryOptions({
+    queryKey: [...workspaceKeys.agent(agentId), 'activity'],
+    queryFn: () => api.getAgentActivity(agentId),
+    enabled: Boolean(agentId),
+  })
+}
+
 export function agentSkillListOptions(wsId: string, agentId: string) {
   return queryOptions({
     queryKey: workspaceKeys.agentSkills(wsId, agentId),
