@@ -100,8 +100,8 @@ import { Route as ApiAutomationsIdTriggerRouteImport } from './routes/api/automa
 import { Route as ApiAutomationsIdRunsRouteImport } from './routes/api/automations/$id/runs'
 import { Route as ApiAgentsIdRestoreRouteImport } from './routes/api/agents/$id/restore'
 import { Route as ApiAgentsIdArchiveRouteImport } from './routes/api/agents/$id/archive'
-import { Route as ApiAgentsIdAccessRouteImport } from './routes/api/agents/$id/access'
 import { Route as ApiAgentsIdActivityRouteImport } from './routes/api/agents/$id/activity'
+import { Route as ApiAgentsIdAccessRouteImport } from './routes/api/agents/$id/access'
 import { Route as ApiWorkspacesIdMembersMemberIdRouteImport } from './routes/api/workspaces/$id/members/$memberId'
 import { Route as ApiWorkspacesIdInvitationsInvitationIdRouteImport } from './routes/api/workspaces/$id/invitations/$invitationId'
 import { Route as ApiIssuesIdSourceBindingsBindingIdRouteImport } from './routes/api/issues/$id/source-bindings/$bindingId'
@@ -581,14 +581,14 @@ const ApiAgentsIdArchiveRoute = ApiAgentsIdArchiveRouteImport.update({
   path: '/archive',
   getParentRoute: () => ApiAgentsIdRoute,
 } as any)
-const ApiAgentsIdAccessRoute = ApiAgentsIdAccessRouteImport.update({
-  id: '/access',
-  path: '/access',
-  getParentRoute: () => ApiAgentsIdRoute,
-} as any)
 const ApiAgentsIdActivityRoute = ApiAgentsIdActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => ApiAgentsIdRoute,
+} as any)
+const ApiAgentsIdAccessRoute = ApiAgentsIdAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => ApiAgentsIdRoute,
 } as any)
 const ApiWorkspacesIdMembersMemberIdRoute =
@@ -1033,6 +1033,7 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id'
     | '/automations/'
     | '/api/agents/$id/access'
+    | '/api/agents/$id/activity'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1137,6 +1138,7 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id'
     | '/automations'
     | '/api/agents/$id/access'
+    | '/api/agents/$id/activity'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1242,6 +1244,7 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id'
     | '/_authenticated/automations/'
     | '/api/agents/$id/access'
+    | '/api/agents/$id/activity'
     | '/api/agents/$id/archive'
     | '/api/agents/$id/restore'
     | '/api/automations/$id/runs'
@@ -1978,18 +1981,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsIdArchiveRouteImport
       parentRoute: typeof ApiAgentsIdRoute
     }
-    '/api/agents/$id/access': {
-      id: '/api/agents/$id/access'
-      path: '/access'
-      fullPath: '/api/agents/$id/access'
-      preLoaderRoute: typeof ApiAgentsIdAccessRouteImport
-      parentRoute: typeof ApiAgentsIdRoute
-    }
     '/api/agents/$id/activity': {
       id: '/api/agents/$id/activity'
       path: '/activity'
       fullPath: '/api/agents/$id/activity'
       preLoaderRoute: typeof ApiAgentsIdActivityRouteImport
+      parentRoute: typeof ApiAgentsIdRoute
+    }
+    '/api/agents/$id/access': {
+      id: '/api/agents/$id/access'
+      path: '/access'
+      fullPath: '/api/agents/$id/access'
+      preLoaderRoute: typeof ApiAgentsIdAccessRouteImport
       parentRoute: typeof ApiAgentsIdRoute
     }
     '/api/workspaces/$id/members/$memberId': {
