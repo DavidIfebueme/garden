@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify generated design tokens
+        run: |
+          pnpm --filter @garden/ui tokens:build
+          git diff --exit-code -- packages/ui/styles/tokens.css
+
       - name: Lint
         run: pnpm lint
 
