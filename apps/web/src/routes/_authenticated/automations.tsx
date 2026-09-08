@@ -6,7 +6,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
  */
 export const Route = createFileRoute('/_authenticated/automations')({
   beforeLoad: () => {
-    throw redirect({ to: '/workflows' })
+    throw redirect({ to: '/workflows', replace: true })
   },
   component: () => null,
 })

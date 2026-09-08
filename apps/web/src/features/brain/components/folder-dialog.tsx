@@ -33,7 +33,7 @@ type BrainFolderDialogProps = {
 }
 
 /**
- * Create/rename folder dialog from the Penpot "Create a folder" frame (592px,
+ * Create/rename folder dialog from the Penpot "Create a folder" frame (512px,
  * radius 16): Folder Name field with an n/50 counter, a Make Private switch,
  * and — in create mode — the design's "Add file to folder" dropzone. The
  * footer's primary action stays disabled until the name is non-empty (the

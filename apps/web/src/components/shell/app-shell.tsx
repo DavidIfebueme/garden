@@ -31,7 +31,7 @@ import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigati
 import { ChatTabsStrip } from './chat-tabs'
 import { TaskTabsStrip } from './task-tabs'
 import { UserCard } from './user-card'
-import { WorkspaceSwitcher } from './workspace-switcher'
+import { WorkspaceMenu } from './workspace-menu'
 
 /**
  * Mount-only prefetch for workspace-wide caches (agents, members, skills,
@@ -241,7 +241,7 @@ export function AppShell() {
           <ChatRuntimeProvider>
             <AppSidebar
               header={
-                <WorkspaceSwitcher
+                <WorkspaceMenu
                   collapsed={collapsed}
                   onInviteMembers={() => openSettingsDialog('members')}
                   onOpenSettings={() => openSettingsDialog()}

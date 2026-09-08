@@ -274,9 +274,6 @@ importers:
       '@garden/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@iconify/react':
-        specifier: ^6.0.2
-        version: 6.0.2(react@19.2.3)
       '@legendapp/list':
         specifier: 3.0.0-beta.44
         version: 3.0.0-beta.44(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2333,11 +2330,6 @@ packages:
 
   '@iarna/toml@2.2.5':
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
-
-  '@iconify/react@6.0.2':
-    resolution: {integrity: sha512-SMmC2sactfpJD427WJEDN6PMyznTFMhByK9yLW0gOTtnjzzbsi/Ke/XqsumsavFPwNiXs8jSiYeZTmLCLwO+Fg==}
-    peerDependencies:
-      react: '>=16'
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -11121,11 +11113,6 @@ snapshots:
   '@huggingface/jinja@0.2.2': {}
 
   '@iarna/toml@2.2.5': {}
-
-  '@iconify/react@6.0.2(react@19.2.3)':
-    dependencies:
-      '@iconify/types': 2.0.0
-      react: 19.2.3
 
   '@iconify/types@2.0.0': {}
 

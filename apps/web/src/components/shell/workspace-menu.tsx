@@ -6,14 +6,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
-
-/**
- * Menu row metrics from the design file (Enterprise flyout, measured):
- * row 265×39 inside 16px flyout padding; icon 18px at 8px inset; 12px
- * icon→label gap; label 14px/400/1.6/+0.02em; hover = background.main.secondary.
- */
-const menuItemClass =
-  'flex h-10 cursor-pointer items-center gap-3 rounded-sm px-2 text-sm tracking-wider [&_svg]:size-[18px]!'
 import { GardenLogo } from '@garden/ui/components/common/garden-logo'
 import { cn } from '@garden/ui/lib/utils'
 import {
@@ -28,17 +20,25 @@ import {
 } from '@phosphor-icons/react'
 
 /**
+ * Menu row metrics from the design file (Enterprise flyout, measured):
+ * row 265×39 inside 16px flyout padding; icon 18px at 8px inset; 12px
+ * icon→label gap; label 14px/400/1.6/+0.02em; hover = background.main.secondary.
+ */
+const menuItemClass =
+  'flex h-10 cursor-pointer items-center gap-3 rounded-sm px-2 text-sm tracking-wider [&_svg]:size-[18px]!'
+
+/**
  * Sidebar header menu — the workspace menu from the design's Enterprise flyout
  * (Penpot "Admin Profile" page): the Garden brand (wave mark + wordmark, per
  * the design — never the workspace name) up top, then Invite
  * members / Workspace settings / Team members live, with Analytics, Billing,
  * and Learn more rendered disabled until those surfaces exist.
  *
- * NOT a workspace switcher: switching/creation lives in the account flyout's
- * "Add workspace" row (design's account flow). Collapse control lives in the
- * top bar.
+ * Workspace switching/creation deliberately lives elsewhere: the account
+ * flyout's "Add workspace" row (design's account flow). Collapse control
+ * lives in the top bar.
  */
-export function WorkspaceSwitcher({
+export function WorkspaceMenu({
   collapsed,
   onInviteMembers,
   onOpenSettings,
