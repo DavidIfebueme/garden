@@ -71,3 +71,56 @@ describe('createBetterAuth origin protection', () => {
     expect(response.status).not.toBe(403)
   })
 })
+
+describe('createBetterAuth Google sign-in policy', () => {
+  it('configures Google sign-in only from the dedicated auth credentials', () => {
+    const auth = createBetterAuth(null as unknown as Db, {
+      ...authEnv,
+      GOOGLE_AUTH_CLIENT_ID: 'google-auth-client',
+      GOOGLE_AUTH_CLIENT_SECRET: 'google-auth-secret',
+      GOOGLE_CLIENT_ID: 'google-connector-client',
+      GOOGLE_CLIENT_SECRET: 'google-connector-secret',
+    })
+
+    expect(auth.options.socialProviders?.google).toMatchObject({
+      clientId: 'google-auth-client',
+      clientSecret: 'google-auth-secret',
+    })
+  })
+
+  it('does not use connector credentials for Google sign-in', () => {
+    const auth = createBetterAuth(null as unknown as Db, {
+      ...authEnv,
+      GOOGLE_CLIENT_ID: 'google-connector-client',
+      GOOGLE_CLIENT_SECRET: 'google-connector-secret',
+    })
+
+    expect(auth.options.socialProviders).toBeUndefined()
+  })
+
+  it('rejects a partial Google sign-in credential pair', () => {
+    expect(() =>
+      createBetterAuth(null as unknown as Db, {
+        ...authEnv,
+        GOOGLE_AUTH_CLIENT_ID: 'google-auth-client',
+      }),
+    ).toThrow(
+      'GOOGLE_AUTH_CLIENT_ID and GOOGLE_AUTH_CLIENT_SECRET must be set together',
+    )
+  })
+
+  it('requires explicit account linking with the same email', () => {
+    const auth = createBetterAuth(null as unknown as Db, {
+      ...authEnv,
+      GOOGLE_AUTH_CLIENT_ID: 'google-auth-client',
+      GOOGLE_AUTH_CLIENT_SECRET: 'google-auth-secret',
+    })
+
+    expect(auth.options.account?.accountLinking).toEqual({
+      trustedProviders: ['google'],
+      disableImplicitLinking: true,
+      allowDifferentEmails: false,
+      allowUnlinkingAll: false,
+    })
+  })
+})

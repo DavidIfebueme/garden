@@ -26,6 +26,8 @@
       "DATABASE_URL",
       "ENVIRONMENT",
       "EXECUTOR_SECRET_KEY",
+      "GOOGLE_AUTH_CLIENT_ID",
+      "GOOGLE_AUTH_CLIENT_SECRET",
       // Set HELIX_URL to the edge-reachable hosted Helix base URL for staging;
       // never bind the localhost development endpoint in a deployed Worker.
       "HELIX_URL",

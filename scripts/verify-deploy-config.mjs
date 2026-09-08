@@ -180,6 +180,18 @@ assert.match(
   alchemySource,
   /HELIX_API_KEY:\s*alchemy\.secret\.env\.HELIX_API_KEY/,
 )
+assert.match(
+  alchemySource,
+  /optionalPlainBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_ID'/s,
+)
+assert.match(
+  alchemySource,
+  /optionalSecretBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_SECRET'/s,
+)
+assert.doesNotMatch(
+  alchemySource,
+  /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/,
+)
 
 for (const field of [
   'workerName',

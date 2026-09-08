@@ -47,6 +47,8 @@ export type GardenAuthEnv = Pick<
   | "BETTER_AUTH_URL"
   | "GITHUB_CLIENT_ID"
   | "GITHUB_CLIENT_SECRET"
+  | "GOOGLE_AUTH_CLIENT_ID"
+  | "GOOGLE_AUTH_CLIENT_SECRET"
   | "GOOGLE_CLIENT_ID"
   | "GOOGLE_CLIENT_SECRET"
   | "SLACK_CLIENT_ID"
@@ -354,6 +356,34 @@ async function finishOAuthConnectorCallback(args: {
   });
 }
 
+/**
+ * Builds the Google sign-in provider from auth-only credentials. Connector
+ * credentials are intentionally excluded because Better Auth asks Google to
+ * include scopes previously granted to the same OAuth project. Before this
+ * split, sign-in could share consent history with Gmail and Drive. A partial
+ * pair is a deployment error because silently disabling Google would make the
+ * configured UI and server behavior disagree. Reference: Better Auth 1.6.26
+ * Google provider source and Google's incremental authorization guidance.
+ */
+function googleAuthProvider(env: GardenAuthRuntime) {
+  const clientId = env.GOOGLE_AUTH_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_AUTH_CLIENT_SECRET?.trim();
+
+  if (!clientId && !clientSecret) return undefined;
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "GOOGLE_AUTH_CLIENT_ID and GOOGLE_AUTH_CLIENT_SECRET must be set together",
+    );
+  }
+
+  return {
+    google: {
+      clientId,
+      clientSecret,
+    },
+  };
+}
+
 export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
   const runtimeOrigin = getRequestOrigin(env.request);
   const baseURL =
@@ -435,6 +465,12 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
     account: {
       encryptOAuthTokens: true,
       updateAccountOnSignIn: true,
+      accountLinking: {
+        trustedProviders: ["google"],
+        disableImplicitLinking: true,
+        allowDifferentEmails: false,
+        allowUnlinkingAll: false,
+      },
       additionalFields: {
         workspaceId: { type: "string", required: false, input: false },
         status: { type: "string", required: false, input: false },
@@ -442,6 +478,7 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
         connectorType: { type: "string", required: false, input: false },
       },
     },
+    socialProviders: googleAuthProvider(env),
     plugins: [
       organization({
         ac: gardenAccessControl,
