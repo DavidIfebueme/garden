@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { LoginPage } from '@/features/auth'
 import { sanitizeRedirectTarget } from '@/lib/redirect'
 import { getRouteSession } from '@/lib/server/route-session'
+import { getAuthProviderAvailability } from '@/lib/server/auth-providers'
 import {
   invitationIdFromRedirect,
   type SignupInvitationPreview,
@@ -26,11 +27,12 @@ export const Route = createFileRoute('/signup')({
   loaderDeps: ({ search }) => ({ redirect: search.redirect }),
   loader: async ({ deps }) => {
     const invitationId = invitationIdFromRedirect(deps.redirect)
-    if (!invitationId) return null
-
-    const invitation = await getSignupInvitationPreview({
-      data: { invitationId },
-    })
+    const [authProviders, invitation] = await Promise.all([
+      getAuthProviderAvailability(),
+      invitationId
+        ? getSignupInvitationPreview({ data: { invitationId } })
+        : Promise.resolve(null),
+    ])
     if (invitation?.status === 'pending' && invitation.userExists) {
       throw redirect({
         to: '/login',
@@ -38,7 +40,7 @@ export const Route = createFileRoute('/signup')({
       })
     }
 
-    return invitation
+    return { authProviders, invitation }
   },
   component: SignUpRoute,
 })
@@ -46,12 +48,13 @@ export const Route = createFileRoute('/signup')({
 function SignUpRoute() {
   const navigate = useNavigate()
   const search = Route.useSearch()
-  const invitation = Route.useLoaderData()
+  const { authProviders, invitation } = Route.useLoaderData()
   const invitationIsPending = invitation?.status === 'pending'
   const invitationStatusMessage = getInvitationStatusMessage(invitation)
 
   return (
     <LoginPage
+      googleAuthEnabled={authProviders.google}
       initialMode="signup"
       initialEmail={invitationIsPending ? invitation.email : undefined}
       lockedEmail={invitationIsPending}
@@ -59,6 +62,7 @@ function SignUpRoute() {
       invitationWorkspaceName={
         invitationIsPending ? invitation.organizationName : undefined
       }
+      redirectTarget={search.redirect}
       onSuccess={() =>
         void navigate({ href: search.redirect ?? '/workspace', replace: true })
       }

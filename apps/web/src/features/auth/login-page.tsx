@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { LoginForm } from '@/components/login-form'
 import { LoginFoliage } from '@/components/login-foliage'
 import { authClient } from '@/lib/auth/client'
+import { authClientOperation } from '@/lib/auth/client-result'
 import {
   capturePostHogBrowserEvent,
   postHogBrowserClient,
@@ -22,8 +23,10 @@ export function LoginPage({
   invitationWorkspaceName,
   lockedEmail = false,
   redirectTarget,
+  googleAuthEnabled = false,
 }: {
   onSuccess: () => void
+  googleAuthEnabled?: boolean
   initialEmail?: string
   initialMode?: 'signin' | 'signup'
   invitationStatusMessage?: string
@@ -41,6 +44,39 @@ export function LoginPage({
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  /**
+   * Starts Google OAuth with the route's sanitized destination. Invitation
+   * pages also send the locked invite email as a login hint. Google can suggest
+   * that account, while server-side invitation acceptance remains the final
+   * matching-email check. Better Auth can reject the request or resolve with an
+   * error payload, so `authClientOperation` normalizes both failure paths.
+   */
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    setError('')
+
+    const result = await authClientOperation({
+      fallbackMessage: 'Could not continue with Google',
+      operation: 'google-sign-in',
+      request: () =>
+        authClient.signIn.social({
+          provider: 'google',
+          callbackURL: redirectTarget ?? '/workspace',
+          loginHint: lockedEmail ? email : undefined,
+        }),
+    })
+
+    result.match({
+      ok: () => undefined,
+      err: (requestError) => {
+        setGoogleLoading(false)
+        setError(requestError.message)
+        toast.error(requestError.message)
+      },
+    })
+  }
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -102,6 +138,9 @@ export function LoginPage({
           password={password}
           error={error}
           loading={loading}
+          googleAuthEnabled={googleAuthEnabled}
+          googleLoading={googleLoading}
+          onGoogleSignIn={() => void handleGoogleSignIn()}
           onSubmit={handleSubmit}
           onNameChange={setName}
           emailReadonly={lockedEmail}
