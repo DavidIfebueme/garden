@@ -14,6 +14,11 @@ import {
 import { requireAppRequestContext } from '@/lib/server/context'
 import { capturePostHogEvent } from '@/lib/posthog-server'
 import { syncCapabilities } from '@/lib/server/capability-sync'
+import {
+  markMirrorDegraded,
+  mirrorExecutorConnection,
+  unmirrorExecutorConnection,
+} from '@/lib/server/executor-engine/connection-mirror'
 import { schema } from '@/lib/server/db'
 import { appEnv } from '@/lib/server/env'
 import { captureApiFailure, logApiFailure } from '@/lib/server/api-logging'
@@ -539,6 +544,18 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                     executor.connections.remove(connection),
                   ),
                 )
+                yield* Effect.all(
+                  connections.map((connection) =>
+                    Effect.ignore(
+                      unmirrorExecutorConnection({
+                        executorSlug: String(connection.integration),
+                        userId: workspaceContext.session.user.id,
+                        workspaceId: workspaceContext.workspaceId,
+                      }),
+                    ),
+                  ),
+                  { discard: true },
+                )
                 yield* executor.integrations.remove(integration.slug)
                 return { kind: 'updated' as const }
               }
@@ -575,11 +592,57 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                     executor.connections.remove(connection),
                   ),
                 )
+                yield* Effect.all(
+                  connections.map((connection) =>
+                    Effect.ignore(
+                      unmirrorExecutorConnection({
+                        executorSlug: String(connection.integration),
+                        userId: workspaceContext.session.user.id,
+                        workspaceId: workspaceContext.workspaceId,
+                      }),
+                    ),
+                  ),
+                  { discard: true },
+                )
               } else {
                 yield* Effect.all(
                   connections.map((connection) =>
                     executor.connections.refresh(connection),
                   ),
+                )
+                const fresh = yield* executor.connections.list()
+                yield* Effect.all(
+                  fresh
+                    .filter(
+                      (connection) =>
+                        String(connection.integration) ===
+                          params.connectorId && connection.owner !== 'org',
+                    )
+                    .map((connection) =>
+                      connection.lastHealth?.status === 'healthy'
+                        ? Effect.ignore(
+                            mirrorExecutorConnection({
+                              executorSlug: String(connection.integration),
+                              userId: workspaceContext.session.user.id,
+                              workspaceId: workspaceContext.workspaceId,
+                              identityLabel:
+                                connection.identityLabel ?? null,
+                              scopes:
+                                connection.oauthScope
+                                  ?.split(' ')
+                                  .filter(Boolean) ?? null,
+                              expiresAtMs: connection.expiresAt ?? null,
+                            }),
+                          )
+                        : Effect.ignore(
+                            markMirrorDegraded({
+                              executorSlug: String(connection.integration),
+                              userId: workspaceContext.session.user.id,
+                              workspaceId: workspaceContext.workspaceId,
+                            }),
+                          ),
+                    ),
+                  { discard: true },
                 )
               }
               return { kind: 'updated' as const }

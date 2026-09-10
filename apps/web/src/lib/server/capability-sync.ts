@@ -1,13 +1,15 @@
 import { Effect, Schema } from 'effect'
 import { and, eq, inArray } from 'drizzle-orm'
 import { getConnectorById } from '@garden/connectors'
-import { isNativeConnector } from '@garden/connectors/sdk'
+import { isMcpConnector, isNativeConnector } from '@garden/connectors/sdk'
 import {
   canonicalJsonString,
   defaultTrustLevelForRisk,
+  type RiskClass,
 } from '@garden/connectors/capabilities'
 import { getDb, schema } from './db'
 import { appEnv } from './env'
+import { loadExecutorCatalog } from './executor-runtime'
 
 export class CapabilitySyncError extends Schema.ErrorClass<CapabilitySyncError>(
   'CapabilitySyncError',
@@ -212,11 +214,15 @@ type CapabilityToolLike = {
 }
 
 const toCapabilityValue = Effect.fn('CapabilitySync.toCapabilityValue')(
-  function* (args: { connectorId: string; tool: CapabilityToolLike }) {
+  function* (args: {
+    connectorId: string
+    tool: CapabilityToolLike
+    riskOverride?: RiskClass
+  }) {
     const connector = getConnectorById(args.connectorId)
     const classification = connector?.tools[args.tool.name]
 
-    if (!connector || !classification) {
+    if (!connector || (!classification && !args.riskOverride)) {
       return yield* new CapabilitySyncError({
         code: 'unclassified_tool',
         message: `Tool ${args.tool.name} is not classified in ${args.connectorId}`,
@@ -229,12 +235,16 @@ const toCapabilityValue = Effect.fn('CapabilitySync.toCapabilityValue')(
       connectorType: args.connectorId,
       name: args.tool.name,
       description:
-        classification.descriptionOverride ?? args.tool.description ?? null,
+        classification?.descriptionOverride ?? args.tool.description ?? null,
       inputSchema,
       outputSchema: args.tool.outputSchema ?? null,
       schemaHash: yield* sha256Hex(canonicalJsonString(inputSchema)),
-      requiredScopes: classification.requiredScopes,
-      riskClass: classification.riskClass,
+      requiredScopes:
+        classification?.requiredScopes ??
+        (isMcpConnector(connector) && connector.oauth
+          ? connector.oauth.scopes
+          : []),
+      riskClass: args.riskOverride ?? classification?.riskClass ?? 'ask',
     } satisfies typeof schema.capability.$inferInsert
   },
 )
@@ -252,7 +262,46 @@ export const syncCapabilities = Effect.fn('CapabilitySync.sync')(function* (
     })
   }
 
-  if (!isNativeConnector(connector)) return
+  if (!isNativeConnector(connector)) {
+    if (!connector.executorSlug) return
+    const catalog = yield* loadExecutorCatalog({
+      tenant: workspaceId,
+      subject: userId,
+    }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new CapabilitySyncError({
+            code: 'database_failed',
+            message: errorMessage(
+              cause,
+              `Failed to load Executor tools for ${connectorId}`,
+            ),
+          }),
+      ),
+    )
+    const liveRows: Array<typeof schema.capability.$inferInsert> = []
+    for (const tool of catalog.tools) {
+      if (
+        tool.integration !== connector.executorSlug ||
+        tool.owner !== 'user'
+      ) {
+        continue
+      }
+      liveRows.push(
+        yield* toCapabilityValue({
+          connectorId,
+          tool: { name: tool.name, description: tool.description },
+          riskOverride: tool.requiresApproval ? 'write' : 'read',
+        }),
+      )
+    }
+    return yield* persistCapabilityRows({
+      connectorId,
+      capabilityRows: dedupeCapabilityRows(liveRows),
+      userId,
+      workspaceId,
+    })
+  }
 
   const discoveredCapabilityRows: Array<typeof schema.capability.$inferInsert> =
     []
@@ -273,8 +322,21 @@ export const syncCapabilities = Effect.fn('CapabilitySync.sync')(function* (
       }),
     )
   }
-  const capabilityRows = dedupeCapabilityRows(discoveredCapabilityRows)
+  return yield* persistCapabilityRows({
+    connectorId,
+    capabilityRows: dedupeCapabilityRows(discoveredCapabilityRows),
+    userId,
+    workspaceId,
+  })
+})
 
+const persistCapabilityRows = Effect.fn('CapabilitySync.persist')(function* (args: {
+  connectorId: string
+  capabilityRows: Array<typeof schema.capability.$inferInsert>
+  userId: string
+  workspaceId: string
+}) {
+  const { connectorId, capabilityRows, userId, workspaceId } = args
   const db = yield* Effect.tryPromise({
     try: async () => getDb(appEnv),
     catch: (cause) =>

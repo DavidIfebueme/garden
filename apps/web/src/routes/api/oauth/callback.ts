@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Effect, Option, Result } from 'effect'
 import { createFileRoute } from '@tanstack/react-router'
 import { decodeOAuthCallbackState, OAuthState } from '@executor-js/sdk/core'
 import { requireAppRequestContext } from '@/lib/server/context'
@@ -6,6 +6,8 @@ import {
   requireWorkspaceAccess,
   requireWorkspaceContext,
 } from '@/lib/server/control-plane'
+import { syncCapabilities } from '@/lib/server/capability-sync'
+import { mirrorExecutorConnection } from '@/lib/server/executor-engine/connection-mirror'
 import { executorProgram } from '@/lib/server/executor-runtime'
 
 const callbackHtml = (result: {
@@ -47,7 +49,7 @@ export const settleOAuthCallback = Effect.fn('ExecutorOAuth.settleCallback')(
     }
 
     const code = input.code
-    yield* executorProgram(input.identity, (executor) =>
+    const connection = yield* executorProgram(input.identity, (executor) =>
       executor.oauth.complete({
         state,
         code,
@@ -56,6 +58,30 @@ export const settleOAuthCallback = Effect.fn('ExecutorOAuth.settleCallback')(
           : { callbackDomain: input.callbackDomain }),
       }),
     )
+    if (connection.owner !== 'org') {
+      const mirrorResult = yield* Effect.result(
+        mirrorExecutorConnection({
+          executorSlug: String(connection.integration),
+          userId: input.identity.subject,
+          workspaceId: input.identity.tenant,
+          identityLabel: connection.identityLabel ?? null,
+          scopes: connection.oauthScope?.split(' ').filter(Boolean) ?? null,
+          expiresAtMs: connection.expiresAt ?? null,
+        }),
+      )
+      if (
+        Result.isSuccess(mirrorResult) &&
+        Option.isSome(mirrorResult.success)
+      ) {
+        yield* Effect.ignore(
+          syncCapabilities(
+            mirrorResult.success.value,
+            input.identity.subject,
+            input.identity.tenant,
+          ),
+        )
+      }
+    }
     return { ok: true as const }
   },
 )

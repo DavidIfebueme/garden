@@ -106,26 +106,23 @@ describe('agent activity route', () => {
           }
         }
         const rows = selectCalls === 2 ? decisions : grantChanges
+        const orderLimit = {
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve(rows)),
+          })),
+        }
         return {
-          from: vi.fn(() => ({
-            ...(selectCalls === 2
+          from: vi.fn(() =>
+            selectCalls === 2
               ? {
                   innerJoin: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                      orderBy: vi.fn(() => ({
-                        limit: vi.fn(() => Promise.resolve(rows)),
-                      })),
-                    })),
+                    where: vi.fn(() => orderLimit),
                   })),
                 }
               : {
-                  where: vi.fn(() => ({
-                    orderBy: vi.fn(() => ({
-                      limit: vi.fn(() => Promise.resolve(rows)),
-                    })),
-                  })),
-                }),
-          })),
+                  where: vi.fn(() => orderLimit),
+                },
+          ),
         }
       }),
     }

@@ -5,6 +5,7 @@ import { Result, TaggedError, type Result as ResultValue } from 'better-result'
 import { and, desc, eq } from 'drizzle-orm'
 import { getPooledDb } from '@garden/db/runtime'
 import { getConnectorById } from '@garden/connectors'
+import { getConnectorByExecutorSlug } from '@garden/connectors/registry'
 import { discordNativeTools } from '@garden/connectors/discord/tools'
 import { makeDiscordBaseLayer } from '@garden/connectors/discord/services'
 import {
@@ -21,6 +22,7 @@ import {
   guardedMcpToolDescription,
   resolveEffectiveTrust,
 } from '@garden/connectors/capabilities'
+import { extractExecutorToolRefsFromInput } from './executor-codemode'
 import * as schema from '@garden/db/schema'
 import { captureGardenAnalyticsEvent } from '@garden/observability/analytics/client'
 import { GARDEN_ANALYTICS_EVENTS } from '@garden/observability/analytics/events'
@@ -49,6 +51,8 @@ export const MCP_CONNECTOR_SERVER_SCHEMA_SQL = `
 `
 
 export const PERMISSION_APPROVAL_REUSE_WINDOW_MS = 60 * 1000
+
+const EXECUTOR_MCP_SERVER_ID = 'executor'
 
 export class RuntimeMcpError extends TaggedError('RuntimeMcpError')<{
   code:
@@ -274,18 +278,38 @@ export class RuntimeMcpController {
     const wrappedTools = this.host.mcp
       .listTools(filter)
       .reduce<ToolSet>((acc, tool) => {
-        const connectorId = this.connectorIdForServerId(tool.serverId)
-        if (!connectorId) {
-          return acc
-        }
-
         const rawToolKey = buildMcpAiToolKey(tool.serverId, tool.name)
-        const toolKey = buildMcpAiToolKey(connectorId, tool.name)
         const rawTool = rawTools[rawToolKey]
         if (!rawTool) {
           return acc
         }
+        const connectorId = this.connectorIdForServerId(tool.serverId)
+        if (!connectorId && tool.serverId !== EXECUTOR_MCP_SERVER_ID) {
+          return acc
+        }
         wrappedRawToolKeys.add(rawToolKey)
+
+        if (!connectorId) {
+          acc[rawToolKey] = {
+            ...rawTool,
+            needsApproval: async (
+              input: unknown,
+              options: {
+                toolCallId: string
+                messages: ModelMessage[]
+                experimental_context?: unknown
+              },
+            ) =>
+              this.ensureExecutorToolNeedsApproval({
+                toolCallId: options.toolCallId,
+                toolArgs: input,
+                shouldAutoApprove: wrapOptions?.shouldAutoApprove,
+              }),
+          }
+          return acc
+        }
+
+        const toolKey = buildMcpAiToolKey(connectorId, tool.name)
 
         const baseNeedsApproval = rawTool.needsApproval
         const baseExecute = rawTool.execute
@@ -723,6 +747,39 @@ export class RuntimeMcpController {
    * That created stale approval cards for read tools and blocked connector
    * writes that had product-default grants backfilled later.
    */
+  private async ensureExecutorToolNeedsApproval(args: {
+    toolCallId: string
+    toolArgs: unknown
+    shouldAutoApprove?: (input: {
+      connectorId: string
+      toolName: string
+      riskClass: string
+    }) => boolean
+  }) {
+    const refs = extractExecutorToolRefsFromInput(args.toolArgs)
+    let needsApproval = false
+    for (const ref of refs) {
+      const connector = getConnectorByExecutorSlug(ref.executorSlug)
+      if (!connector) {
+        continue
+      }
+      const approvalResult = await this.ensureConnectorToolNeedsApproval({
+        connectorId: connector.id,
+        toolName: ref.tool,
+        toolCallId: args.toolCallId,
+        toolArgs: args.toolArgs,
+        shouldAutoApprove: args.shouldAutoApprove,
+      })
+      if (approvalResult.isErr()) {
+        throw approvalResult.error
+      }
+      if (approvalResult.value) {
+        needsApproval = true
+      }
+    }
+    return needsApproval
+  }
+
   private async ensureConnectorToolNeedsApproval(args: {
     connectorId: string
     toolName: string
@@ -1217,7 +1274,7 @@ export class RuntimeMcpController {
 
     this.activateNativeConnectorBindings(bindingsResult.value)
     await this.refreshGitHubHostedMcpTools()
-    const executorServerId = 'executor'
+    const executorServerId = EXECUTOR_MCP_SERVER_ID
     for (const server of this.host.mcp.listServers()) {
       if (server.id !== executorServerId && getConnectorById(server.id)) {
         await this.host.removeMcpServer(server.id)
