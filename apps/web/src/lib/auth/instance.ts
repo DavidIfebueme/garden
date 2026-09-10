@@ -1,6 +1,11 @@
 import { Effect, Result as EffectResult } from "effect";
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware, getOAuthState } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  getOAuthState,
+  getSessionFromCtx,
+} from "better-auth/api";
 import { Result, matchError } from "better-result";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { and, eq } from "drizzle-orm";
@@ -40,6 +45,7 @@ import {
 } from "@/lib/posthog-server";
 import type { Db } from "@/lib/server/db";
 import { sendPasswordResetEmail } from "@/lib/server/email/password-reset";
+import { hasPasswordSignInMethod } from "@/lib/auth/sign-in-methods";
 
 export type GardenAuthEnv = Pick<
   AppEnv,
@@ -514,6 +520,35 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
       }),
     ],
     hooks: {
+      /**
+       * Prevents connector accounts from satisfying Better Auth's account-count
+       * unlink guard. Garden's connector accounts share `auth_account` with
+       * real sign-in methods, so the stock `accounts.length === 1` check can
+       * allow a Google-only user with Gmail, Drive, or Slack connected to
+       * remove Google and lose access. Reference: Better Auth 1.6.26
+       * `unlinkAccount` route and `getSessionFromCtx` source.
+       */
+      before: createAuthMiddleware(async (context) => {
+        if (
+          context.path !== "/unlink-account" ||
+          context.body?.providerId !== "google"
+        ) {
+          return;
+        }
+
+        const session = await getSessionFromCtx(context);
+        if (!session) return;
+
+        const accounts = await context.context.internalAdapter.findAccounts(
+          session.user.id,
+        );
+        if (!hasPasswordSignInMethod(accounts)) {
+          throw APIError.from("BAD_REQUEST", {
+            code: "FAILED_TO_UNLINK_LAST_ACCOUNT",
+            message: "Google is your only sign-in method",
+          });
+        }
+      }),
       after: createAuthMiddleware(async (context) => {
         if (context.path !== "/oauth2/callback/:providerId") {
           return;

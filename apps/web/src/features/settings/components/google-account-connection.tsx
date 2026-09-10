@@ -7,6 +7,7 @@ import { Button } from '@garden/ui/components/ui/button'
 import { BrandGoogleIcon } from '@/components/icons/brand-google-icon'
 import { authClient } from '@/lib/auth/client'
 import { authClientOperation } from '@/lib/auth/client-result'
+import { hasPasswordSignInMethod } from '@/lib/auth/sign-in-methods'
 import { getAuthProviderAvailability } from '@/lib/server/auth-providers'
 
 const authProviderQueryKey = ['auth', 'provider-availability']
@@ -87,7 +88,8 @@ export function GoogleAccountConnection() {
   const googleLinked = accountState.accounts.some(
     (account) => account.providerId === 'google',
   )
-  const canUnlinkGoogle = googleLinked && accountState.accounts.length > 1
+  const canUnlinkGoogle =
+    googleLinked && hasPasswordSignInMethod(accountState.accounts)
 
   /** Starts explicit linking and leaves the button busy during navigation. */
   const handleLink = async () => {

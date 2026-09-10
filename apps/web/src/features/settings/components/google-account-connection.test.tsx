@@ -115,6 +115,31 @@ describe('GoogleAccountConnection', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('does not count a connector as another sign-in method', async () => {
+    mockListAccounts.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'google-account',
+          accountId: 'google-user-id',
+          providerId: 'google',
+        },
+        {
+          id: 'gmail-connector',
+          accountId: 'gmail-user-id',
+          providerId: 'gmail',
+        },
+      ],
+    })
+    renderGoogleAccountConnection()
+
+    expect(
+      await screen.findByText('Google is your only sign-in method.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /unlink/i }),
+    ).not.toBeInTheDocument()
+  })
+
   it('unlinks Google when another sign-in method remains', async () => {
     const user = userEvent.setup()
     mockListAccounts.mockResolvedValue({

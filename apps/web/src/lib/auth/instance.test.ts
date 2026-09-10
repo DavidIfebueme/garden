@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Db } from '@/lib/server/db'
 import { createBetterAuth } from './instance'
 
@@ -122,5 +122,58 @@ describe('createBetterAuth Google sign-in policy', () => {
       allowDifferentEmails: false,
       allowUnlinkingAll: false,
     })
+  })
+
+  it('blocks Google unlink when connector accounts are the only alternatives', async () => {
+    const auth = createBetterAuth(null as unknown as Db, authEnv)
+    const beforeHook = auth.options.hooks?.before
+    const findAccounts = vi
+      .fn()
+      .mockResolvedValue([{ providerId: 'google' }, { providerId: 'gmail' }])
+
+    expect(beforeHook).toBeDefined()
+    await expect(
+      beforeHook?.({
+        path: '/unlink-account',
+        method: 'POST',
+        body: { providerId: 'google' },
+        context: {
+          session: {
+            session: { id: 'session-id' },
+            user: { id: 'user-id' },
+          },
+          internalAdapter: { findAccounts },
+        },
+      } as never),
+    ).rejects.toThrow('Google is your only sign-in method')
+    expect(findAccounts).toHaveBeenCalledWith('user-id')
+  })
+
+  it('allows Google unlink when a password sign-in remains', async () => {
+    const auth = createBetterAuth(null as unknown as Db, authEnv)
+    const beforeHook = auth.options.hooks?.before
+    const findAccounts = vi
+      .fn()
+      .mockResolvedValue([
+        { providerId: 'google' },
+        { providerId: 'credential' },
+      ])
+
+    expect(beforeHook).toBeDefined()
+    await expect(
+      beforeHook?.({
+        path: '/unlink-account',
+        method: 'POST',
+        body: { providerId: 'google' },
+        context: {
+          session: {
+            session: { id: 'session-id' },
+            user: { id: 'user-id' },
+          },
+          internalAdapter: { findAccounts },
+        },
+      } as never),
+    ).resolves.toBeUndefined()
+    expect(findAccounts).toHaveBeenCalledWith('user-id')
   })
 })
