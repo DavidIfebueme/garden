@@ -7,6 +7,7 @@ import { and, eq } from 'drizzle-orm'
 import * as schema from '@garden/db/schema'
 import { buildMcpAiToolKey } from '@garden/connectors/capabilities'
 import { Result } from 'better-result'
+import { isTestDbReachable } from './test-db'
 import {
   RuntimeMcpController,
   type McpHost,
@@ -16,6 +17,8 @@ import {
 const TEST_DB_URL =
   process.env.GARDEN_TEST_DATABASE_URL ??
   'postgres://garden@localhost:5433/garden_test'
+
+const DB_REACHABLE = await isTestDbReachable(TEST_DB_URL)
 
 const EXECUTOR_TOOL = 'execute'
 const GMAIL_LIST_CODE =
@@ -165,7 +168,9 @@ async function needsApprovalForExecute(
   return await tool.needsApproval!({ code }, { toolCallId, messages: [] })
 }
 
-describe('executor tool approval gate (integration)', () => {
+describe.skipIf(!DB_REACHABLE)(
+  'executor tool approval gate (integration)',
+  () => {
   beforeAll(async () => {
     pool = new Pool({ connectionString: TEST_DB_URL })
     db = drizzle(pool, { schema })

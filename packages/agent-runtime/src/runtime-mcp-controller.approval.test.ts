@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import * as schema from '@garden/db/schema'
 import { buildMcpAiToolKey } from '@garden/connectors/capabilities'
 import { Result } from 'better-result'
+import { isTestDbReachable } from './test-db'
 import {
   RuntimeMcpController,
   type McpHost,
@@ -16,6 +17,8 @@ import {
 const TEST_DB_URL =
   process.env.GARDEN_TEST_DATABASE_URL ??
   'postgres://garden@localhost:5433/garden_test'
+
+const DB_REACHABLE = await isTestDbReachable(TEST_DB_URL)
 
 const TOOL_ARGS = { body: 'probe comment' }
 const TOOL_NAME = 'add_issue_comment'
@@ -165,7 +168,9 @@ async function needsApprovalFor(
   })
 }
 
-describe('connector tool approval gate (integration)', () => {
+describe.skipIf(!DB_REACHABLE)(
+  'connector tool approval gate (integration)',
+  () => {
   let seeded: Seeded
   let controller: RuntimeMcpController
 

@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import * as schema from '@garden/db/schema'
 import { agentSkillTarget } from '@garden/core/skills'
 import { loadRuntimeSkillAssignments } from './skills'
+import { isTestDbReachable } from './test-db'
 
 vi.mock('agents/skills', () => ({
   r2: () => ({
@@ -19,6 +20,8 @@ vi.mock('agents/skills', () => ({
 const TEST_DB_URL =
   process.env.GARDEN_TEST_DATABASE_URL ??
   'postgres://garden@localhost:5433/garden_test'
+
+const DB_REACHABLE = await isTestDbReachable(TEST_DB_URL)
 
 let pool: Pool
 let db: ReturnType<typeof drizzle<typeof schema>>
@@ -98,7 +101,8 @@ async function cleanupSeeded(seeded: Seeded) {
   await db.delete(schema.user).where(eq(schema.user.id, seeded.ownerId))
 }
 
-describe('skill assignment filtering by allowed_skills (integration)', () => {
+describe.skipIf(!DB_REACHABLE)(
+  'skill assignment filtering by allowed_skills (integration)', () => {
   beforeAll(async () => {
     pool = new Pool({ connectionString: TEST_DB_URL })
     db = drizzle(pool, { schema })
