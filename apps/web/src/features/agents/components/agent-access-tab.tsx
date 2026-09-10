@@ -1,5 +1,13 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, ShieldCheck, UserRound } from 'lucide-react'
+import { Option } from 'effect'
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react'
 import { Badge } from '@garden/ui/components/ui/badge'
 import {
   Select,
@@ -41,6 +49,18 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
   const connectionsQuery = useQuery(connectionListOptions(wsId))
   const accessQuery = useQuery(agentAccessOptions(agentId))
   const activityQuery = useQuery(agentActivityOptions(agentId))
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const toggleExpanded = (connectorId: string) => {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(connectorId)) {
+        next.delete(connectorId)
+      } else {
+        next.add(connectorId)
+      }
+      return next
+    })
+  }
 
   const invalidateAccess = () => {
     qc.invalidateQueries({ queryKey: workspaceKeys.agent(agentId) })
@@ -141,7 +161,9 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
 
       <ul className="mt-4 divide-y divide-border/60 rounded-md border">
         {(connectionsQuery.data?.integrations ?? []).map((integration) => {
-          const connectorId = integration.slug
+          const connectorId =
+            Option.getOrNull(integration.gardenConnectorId) ?? integration.slug
+          const managed = integration.gardenConnectorId._tag === 'Some'
           const connectionTrust =
             connectionTrustByConnector.get(connectorId) ?? null
           const firstConnection = integration.connections[0]
@@ -156,6 +178,10 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
               state: toolTrustByKey.get(`${connectorId}:${tool.name}`),
             }))
             .filter((tool) => tool.state !== undefined)
+          const askCount = tools.filter(
+            (tool) => tool.state?.trust === 'ask',
+          ).length
+          const toolsOpen = expanded.has(connectorId)
           return (
             <li key={connectorId} className="px-3 py-3">
               <div className="flex items-start gap-3">
@@ -182,73 +208,108 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      Connection
+                      Connection default
                     </span>
-                    <Select
-                      value={connectionTrust ?? 'default'}
-                      onValueChange={(value) =>
-                        connectionTrustMutation.mutate({
-                          connectorId,
-                          trust: value as ConnectionTrustValue,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-7 w-36 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Default</SelectItem>
-                        <SelectItem value="allow">Allowed</SelectItem>
-                        <SelectItem value="ask">Approval required</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {tools.map((tool) => (
-                      <li
-                        key={tool.name}
-                        className="flex flex-wrap items-center justify-between gap-2 text-xs"
+                    {managed ? (
+                      <Select
+                        value={connectionTrust ?? 'default'}
+                        onValueChange={(value) =>
+                          connectionTrustMutation.mutate({
+                            connectorId,
+                            trust: value as ConnectionTrustValue,
+                          })
+                        }
                       >
-                        <span className="flex items-center gap-1.5 text-foreground">
-                          <ShieldCheck className="size-3.5 text-muted-foreground" />
-                          {tool.name}
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <span className="text-muted-foreground">
-                            {trustLabel(tool.state?.trust ?? 'ask')}
+                        <SelectTrigger className="h-7 w-36 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default</SelectItem>
+                          <SelectItem value="allow">Allowed</SelectItem>
+                          <SelectItem value="ask">Approval required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Custom integration
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Applies to every tool below unless overridden per tool.
+                  </p>
+                  {tools.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(connectorId)}
+                      aria-expanded={toolsOpen}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {toolsOpen ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronRight className="size-3.5" />
+                      )}
+                      {tools.length} tools
+                      {askCount > 0
+                        ? ` · ${askCount} need${askCount === 1 ? 's' : ''} approval`
+                        : ''}
+                    </button>
+                  ) : null}
+                  {toolsOpen ? (
+                    <ul className="mt-2 space-y-1.5">
+                      {tools.map((tool) => (
+                        <li
+                          key={tool.name}
+                          className="flex flex-wrap items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="flex items-center gap-1.5 text-foreground">
+                            <ShieldCheck className="size-3.5 text-muted-foreground" />
+                            {tool.name}
                           </span>
-                          <Select
-                            value={
-                              tool.state?.granted
-                                ? tool.state.trust
-                                : 'default'
-                            }
-                            onValueChange={(value) =>
-                              toolTrustMutation.mutate({
-                                connectorId,
-                                toolName: tool.name,
-                                trust: value as ToolTrustValue,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-36 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="default">Default</SelectItem>
-                              {tool.state?.risk_class === 'read' ? (
-                                <SelectItem value="auto">Automatic</SelectItem>
-                              ) : null}
-                              <SelectItem value="allow">Allowed</SelectItem>
-                              <SelectItem value="ask">
-                                Approval required
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                          <span className="flex items-center gap-2">
+                            <span className="text-muted-foreground">
+                              {trustLabel(tool.state?.trust ?? 'ask')}
+                            </span>
+                            {managed ? (
+                              <Select
+                                value={
+                                  tool.state?.granted
+                                    ? tool.state.trust
+                                    : 'default'
+                                }
+                                onValueChange={(value) =>
+                                  toolTrustMutation.mutate({
+                                    connectorId,
+                                    toolName: tool.name,
+                                    trust: value as ToolTrustValue,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 w-36 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="default">
+                                    Default
+                                  </SelectItem>
+                                  {tool.state?.risk_class === 'read' ? (
+                                    <SelectItem value="auto">
+                                      Automatic
+                                    </SelectItem>
+                                  ) : null}
+                                  <SelectItem value="allow">Allowed</SelectItem>
+                                  <SelectItem value="ask">
+                                    Approval required
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
               </div>
             </li>
@@ -261,8 +322,7 @@ export function AgentAccessTab({ agentId }: { agentId: string }) {
         </h3>
         {(activityQuery.data?.events ?? []).length === 0 ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            No approvals, denials, or grant changes recorded for this agent
-            yet.
+            No approvals, denials, or grant changes recorded for this agent yet.
           </p>
         ) : (
           <ul className="mt-2 divide-y divide-border/60 rounded-md border">
