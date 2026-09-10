@@ -12,6 +12,11 @@ import { getAuthProviderAvailability } from '@/lib/server/auth-providers'
 const authProviderQueryKey = ['auth', 'provider-availability']
 const linkedAccountsQueryKey = ['account', 'linked-accounts']
 
+type LinkedAccountState = {
+  accounts: Array<{ providerId: string }>
+  error: string | null
+}
+
 /**
  * Shows Google as an explicit sign-in method. Garden disables Better Auth's
  * implicit linking, so password users must start linking from an authenticated
@@ -70,9 +75,11 @@ export function GoogleAccountConnection() {
 
   if (!authProviders?.google) return null
 
-  const accountState = linkedAccountsResult?.match({
+  const accountState = linkedAccountsResult?.match<LinkedAccountState>({
     ok: (response) => ({
-      accounts: response.data ?? [],
+      accounts: (response.data ?? []).map((account) => ({
+        providerId: account.providerId,
+      })),
       error: null,
     }),
     err: (error) => ({ accounts: [], error: error.message }),
@@ -119,7 +126,7 @@ export function GoogleAccountConnection() {
         setUnlinking(false)
         toast.success('Google unlinked')
       },
-      err: (error) => {
+      err: async (error) => {
         setUnlinking(false)
         toast.error(error.message)
       },
