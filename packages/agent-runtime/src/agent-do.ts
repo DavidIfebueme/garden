@@ -76,6 +76,7 @@ import {
   createPromptContextProviders,
 } from './prompt'
 import {
+  EXECUTOR_TOOL_KEY_PREFIX,
   RuntimeMcpConnectionPreparer,
   RuntimeMcpController,
   type McpHost,
@@ -1743,6 +1744,13 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
       assembledTools: ctx.tools,
       stableMcpTools,
     })
+    const isToolVisible = (key: string) =>
+      key.startsWith(EXECUTOR_TOOL_KEY_PREFIX) ||
+      isChatToolAllowed(this.currentPermissions, key)
+    const visibleTools = Object.fromEntries(
+      Object.entries(stableMcpTools).filter(([key]) => isToolVisible(key)),
+    ) as ToolSet
+    const visibleActiveTools = activeTools.filter((key) => isToolVisible(key))
 
     return {
       model: createAgentModel({
@@ -1766,8 +1774,8 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
       ...(systemAdditions
         ? { system: `${ctx.system}\n\n${systemAdditions}` }
         : {}),
-      tools: stableMcpTools,
-      activeTools,
+      tools: visibleTools,
+      activeTools: visibleActiveTools,
     } satisfies TurnConfig
   }
 

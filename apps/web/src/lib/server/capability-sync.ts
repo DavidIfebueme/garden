@@ -330,103 +330,123 @@ export const syncCapabilities = Effect.fn('CapabilitySync.sync')(function* (
   })
 })
 
-const persistCapabilityRows = Effect.fn('CapabilitySync.persist')(function* (args: {
-  connectorId: string
-  capabilityRows: Array<typeof schema.capability.$inferInsert>
-  userId: string
-  workspaceId: string
-}) {
-  const { connectorId, capabilityRows, userId, workspaceId } = args
-  const db = yield* Effect.tryPromise({
-    try: async () => getDb(appEnv),
-    catch: (cause) =>
-      new CapabilitySyncError({
-        code: 'database_failed',
-        message: errorMessage(cause, 'Failed to open the capability database'),
-      }),
-  })
-  yield* Effect.forEach(
-    capabilityRows,
-    (capability) =>
-      Effect.tryPromise({
-        try: async () =>
-          db
-            .insert(schema.capability)
-            .values(capability)
-            .onConflictDoUpdate({
-              target: [schema.capability.connectorType, schema.capability.name],
-              set: {
-                description: capability.description,
-                inputSchema: capability.inputSchema,
-                outputSchema: capability.outputSchema,
-                schemaHash: capability.schemaHash,
-                requiredScopes: capability.requiredScopes,
-                riskClass: capability.riskClass,
-              },
-            }),
-        catch: (cause) =>
-          new CapabilitySyncError({
-            code: 'database_failed',
-            message: errorMessage(
-              cause,
-              `Failed to upsert capabilities for ${connectorId}`,
-            ),
-          }),
-      }),
-    { concurrency: 8, discard: true },
-  )
-
-  const toolNames = capabilityRows.map((capability) => capability.name)
-  const existingCapabilities = yield* Effect.tryPromise({
-    try: async () =>
-      db
-        .select({
-          id: schema.capability.id,
-          name: schema.capability.name,
-          riskClass: schema.capability.riskClass,
-        })
-        .from(schema.capability)
-        .where(eq(schema.capability.connectorType, connectorId)),
-    catch: (cause) =>
-      new CapabilitySyncError({
-        code: 'database_failed',
-        message: errorMessage(
-          cause,
-          `Failed to load existing capabilities for ${connectorId}`,
-        ),
-      }),
-  })
-
-  const staleCapabilityIds = existingCapabilities
-    .filter((capability) => !toolNames.includes(capability.name))
-    .map((capability) => capability.id)
-  yield* deleteStaleCapabilityDependencies(staleCapabilityIds)
-
-  if (staleCapabilityIds.length > 0) {
-    yield* Effect.tryPromise({
-      try: async () =>
-        db
-          .delete(schema.capability)
-          .where(inArray(schema.capability.id, staleCapabilityIds)),
+const persistCapabilityRows = Effect.fn('CapabilitySync.persist')(
+  function* (args: {
+    connectorId: string
+    capabilityRows: Array<typeof schema.capability.$inferInsert>
+    userId: string
+    workspaceId: string
+  }) {
+    const { connectorId, capabilityRows, userId, workspaceId } = args
+    const db = yield* Effect.tryPromise({
+      try: async () => getDb(appEnv),
       catch: (cause) =>
         new CapabilitySyncError({
           code: 'database_failed',
           message: errorMessage(
             cause,
-            `Failed to prune stale capabilities for ${connectorId}`,
+            'Failed to open the capability database',
           ),
         }),
     })
-  }
+    yield* Effect.forEach(
+      capabilityRows,
+      (capability) =>
+        Effect.tryPromise({
+          try: async () =>
+            db
+              .insert(schema.capability)
+              .values(capability)
+              .onConflictDoUpdate({
+                target: [
+                  schema.capability.connectorType,
+                  schema.capability.name,
+                ],
+                set: {
+                  description: capability.description,
+                  inputSchema: capability.inputSchema,
+                  outputSchema: capability.outputSchema,
+                  schemaHash: capability.schemaHash,
+                  requiredScopes: capability.requiredScopes,
+                  riskClass: capability.riskClass,
+                },
+              }),
+          catch: (cause) =>
+            new CapabilitySyncError({
+              code: 'database_failed',
+              message: errorMessage(
+                cause,
+                `Failed to upsert capabilities for ${connectorId}`,
+              ),
+            }),
+        }),
+      { concurrency: 8, discard: true },
+    )
 
-  yield* seedDefaultPermissionGrants({
-    capabilities: existingCapabilities
-      .filter((capability) => !staleCapabilityIds.includes(capability.id))
-      .map((capability) => ({
-        id: capability.id,
-        riskClass: capability.riskClass,
-      })),
-    userId,
-    workspaceId,
-  })
-})
+    const toolNames = capabilityRows.map((capability) => capability.name)
+    const existingCapabilities = yield* Effect.tryPromise({
+      try: async () =>
+        db
+          .select({
+            id: schema.capability.id,
+            name: schema.capability.name,
+            riskClass: schema.capability.riskClass,
+          })
+          .from(schema.capability)
+          .where(eq(schema.capability.connectorType, connectorId)),
+      catch: (cause) =>
+        new CapabilitySyncError({
+          code: 'database_failed',
+          message: errorMessage(
+            cause,
+            `Failed to load existing capabilities for ${connectorId}`,
+          ),
+        }),
+    })
+
+    if (capabilityRows.length === 0 && existingCapabilities.length > 0) {
+      yield* Effect.sync(() =>
+        console.warn(
+          '[garden] refusing global capability prune on empty sync',
+          {
+            connectorId,
+          },
+        ),
+      )
+      return
+    }
+
+    const staleCapabilityIds = existingCapabilities
+      .filter((capability) => !toolNames.includes(capability.name))
+      .map((capability) => capability.id)
+    yield* deleteStaleCapabilityDependencies(staleCapabilityIds)
+
+    if (staleCapabilityIds.length > 0) {
+      yield* Effect.tryPromise({
+        try: async () =>
+          db
+            .delete(schema.capability)
+            .where(inArray(schema.capability.id, staleCapabilityIds)),
+        catch: (cause) =>
+          new CapabilitySyncError({
+            code: 'database_failed',
+            message: errorMessage(
+              cause,
+              `Failed to prune stale capabilities for ${connectorId}`,
+            ),
+          }),
+      })
+    }
+
+    yield* seedDefaultPermissionGrants({
+      capabilities: existingCapabilities
+        .filter((capability) => !staleCapabilityIds.includes(capability.id))
+        .map((capability) => ({
+          id: capability.id,
+          riskClass: capability.riskClass,
+        })),
+      userId,
+      workspaceId,
+    })
+  },
+)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extractExecutorToolRefs,
   extractExecutorToolRefsFromInput,
+  mentionsUnparsedExecutorTools,
 } from './executor-codemode'
 
 describe('extractExecutorToolRefs', () => {
@@ -64,5 +65,20 @@ describe('extractExecutorToolRefs', () => {
       },
     ])
     expect(extractExecutorToolRefsFromInput(null)).toEqual([])
+  })
+
+  it('flags tool mentions without parseable references', () => {
+    expect(
+      mentionsUnparsedExecutorTools(
+        'return tools.google_gmail.search_messages(query="in:inbox")',
+      ),
+    ).toBe(true)
+    expect(
+      mentionsUnparsedExecutorTools(
+        'await tools.google_gmail.user.gmail.gmail.users.messages.list({})',
+      ),
+    ).toBe(false)
+    expect(mentionsUnparsedExecutorTools('const x = 1')).toBe(false)
+    expect(mentionsUnparsedExecutorTools(null)).toBe(false)
   })
 })

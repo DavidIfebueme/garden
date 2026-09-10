@@ -217,8 +217,7 @@ async function loadMatchingPendingRequests(args: {
  * activity feed shows approvals alongside denials. Before this, only denials
  * wrote rows and approvals vanished from history entirely.
  */
-async function writeResolutionAuditRows(args: {
-  db: ServerDb
+async function buildResolutionAuditRows(args: {
   requests: Array<{
     agentId: string
     argsJson: unknown
@@ -246,20 +245,7 @@ async function writeResolutionAuditRows(args: {
     })
   }
 
-  if (auditRows.length === 0) return Result.ok(undefined)
-
-  return Result.tryPromise({
-    try: async () => {
-      await args.db.insert(schema.toolCallAudit).values(auditRows)
-    },
-    catch: (cause) =>
-      new PermissionRequestServiceError({
-        code: 'database_failed',
-        status: 500,
-        message: 'Failed to write resolution audit rows',
-        cause,
-      }),
-  })
+  return Result.ok(auditRows)
 }
 
 export async function resolveConnectorWritePermissionRequests(
@@ -284,38 +270,46 @@ export async function resolveConnectorWritePermissionRequests(
   const matchingRequests = matchingRequestsResult.value
   const matchingRequestIds = matchingRequests.map((request) => request.id)
   const resolvedAt = new Date()
-  const updateResult = await Result.tryPromise({
-    try: async () =>
-      input.db
-        .update(schema.permissionRequest)
-        .set({
-          status: input.approved ? 'approved' : 'denied',
-          resolvedBy: input.actorUserId,
-          resolvedAt,
-        })
-        .where(inArray(schema.permissionRequest.id, matchingRequestIds))
-        .returning({
-          argsJson: schema.permissionRequest.argsJson,
-          capabilityId: schema.permissionRequest.capabilityId,
-          toolCallId: schema.permissionRequest.toolCallId,
-        }),
-    catch: (cause) =>
-      new PermissionRequestServiceError({
-        code: 'database_failed',
-        status: 500,
-        message: 'Failed to resolve permission request',
-        cause,
-      }),
-  })
-  if (updateResult.isErr()) return Result.err(updateResult.error)
-
-  const auditResult = await writeResolutionAuditRows({
-    db: input.db,
+  const auditRowsResult = await buildResolutionAuditRows({
     requests: matchingRequests,
     workspaceId: input.workspaceId,
     approved: input.approved,
   })
-  if (auditResult.isErr()) return Result.err(auditResult.error)
+  if (auditRowsResult.isErr()) return Result.err(auditRowsResult.error)
+
+  const auditRows = auditRowsResult.value
+  const updateResult = await Result.tryPromise({
+    try: async () =>
+      input.db.transaction(async (tx) => {
+        const updated = await tx
+          .update(schema.permissionRequest)
+          .set({
+            status: input.approved ? 'approved' : 'denied',
+            resolvedBy: input.actorUserId,
+            resolvedAt,
+          })
+          .where(inArray(schema.permissionRequest.id, matchingRequestIds))
+          .returning({
+            argsJson: schema.permissionRequest.argsJson,
+            capabilityId: schema.permissionRequest.capabilityId,
+            toolCallId: schema.permissionRequest.toolCallId,
+          })
+        if (auditRows.length > 0) {
+          await tx.insert(schema.toolCallAudit).values(auditRows)
+        }
+        return updated
+      }),
+    catch: (cause) =>
+      cause instanceof PermissionRequestServiceError
+        ? cause
+        : new PermissionRequestServiceError({
+            code: 'database_failed',
+            status: 500,
+            message: 'Failed to resolve permission request',
+            cause,
+          }),
+  })
+  if (updateResult.isErr()) return Result.err(updateResult.error)
 
   const retryToolCalls = updateResult.value.flatMap((request) =>
     request.capabilityId

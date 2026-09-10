@@ -182,26 +182,31 @@ describe.skipIf(!DB_REACHABLE)(
   })
 
   afterAll(async () => {
+    const current = seeded as Seeded | undefined
+    if (!current) {
+      await pool.end()
+      return
+    }
     await db
       .delete(schema.permissionRequest)
-      .where(eq(schema.permissionRequest.agentId, seeded.agentId))
+      .where(eq(schema.permissionRequest.agentId, current.agentId))
     await db
       .delete(schema.inboxItem)
-      .where(eq(schema.inboxItem.workspaceId, seeded.workspaceId))
+      .where(eq(schema.inboxItem.workspaceId, current.workspaceId))
     await db
       .delete(schema.permissionGrant)
-      .where(eq(schema.permissionGrant.agentId, seeded.agentId))
+      .where(eq(schema.permissionGrant.agentId, current.agentId))
     await db
       .delete(schema.capability)
-      .where(eq(schema.capability.id, seeded.capabilityId))
-    await db.delete(schema.agent).where(eq(schema.agent.id, seeded.agentId))
+      .where(eq(schema.capability.id, current.capabilityId))
+    await db.delete(schema.agent).where(eq(schema.agent.id, current.agentId))
     await db
       .delete(schema.member)
-      .where(eq(schema.member.userId, seeded.ownerId))
+      .where(eq(schema.member.userId, current.ownerId))
     await db
       .delete(schema.organization)
-      .where(eq(schema.organization.id, seeded.workspaceId))
-    await db.delete(schema.user).where(eq(schema.user.id, seeded.ownerId))
+      .where(eq(schema.organization.id, current.workspaceId))
+    await db.delete(schema.user).where(eq(schema.user.id, current.ownerId))
     await pool.end()
   }, 30_000)
 

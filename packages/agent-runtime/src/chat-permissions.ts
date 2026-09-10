@@ -27,7 +27,6 @@ export function isChatToolAllowed(
   const toolName = connectorTool?.toolName ?? runtimeToolName
 
   if (
-    permissions.allowed_tools.length > 0 &&
     !permissions.allowed_tools.includes(toolName) &&
     !permissions.allowed_tools.includes(runtimeToolName)
   ) {
@@ -36,7 +35,6 @@ export function isChatToolAllowed(
 
   if (
     connectorTool &&
-    permissions.allowed_connectors.length > 0 &&
     !permissions.allowed_connectors.includes(connectorTool.connectorId)
   ) {
     return false

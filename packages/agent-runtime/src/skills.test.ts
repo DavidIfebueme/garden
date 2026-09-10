@@ -31,7 +31,10 @@ describe('allowed_skills filtering', () => {
 
   it('passes everything through when unrestricted', () => {
     expect(filterSkillRowsByAllowedSlugs(rows, null)).toEqual(rows)
-    expect(filterSkillRowsByAllowedSlugs(rows, [])).toEqual(rows)
+  })
+
+  it('denies everything on an empty restricted list', () => {
+    expect(filterSkillRowsByAllowedSlugs(rows, [])).toEqual([])
   })
 
   it('matches slugs case-insensitively', () => {
@@ -51,5 +54,16 @@ describe('allowed_skills filtering', () => {
   it('drops rows outside the list', () => {
     expect(filterSkillRowsByAllowedSlugs(rows, ['pdf'])).toEqual([rows[0]])
     expect(filterSkillRowsByAllowedSlugs(rows, ['nothing'])).toEqual([])
+  })
+
+  it('prefers the canonical slug over the display name', () => {
+    expect(
+      filterSkillRowsByAllowedSlugs([{ name: 'PDF', slug: 'report' }], [
+        'pdf',
+      ]),
+    ).toEqual([])
+    expect(isSkillAllowedBySlugs({ name: 'PDF', slug: 'report' }, new Set(['pdf']))).toBe(
+      false,
+    )
   })
 })

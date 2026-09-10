@@ -43,27 +43,33 @@ describe('resolveConnectorWritePermissionRequests audit', () => {
           from: vi.fn(() => chainableTerminal([referenceRow])),
         }
       }),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(() =>
-              Promise.resolve([
-                {
-                  argsJson: referenceRow.argsJson,
-                  capabilityId: referenceRow.capabilityId,
-                  toolCallId,
-                },
-              ]),
-            ),
-          })),
-        })),
-      })),
-      insert: vi.fn(() => ({
-        values: vi.fn((rows: unknown) => {
-          insertedValues.push(rows)
-          return Promise.resolve()
-        }),
-      })),
+      transaction: vi.fn(
+        async (fn: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+          const tx = {
+            update: () => ({
+              set: () => ({
+                where: () => ({
+                  returning: () =>
+                    Promise.resolve([
+                      {
+                        argsJson: referenceRow.argsJson,
+                        capabilityId: referenceRow.capabilityId,
+                        toolCallId,
+                      },
+                    ]),
+                }),
+              }),
+            }),
+            insert: () => ({
+              values: (rows: unknown) => {
+                insertedValues.push(rows)
+                return Promise.resolve()
+              },
+            }),
+          }
+          return fn(tx)
+        },
+      ),
     }
 
     const result = await resolveConnectorWritePermissionRequests({
@@ -119,27 +125,33 @@ describe('resolveConnectorWritePermissionRequests audit', () => {
           from: vi.fn(() => chainableTerminal([referenceRow])),
         }
       }),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(() =>
-              Promise.resolve([
-                {
-                  argsJson: referenceRow.argsJson,
-                  capabilityId: referenceRow.capabilityId,
-                  toolCallId,
-                },
-              ]),
-            ),
-          })),
-        })),
-      })),
-      insert: vi.fn(() => ({
-        values: vi.fn((rows: unknown) => {
-          insertedValues.push(rows)
-          return Promise.resolve()
-        }),
-      })),
+      transaction: vi.fn(
+        async (fn: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+          const tx = {
+            update: () => ({
+              set: () => ({
+                where: () => ({
+                  returning: () =>
+                    Promise.resolve([
+                      {
+                        argsJson: referenceRow.argsJson,
+                        capabilityId: referenceRow.capabilityId,
+                        toolCallId,
+                      },
+                    ]),
+                }),
+              }),
+            }),
+            insert: () => ({
+              values: (rows: unknown) => {
+                insertedValues.push(rows)
+                return Promise.resolve()
+              },
+            }),
+          }
+          return fn(tx)
+        },
+      ),
     }
 
     const result = await resolveConnectorWritePermissionRequests({

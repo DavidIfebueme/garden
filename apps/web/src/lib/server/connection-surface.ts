@@ -25,7 +25,7 @@ export type ConnectionSurfaceTool = {
   name: string
   description: string
   riskClass: RiskClass
-  invocationCount: number
+  decisionCount: number
   grantsByAgent: Record<string, PermissionTrustLevel>
 }
 
@@ -40,7 +40,7 @@ export type ConnectionSurfaceItem = {
   scopes: string[]
   connectedAt: string | null
   toolCount: number
-  recentInvocations: number
+  approvalDecisions: number
   grants: {
     auto: number
     allow: number
@@ -91,10 +91,10 @@ export function buildConnectionSurface(args: {
     capabilitiesByConnector.set(capability.connectorType, group)
   }
 
-  const invocationCountByCapabilityId = new Map<string, number>()
+  const decisionCountByCapabilityId = new Map<string, number>()
   for (const audit of toolCallAudits) {
-    const current = invocationCountByCapabilityId.get(audit.capabilityId) ?? 0
-    invocationCountByCapabilityId.set(audit.capabilityId, current + 1)
+    const current = decisionCountByCapabilityId.get(audit.capabilityId) ?? 0
+    decisionCountByCapabilityId.set(audit.capabilityId, current + 1)
   }
 
   const trustByCapabilityIdAndAgentId = new Map<
@@ -131,14 +131,12 @@ export function buildConnectionSurface(args: {
       name: tool.name,
       description: tool.description ?? '',
       riskClass: (tool.riskClass as RiskClass | null) ?? 'read',
-      invocationCount: invocationCountByCapabilityId.get(tool.id) ?? 0,
+      decisionCount: decisionCountByCapabilityId.get(tool.id) ?? 0,
       grantsByAgent: Object.fromEntries(
         agentIds.map((agentId) => [
           agentId,
           resolveEffectiveTrust({
-            toolTrust: trustByCapabilityIdAndAgentId
-              .get(tool.id)
-              ?.get(agentId),
+            toolTrust: trustByCapabilityIdAndAgentId.get(tool.id)?.get(agentId),
             connectionTrust: connectionTrustByConnectorAndAgentId
               .get(tool.connectorType)
               ?.get(agentId),
@@ -148,8 +146,8 @@ export function buildConnectionSurface(args: {
       ) as Record<string, PermissionTrustLevel>,
     }))
 
-    const recentInvocations = tools.reduce(
-      (total, tool) => total + tool.invocationCount,
+    const approvalDecisions = tools.reduce(
+      (total, tool) => total + tool.decisionCount,
       0,
     )
 
@@ -200,7 +198,7 @@ export function buildConnectionSurface(args: {
         ? new Date(connection.createdAt).toISOString()
         : null,
       toolCount: tools.length,
-      recentInvocations,
+      approvalDecisions,
       grants,
       tools: tools
         .sort((left, right) => left.name.localeCompare(right.name))
@@ -208,7 +206,7 @@ export function buildConnectionSurface(args: {
           name: tool.name,
           description: tool.description,
           riskClass: tool.riskClass,
-          invocationCount: tool.invocationCount,
+          decisionCount: tool.decisionCount,
           grantsByAgent: tool.grantsByAgent,
         })),
     }

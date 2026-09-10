@@ -22,7 +22,7 @@ import {
   guardedMcpToolDescription,
   resolveEffectiveTrust,
 } from '@garden/connectors/capabilities'
-import { extractExecutorToolRefsFromInput } from './executor-codemode'
+import { extractExecutorToolRefsFromInput, mentionsUnparsedExecutorTools } from './executor-codemode'
 import * as schema from '@garden/db/schema'
 import { captureGardenAnalyticsEvent } from '@garden/observability/analytics/client'
 import { GARDEN_ANALYTICS_EVENTS } from '@garden/observability/analytics/events'
@@ -53,6 +53,11 @@ export const MCP_CONNECTOR_SERVER_SCHEMA_SQL = `
 export const PERMISSION_APPROVAL_REUSE_WINDOW_MS = 60 * 1000
 
 const EXECUTOR_MCP_SERVER_ID = 'executor'
+
+export const EXECUTOR_TOOL_KEY_PREFIX = buildMcpAiToolKey(
+  EXECUTOR_MCP_SERVER_ID,
+  '',
+)
 
 export class RuntimeMcpError extends TaggedError('RuntimeMcpError')<{
   code:
@@ -757,6 +762,11 @@ export class RuntimeMcpController {
     }) => boolean
   }) {
     const refs = extractExecutorToolRefsFromInput(args.toolArgs)
+    if (refs.length === 0 && mentionsUnparsedExecutorTools(args.toolArgs)) {
+      console.warn('[agent-runtime] unparsed executor tool call', {
+        toolCallId: args.toolCallId,
+      })
+    }
     let needsApproval = false
     for (const ref of refs) {
       const connector = getConnectorByExecutorSlug(ref.executorSlug)

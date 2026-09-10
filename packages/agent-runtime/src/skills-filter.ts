@@ -6,14 +6,16 @@ export function isSkillAllowedBySlugs(
   row: { readonly name: string; readonly slug?: string },
   allowed: ReadonlySet<string>,
 ): boolean {
-  if (allowed.has(row.name.toLowerCase())) return true
-  return row.slug !== undefined && allowed.has(row.slug.toLowerCase())
+  if (row.slug !== undefined) {
+    return allowed.has(row.slug.toLowerCase())
+  }
+  return allowed.has(row.name.toLowerCase())
 }
 
 export function filterSkillRowsByAllowedSlugs<
   T extends { readonly name: string; readonly slug?: string },
 >(rows: readonly T[], allowedSlugs: readonly string[] | null): T[] {
-  if (!allowedSlugs || allowedSlugs.length === 0) return [...rows]
+  if (!allowedSlugs) return [...rows]
   const allowed = new Set(allowedSlugs.map((entry) => entry.toLowerCase()))
   return rows.filter((row) => isSkillAllowedBySlugs(row, allowed))
 }
@@ -30,7 +32,7 @@ export function filterBuiltinSkillSource(
   permissions: AgentPermissions | null,
 ): SkillSource {
   const allowedSlugs = allowedSlugsForPermissions(permissions)
-  if (!allowedSlugs || allowedSlugs.length === 0) return source
+  if (!allowedSlugs) return source
   const allowed = new Set(allowedSlugs.map((entry) => entry.toLowerCase()))
   const slugByName = new Map(
     DOC_BUILTIN_SKILLS.map((manifest) => [

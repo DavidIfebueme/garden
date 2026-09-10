@@ -1,26 +1,16 @@
-export type ExecutorToolRef = {
-  executorSlug: string
-  owner: string
-  connection: string
-  tool: string
-}
+import { Result } from 'better-result'
+import {
+  extractExecutorToolRefs,
+  type ExecutorToolRef,
+} from '@garden/connectors/capabilities'
 
-const TOOL_CALL_PATTERN =
-  /tools\.([A-Za-z0-9_-]+)\.(org|user)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_.$-]+?)\s*\(/g
+export { extractExecutorToolRefs, type ExecutorToolRef }
 
-export function extractExecutorToolRefs(code: unknown): ExecutorToolRef[] {
-  if (typeof code !== 'string' || code.length === 0) return []
-  const refs: ExecutorToolRef[] = []
-  const seen = new Set<string>()
-  for (const match of code.matchAll(TOOL_CALL_PATTERN)) {
-    const [, executorSlug, owner, connection, tool] = match
-    if (!executorSlug || !owner || !connection || !tool) continue
-    const key = `${executorSlug}.${owner}.${connection}.${tool}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    refs.push({ executorSlug, owner, connection, tool })
-  }
-  return refs
+function serializedInput(input: unknown): string {
+  return Result.try({
+    try: () => JSON.stringify(input) ?? '',
+    catch: () => '',
+  }).unwrapOr('')
 }
 
 export function extractExecutorToolRefsFromInput(
@@ -28,11 +18,20 @@ export function extractExecutorToolRefsFromInput(
 ): ExecutorToolRef[] {
   if (typeof input === 'string') return extractExecutorToolRefs(input)
   if (input && typeof input === 'object') {
-    try {
-      return extractExecutorToolRefs(JSON.stringify(input))
-    } catch {
-      return []
-    }
+    return extractExecutorToolRefs(serializedInput(input))
   }
   return []
+}
+
+export function mentionsUnparsedExecutorTools(input: unknown): boolean {
+  const serialized =
+    typeof input === 'string'
+      ? input
+      : input && typeof input === 'object'
+        ? serializedInput(input)
+        : ''
+  return (
+    serialized.includes('tools.') &&
+    extractExecutorToolRefs(serialized).length === 0
+  )
 }

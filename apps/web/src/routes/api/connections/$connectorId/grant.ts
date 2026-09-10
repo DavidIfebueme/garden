@@ -16,15 +16,12 @@ import {
   unauthorized,
 } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
-import { recordGrantActivity } from '@/lib/server/permission-activity'
 import {
   requireWorkspacePermission,
   workspacePermissions,
 } from '@/lib/server/workspace-permissions'
 
-class ConnectorGrantRouteError extends TaggedError(
-  'ConnectorGrantRouteError',
-)<{
+class ConnectorGrantRouteError extends TaggedError('ConnectorGrantRouteError')<{
   status: number
   message: string
 }>() {}
@@ -103,58 +100,57 @@ export const Route = createFileRoute('/api/connections/$connectorId/grant')({
         }
 
         const grantedAt = new Date()
-        const upsertResult = await Result.tryPromise({
+        const mutationResult = await Result.tryPromise({
           try: async () =>
-            db
-              .insert(schema.connectionGrant)
-              .values({
-                id: crypto.randomUUID(),
-                agentId: payloadResult.value.agentId,
-                connectorId: params.connectorId,
-                trustLevel: payloadResult.value.trustLevel,
-                grantedBy: session.user.id,
-                grantedAt,
-                expiresAt: null,
-              })
-              .onConflictDoUpdate({
-                target: [
-                  schema.connectionGrant.agentId,
-                  schema.connectionGrant.connectorId,
-                ],
-                set: {
+            db.transaction(async (tx) => {
+              await tx
+                .insert(schema.connectionGrant)
+                .values({
+                  id: crypto.randomUUID(),
+                  agentId: payloadResult.value.agentId,
+                  connectorId: params.connectorId,
                   trustLevel: payloadResult.value.trustLevel,
                   grantedBy: session.user.id,
                   grantedAt,
                   expiresAt: null,
+                })
+                .onConflictDoUpdate({
+                  target: [
+                    schema.connectionGrant.agentId,
+                    schema.connectionGrant.connectorId,
+                  ],
+                  set: {
+                    trustLevel: payloadResult.value.trustLevel,
+                    grantedBy: session.user.id,
+                    grantedAt,
+                    expiresAt: null,
+                  },
+                })
+              await tx.insert(schema.activityEvent).values({
+                id: crypto.randomUUID(),
+                workspaceId,
+                subjectType: 'agent',
+                subjectId: payloadResult.value.agentId,
+                actorType: 'user',
+                actorId: session.user.id,
+                eventType: 'permission.grant.set',
+                payload: {
+                  scope: 'connection',
+                  connector_id: params.connectorId,
+                  trust: payloadResult.value.trustLevel,
                 },
-              }),
+              })
+            }),
           catch: () =>
             new ConnectorGrantRouteError({
               status: 500,
               message: 'Failed to update permission grant',
             }),
         })
-        if (upsertResult.isErr()) {
+        if (mutationResult.isErr()) {
           return json(
-            { error: upsertResult.error.message },
-            upsertResult.error.status,
-          )
-        }
-
-        const activityResult = await recordGrantActivity({
-          db,
-          workspaceId,
-          actorUserId: session.user.id,
-          agentId: payloadResult.value.agentId,
-          scope: 'connection',
-          connectorId: params.connectorId,
-          trustLevel: payloadResult.value.trustLevel,
-          action: 'set',
-        })
-        if (activityResult.isErr()) {
-          return json(
-            { error: activityResult.error.message },
-            activityResult.error.status,
+            { error: mutationResult.error.message },
+            mutationResult.error.status,
           )
         }
 
@@ -194,16 +190,65 @@ export const Route = createFileRoute('/api/connections/$connectorId/grant')({
         }
 
         const db = await appContext.db()
-        const deleteResult = await Result.tryPromise({
+        const agentResult = await Result.tryPromise({
           try: async () =>
             db
-              .delete(schema.connectionGrant)
+              .select({ id: schema.agent.id })
+              .from(schema.agent)
               .where(
                 and(
-                  eq(schema.connectionGrant.agentId, bodyResult.value.agentId),
-                  eq(schema.connectionGrant.connectorId, params.connectorId),
+                  eq(schema.agent.id, bodyResult.value.agentId),
+                  eq(schema.agent.workspaceId, workspaceId),
                 ),
-              ),
+              )
+              .limit(1),
+          catch: () =>
+            new ConnectorGrantRouteError({
+              status: 500,
+              message: 'Failed to load agent for permission grant',
+            }),
+        })
+        if (agentResult.isErr()) {
+          return json(
+            { error: agentResult.error.message },
+            agentResult.error.status,
+          )
+        }
+
+        if (!agentResult.value[0]) {
+          return notFound('Agent not found')
+        }
+
+        const deleteResult = await Result.tryPromise({
+          try: async () =>
+            db.transaction(async (tx) => {
+              const deleted = await tx
+                .delete(schema.connectionGrant)
+                .where(
+                  and(
+                    eq(
+                      schema.connectionGrant.agentId,
+                      bodyResult.value.agentId,
+                    ),
+                    eq(schema.connectionGrant.connectorId, params.connectorId),
+                  ),
+                )
+                .returning({ id: schema.connectionGrant.id })
+              if (deleted.length === 0) return
+              await tx.insert(schema.activityEvent).values({
+                id: crypto.randomUUID(),
+                workspaceId,
+                subjectType: 'agent',
+                subjectId: bodyResult.value.agentId,
+                actorType: 'user',
+                actorId: session.user.id,
+                eventType: 'permission.grant.deleted',
+                payload: {
+                  scope: 'connection',
+                  connector_id: params.connectorId,
+                },
+              })
+            }),
           catch: () =>
             new ConnectorGrantRouteError({
               status: 500,
@@ -214,22 +259,6 @@ export const Route = createFileRoute('/api/connections/$connectorId/grant')({
           return json(
             { error: deleteResult.error.message },
             deleteResult.error.status,
-          )
-        }
-
-        const activityResult = await recordGrantActivity({
-          db,
-          workspaceId,
-          actorUserId: session.user.id,
-          agentId: bodyResult.value.agentId,
-          scope: 'connection',
-          connectorId: params.connectorId,
-          action: 'deleted',
-        })
-        if (activityResult.isErr()) {
-          return json(
-            { error: activityResult.error.message },
-            activityResult.error.status,
           )
         }
 

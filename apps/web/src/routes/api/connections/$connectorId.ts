@@ -546,12 +546,22 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                 )
                 yield* Effect.all(
                   connections.map((connection) =>
-                    Effect.ignore(
-                      unmirrorExecutorConnection({
-                        executorSlug: String(connection.integration),
-                        userId: workspaceContext.session.user.id,
-                        workspaceId: workspaceContext.workspaceId,
-                      }),
+                    unmirrorExecutorConnection({
+                      executorSlug: String(connection.integration),
+                      connectionName: String(connection.name),
+                      userId: workspaceContext.session.user.id,
+                      workspaceId: workspaceContext.workspaceId,
+                    }).pipe(
+                      Effect.tapError((cause) =>
+                        Effect.sync(() =>
+                          console.warn('[garden] unmirror failed', {
+                            integration: String(connection.integration),
+                            workspaceId: workspaceContext.workspaceId,
+                            cause,
+                          }),
+                        ),
+                      ),
+                      Effect.ignore,
                     ),
                   ),
                   { discard: true },
@@ -594,12 +604,22 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                 )
                 yield* Effect.all(
                   connections.map((connection) =>
-                    Effect.ignore(
-                      unmirrorExecutorConnection({
-                        executorSlug: String(connection.integration),
-                        userId: workspaceContext.session.user.id,
-                        workspaceId: workspaceContext.workspaceId,
-                      }),
+                    unmirrorExecutorConnection({
+                      executorSlug: String(connection.integration),
+                      connectionName: String(connection.name),
+                      userId: workspaceContext.session.user.id,
+                      workspaceId: workspaceContext.workspaceId,
+                    }).pipe(
+                      Effect.tapError((cause) =>
+                        Effect.sync(() =>
+                          console.warn('[garden] unmirror failed', {
+                            integration: String(connection.integration),
+                            workspaceId: workspaceContext.workspaceId,
+                            cause,
+                          }),
+                        ),
+                      ),
+                      Effect.ignore,
                     ),
                   ),
                   { discard: true },
@@ -615,31 +635,50 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                   fresh
                     .filter(
                       (connection) =>
-                        String(connection.integration) ===
-                          params.connectorId && connection.owner !== 'org',
+                        String(connection.integration) === params.connectorId &&
+                        connection.owner !== 'org',
                     )
                     .map((connection) =>
                       connection.lastHealth?.status === 'healthy'
-                        ? Effect.ignore(
-                            mirrorExecutorConnection({
-                              executorSlug: String(connection.integration),
-                              userId: workspaceContext.session.user.id,
-                              workspaceId: workspaceContext.workspaceId,
-                              identityLabel:
-                                connection.identityLabel ?? null,
-                              scopes:
-                                connection.oauthScope
-                                  ?.split(' ')
-                                  .filter(Boolean) ?? null,
-                              expiresAtMs: connection.expiresAt ?? null,
-                            }),
+                        ? mirrorExecutorConnection({
+                            executorSlug: String(connection.integration),
+                            connectionName: String(connection.name),
+                            userId: workspaceContext.session.user.id,
+                            workspaceId: workspaceContext.workspaceId,
+                            identityLabel: connection.identityLabel ?? null,
+                            scopes:
+                              connection.oauthScope
+                                ?.split(' ')
+                                .filter(Boolean) ?? null,
+                            expiresAtMs: connection.expiresAt ?? null,
+                          }).pipe(
+                            Effect.tapError((cause) =>
+                              Effect.sync(() =>
+                                console.warn('[garden] mirror failed', {
+                                  integration: String(connection.integration),
+                                  workspaceId: workspaceContext.workspaceId,
+                                  cause,
+                                }),
+                              ),
+                            ),
+                            Effect.ignore,
                           )
-                        : Effect.ignore(
-                            markMirrorDegraded({
-                              executorSlug: String(connection.integration),
-                              userId: workspaceContext.session.user.id,
-                              workspaceId: workspaceContext.workspaceId,
-                            }),
+                        : markMirrorDegraded({
+                            executorSlug: String(connection.integration),
+                            connectionName: String(connection.name),
+                            userId: workspaceContext.session.user.id,
+                            workspaceId: workspaceContext.workspaceId,
+                          }).pipe(
+                            Effect.tapError((cause) =>
+                              Effect.sync(() =>
+                                console.warn('[garden] mirror degrade failed', {
+                                  integration: String(connection.integration),
+                                  workspaceId: workspaceContext.workspaceId,
+                                  cause,
+                                }),
+                              ),
+                            ),
+                            Effect.ignore,
                           ),
                     ),
                   { discard: true },

@@ -62,6 +62,7 @@ export const settleOAuthCallback = Effect.fn('ExecutorOAuth.settleCallback')(
       const mirrorResult = yield* Effect.result(
         mirrorExecutorConnection({
           executorSlug: String(connection.integration),
+          connectionName: String(connection.name),
           userId: input.identity.subject,
           workspaceId: input.identity.tenant,
           identityLabel: connection.identityLabel ?? null,
@@ -69,17 +70,32 @@ export const settleOAuthCallback = Effect.fn('ExecutorOAuth.settleCallback')(
           expiresAtMs: connection.expiresAt ?? null,
         }),
       )
-      if (
-        Result.isSuccess(mirrorResult) &&
-        Option.isSome(mirrorResult.success)
-      ) {
-        yield* Effect.ignore(
+      if (Result.isFailure(mirrorResult)) {
+        yield* Effect.sync(() =>
+          console.warn('[garden] connection mirror failed', {
+            integration: String(connection.integration),
+            workspaceId: input.identity.tenant,
+            error: mirrorResult.failure,
+          }),
+        )
+      } else if (Option.isSome(mirrorResult.success)) {
+        const connectorId = mirrorResult.success.value
+        const syncResult = yield* Effect.result(
           syncCapabilities(
-            mirrorResult.success.value,
+            connectorId,
             input.identity.subject,
             input.identity.tenant,
           ),
         )
+        if (Result.isFailure(syncResult)) {
+          yield* Effect.sync(() =>
+            console.warn('[garden] capability sync failed', {
+              connectorId,
+              workspaceId: input.identity.tenant,
+              error: syncResult.failure,
+            }),
+          )
+        }
       }
     }
     return { ok: true as const }

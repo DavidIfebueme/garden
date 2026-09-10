@@ -12,10 +12,12 @@ export class ConnectionMirrorError extends Schema.ErrorClass<ConnectionMirrorErr
   cause: Schema.optional(Schema.Unknown),
 }) {}
 
-const mirrorProviderId = (executorSlug: string) => `executor:${executorSlug}`
+const mirrorProviderId = (executorSlug: string, connectionName: string) =>
+  `executor:${executorSlug}:${connectionName}`
 
 export type MirrorConnectionInput = {
   executorSlug: string
+  connectionName: string
   userId: string
   workspaceId: string
   identityLabel?: string | null
@@ -31,7 +33,7 @@ export function mirrorRowValues(
   return {
     userId: input.userId,
     accountId: input.identityLabel ?? input.executorSlug,
-    providerId: mirrorProviderId(input.executorSlug),
+    providerId: mirrorProviderId(input.executorSlug, input.connectionName),
     workspaceId: input.workspaceId,
     status: 'connected',
     scopes: input.scopes ?? [],
@@ -43,66 +45,67 @@ export function mirrorRowValues(
   }
 }
 
-export const mirrorExecutorConnection = Effect.fn(
-  'ConnectionMirror.mirror',
-)(function* (input: MirrorConnectionInput) {
-  const connector = getConnectorByExecutorSlug(input.executorSlug)
-  if (!connector) return Option.none()
-  const db = yield* Effect.tryPromise({
-    try: async () => getDb(appEnv),
-    catch: (cause) =>
-      new ConnectionMirrorError({
-        operation: 'open',
-        message: 'Failed to open database for connection mirror',
-        cause,
-      }),
-  })
-  const now = new Date()
-  const values = mirrorRowValues(input, connector.id, now)
-  const updated = yield* Effect.tryPromise({
-    try: async () =>
-      db
-        .update(schema.account)
-        .set({
-          accountId: values.accountId,
-          status: values.status,
-          scopes: values.scopes,
-          accessTokenExpiresAt: values.accessTokenExpiresAt,
-          connectorType: values.connectorType,
-          updatedAt: values.updatedAt,
-        })
-        .where(
-          and(
-            eq(schema.account.userId, values.userId),
-            eq(schema.account.providerId, values.providerId),
-            eq(schema.account.workspaceId, values.workspaceId),
-          ),
-        )
-        .returning({ id: schema.account.id }),
-    catch: (cause) =>
-      new ConnectionMirrorError({
-        operation: 'update',
-        message: 'Failed to update connection mirror row',
-        cause,
-      }),
-  })
-  if (updated.length > 0) return Option.some(connector.id)
-  yield* Effect.tryPromise({
-    try: async () => db.insert(schema.account).values(values),
-    catch: (cause) =>
-      new ConnectionMirrorError({
-        operation: 'insert',
-        message: 'Failed to insert connection mirror row',
-        cause,
-      }),
-  })
-  return Option.some(connector.id)
-})
+export const mirrorExecutorConnection = Effect.fn('ConnectionMirror.mirror')(
+  function* (input: MirrorConnectionInput) {
+    const connector = getConnectorByExecutorSlug(input.executorSlug)
+    if (!connector) return Option.none()
+    const db = yield* Effect.tryPromise({
+      try: async () => getDb(appEnv),
+      catch: (cause) =>
+        new ConnectionMirrorError({
+          operation: 'open',
+          message: 'Failed to open database for connection mirror',
+          cause,
+        }),
+    })
+    const now = new Date()
+    const values = mirrorRowValues(input, connector.id, now)
+    const updated = yield* Effect.tryPromise({
+      try: async () =>
+        db
+          .update(schema.account)
+          .set({
+            accountId: values.accountId,
+            status: values.status,
+            scopes: values.scopes,
+            accessTokenExpiresAt: values.accessTokenExpiresAt,
+            connectorType: values.connectorType,
+            updatedAt: values.updatedAt,
+          })
+          .where(
+            and(
+              eq(schema.account.userId, values.userId),
+              eq(schema.account.providerId, values.providerId),
+              eq(schema.account.workspaceId, values.workspaceId),
+            ),
+          )
+          .returning({ id: schema.account.id }),
+      catch: (cause) =>
+        new ConnectionMirrorError({
+          operation: 'update',
+          message: 'Failed to update connection mirror row',
+          cause,
+        }),
+    })
+    if (updated.length > 0) return Option.some(connector.id)
+    yield* Effect.tryPromise({
+      try: async () => db.insert(schema.account).values(values),
+      catch: (cause) =>
+        new ConnectionMirrorError({
+          operation: 'insert',
+          message: 'Failed to insert connection mirror row',
+          cause,
+        }),
+    })
+    return Option.some(connector.id)
+  },
+)
 
 export const unmirrorExecutorConnection = Effect.fn(
   'ConnectionMirror.unmirror',
 )(function* (input: {
   executorSlug: string
+  connectionName: string
   userId: string
   workspaceId: string
 }) {
@@ -122,7 +125,10 @@ export const unmirrorExecutorConnection = Effect.fn(
         .where(
           and(
             eq(schema.account.userId, input.userId),
-            eq(schema.account.providerId, mirrorProviderId(input.executorSlug)),
+            eq(
+              schema.account.providerId,
+              mirrorProviderId(input.executorSlug, input.connectionName),
+            ),
             eq(schema.account.workspaceId, input.workspaceId),
           ),
         ),
@@ -138,6 +144,7 @@ export const unmirrorExecutorConnection = Effect.fn(
 export const markMirrorDegraded = Effect.fn('ConnectionMirror.degraded')(
   function* (input: {
     executorSlug: string
+    connectionName: string
     userId: string
     workspaceId: string
   }) {
@@ -160,7 +167,7 @@ export const markMirrorDegraded = Effect.fn('ConnectionMirror.degraded')(
               eq(schema.account.userId, input.userId),
               eq(
                 schema.account.providerId,
-                mirrorProviderId(input.executorSlug),
+                mirrorProviderId(input.executorSlug, input.connectionName),
               ),
               eq(schema.account.workspaceId, input.workspaceId),
             ),
