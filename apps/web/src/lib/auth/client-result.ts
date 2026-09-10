@@ -19,20 +19,19 @@ type AuthClientResponse = {
  * buttons busy forever. Reference: Better Auth 1.6.26 client endpoint types
  * and better-result 2.9.2 `Result.tryPromise` and `andThen` source.
  */
-export async function authClientOperation<TResponse extends AuthClientResponse>(
-  args: {
-    fallbackMessage: string
-    operation: string
-    request: () => Promise<TResponse>
-  },
-) {
+export async function authClientOperation<
+  TResponse extends AuthClientResponse,
+>(args: {
+  fallbackMessage: string
+  operation: string
+  request: () => Promise<TResponse>
+}) {
   const transportResult = await Result.tryPromise({
     try: args.request,
     catch: (cause) =>
       new AuthClientOperationError({
         cause,
-        message:
-          cause instanceof Error ? cause.message : args.fallbackMessage,
+        message: cause instanceof Error ? cause.message : args.fallbackMessage,
         operation: args.operation,
       }),
   })

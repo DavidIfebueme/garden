@@ -99,8 +99,7 @@ describe('LoginPage', () => {
 
   it('keeps the invite redirect and email hint during Google sign-in', async () => {
     const user = userEvent.setup()
-    const redirectTarget =
-      '/invitations/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'
+    const redirectTarget = '/invitations/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'
     renderLoginPage({
       googleAuthEnabled: true,
       initialEmail: 'invitee@example.com',
@@ -136,9 +135,7 @@ describe('LoginPage', () => {
     expect(
       screen.getByRole('button', { name: /continue with google/i }),
     ).toBeEnabled()
-    expect(mockToastError).toHaveBeenCalledWith(
-      'Google sign-in is unavailable',
-    )
+    expect(mockToastError).toHaveBeenCalledWith('Google sign-in is unavailable')
   })
 
   it('shows a rejected Google auth request and restores the button', async () => {
@@ -259,18 +256,21 @@ describe('LoginPage', () => {
   it.each([
     ['signin', /create an account/i],
     ['signup', /^sign in$/i],
-  ] as const)('locks %s mode during a pending invite flow', (mode, toggleName) => {
-    renderLoginPage({
-      initialEmail: 'invitee@example.com',
-      initialMode: mode,
-      lockedEmail: true,
-      invitationWorkspaceName: 'Garden Dev',
-    })
+  ] as const)(
+    'locks %s mode during a pending invite flow',
+    (mode, toggleName) => {
+      renderLoginPage({
+        initialEmail: 'invitee@example.com',
+        initialMode: mode,
+        lockedEmail: true,
+        invitationWorkspaceName: 'Garden Dev',
+      })
 
-    expect(
-      screen.queryByRole('button', { name: toggleName }),
-    ).not.toBeInTheDocument()
-  })
+      expect(
+        screen.queryByRole('button', { name: toggleName }),
+      ).not.toBeInTheDocument()
+    },
+  )
 
   it('keeps privacy and terms available from the public auth surface', () => {
     renderLoginPage()

@@ -197,9 +197,7 @@ export function GoogleAccountConnection() {
               disabled={linking}
               onClick={() => void handleLink()}
             >
-              {linking ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : null}
+              {linking ? <Loader2Icon className="size-4 animate-spin" /> : null}
               {linking ? 'Opening Google...' : 'Link Google'}
             </Button>
           )}

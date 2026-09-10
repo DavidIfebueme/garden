@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  AuthClientOperationError,
-  authClientOperation,
-} from './client-result'
+import { AuthClientOperationError, authClientOperation } from './client-result'
 
 describe('authClientOperation', () => {
   it('keeps a successful Better Auth response', async () => {

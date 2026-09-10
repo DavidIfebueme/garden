@@ -15,7 +15,7 @@ export const getAuthProviderAvailability = createServerFn({
   return {
     google: Boolean(
       env.GOOGLE_AUTH_CLIENT_ID?.trim() &&
-        env.GOOGLE_AUTH_CLIENT_SECRET?.trim(),
+      env.GOOGLE_AUTH_CLIENT_SECRET?.trim(),
     ),
   }
 })
