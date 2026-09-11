@@ -129,7 +129,6 @@ const uniqueFields = [
   'executorBlobsId',
   'executorBlobsBucket',
   'agentDoId',
-  'automationTriggerId',
   'workflowId',
   'workflowName',
   'sandboxId',
@@ -147,6 +146,14 @@ for (const field of uniqueFields) {
     assert.equal(typeof value, 'string', `${field} must be a string`)
     assert.notEqual(value.length, 0, `${field} must not be empty`)
   }
+}
+
+for (const target of Object.values(deploymentTargets)) {
+  assert.equal(
+    target.automationTriggerId,
+    'AUTOMATION_TRIGGER',
+    `${target.key} must preserve the adopted automation trigger identity`,
+  )
 }
 
 for (const binding of [

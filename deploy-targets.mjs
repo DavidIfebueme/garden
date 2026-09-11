@@ -25,7 +25,11 @@ export const deploymentTargets = {
     executorBlobsId: 'executor-blobs',
     executorBlobsBucket: 'harnessy-connectors-blobs',
     agentDoId: 'agent-do',
-    automationTriggerId: 'automation-trigger',
+    // The v1 Worker tag stored the runtime binding name `AUTOMATION_TRIGGER`
+    // as the class for logical ID `automation-trigger`. Use the binding name as
+    // the v2 logical ID so adoption matches the observed `AutomationTriggerDO`
+    // class instead of asking Cloudflare to rename a non-existent class.
+    automationTriggerId: 'AUTOMATION_TRIGGER',
     workflowId: 'run-workflow',
     workflowName: 'garden-run-workflow-staging',
     sandboxId: 'sandbox',
