@@ -9,9 +9,19 @@ import {
 } from './api'
 import { BRAIN_FILE_POLLING_POLICY } from './policy'
 
+/**
+ * Brain cache keys. List keys are workspace-scoped: the shell navigates away
+ * from /files on workspace switch, so an invalidate-only approach lets the
+ * previous workspace's cached list render on the next mount while the refetch
+ * trails behind (observed 2026-09). Keying by wsId makes separation
+ * structural — a different workspace can never read another's entry, and each
+ * workspace keeps a warm cache when switching back. Detail/content keys stay
+ * id-keyed: Helix item ids and folder uuids are globally unique, only
+ * reachable through the ws-scoped lists, and the server enforces membership.
+ */
 export const brainFileKeys = {
   all: ['brain', 'files'] as const,
-  list: () => [...brainFileKeys.all, 'list'] as const,
+  list: (wsId: string | null) => [...brainFileKeys.all, 'list', wsId] as const,
   detail: (id: string) => [...brainFileKeys.all, id] as const,
   content: (id: string) => [...brainFileKeys.detail(id), 'content'] as const,
   extractedText: (id: string) =>
@@ -20,7 +30,8 @@ export const brainFileKeys = {
 
 export const brainFolderKeys = {
   all: ['brain', 'folders'] as const,
-  list: () => [...brainFolderKeys.all, 'list'] as const,
+  list: (wsId: string | null) =>
+    [...brainFolderKeys.all, 'list', wsId] as const,
   detail: (id: string) => [...brainFolderKeys.all, 'detail', id] as const,
 }
 
@@ -29,12 +40,16 @@ export const brainFolderKeys = {
  * session remains in processing. Stored processing files do not start polling.
  * Polling stops after a ready result or request failure.
  */
-export function brainFileListOptions(sessionUploadIds: readonly string[] = []) {
+export function brainFileListOptions(
+  wsId: string | null,
+  sessionUploadIds: readonly string[] = [],
+) {
   const sessionUploadIdSet = new Set(sessionUploadIds)
 
   return queryOptions({
-    queryKey: brainFileKeys.list(),
+    queryKey: brainFileKeys.list(wsId),
     queryFn: ({ signal }) => listBrainFiles(signal),
+    enabled: wsId !== null,
     retry: false,
     refetchInterval: (query) => {
       if (query.state.error !== null || sessionUploadIdSet.size === 0) {
@@ -70,10 +85,11 @@ export function brainFileExtractedTextOptions(id: string) {
 }
 
 /** Folder list for the Files page; folder detail feeds the folder view. */
-export function brainFolderListOptions() {
+export function brainFolderListOptions(wsId: string | null) {
   return queryOptions({
-    queryKey: brainFolderKeys.list(),
+    queryKey: brainFolderKeys.list(wsId),
     queryFn: ({ signal }) => listBrainFolders(signal),
+    enabled: wsId !== null,
     retry: false,
     refetchOnWindowFocus: true,
   })

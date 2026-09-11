@@ -18,6 +18,7 @@ import {
   it,
   vi,
 } from 'vitest'
+import { WorkspaceIdProvider } from '@garden/app-state/hooks'
 import type { BrainFileSummary } from '../api'
 import { brainFileKeys } from '../queries'
 import { BrainFilesPage } from './files-page'
@@ -64,6 +65,8 @@ vi.mock('pdfjs-dist', () => ({
   getDocument: mockPdfGetDocument,
 }))
 
+const TEST_WS_ID = 'ws-test'
+
 function renderFilesPage(initialFiles?: BrainFileSummary[]) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -73,12 +76,14 @@ function renderFilesPage(initialFiles?: BrainFileSummary[]) {
   })
 
   if (initialFiles !== undefined) {
-    queryClient.setQueryData(brainFileKeys.list(), initialFiles)
+    queryClient.setQueryData(brainFileKeys.list(TEST_WS_ID), initialFiles)
   }
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrainFilesPage />
+      <WorkspaceIdProvider wsId={TEST_WS_ID}>
+        <BrainFilesPage />
+      </WorkspaceIdProvider>
     </QueryClientProvider>,
   )
 }
@@ -177,6 +182,38 @@ describe('BrainFilesPage', () => {
     expect(
       await within(await recentFilesRegion()).findByText('saved-notes.txt'),
     ).toBeInTheDocument()
+    expect(mockListBrainFiles).toHaveBeenCalledOnce()
+  })
+
+  it('never renders files cached under another workspace', async () => {
+    // Regression: list keys were workspace-less, so after switching workspaces
+    // the previous workspace's cached list rendered while the refetch trailed
+    // behind. Keys are ws-scoped now; a foreign cache entry must be invisible.
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+        mutations: { retry: false },
+      },
+    })
+    queryClient.setQueryData(brainFileKeys.list('ws-other'), [
+      { id: 'foreign-file', name: 'other-workspace.pdf', status: 'ready' },
+    ])
+    mockListBrainFiles.mockResolvedValue([
+      { id: 'own-file', name: 'own-workspace.txt', status: 'ready' },
+    ])
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WorkspaceIdProvider wsId={TEST_WS_ID}>
+          <BrainFilesPage />
+        </WorkspaceIdProvider>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await within(await recentFilesRegion()).findByText('own-workspace.txt'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('other-workspace.pdf')).not.toBeInTheDocument()
     expect(mockListBrainFiles).toHaveBeenCalledOnce()
   })
 

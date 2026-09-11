@@ -180,14 +180,11 @@ export function ConnectionsPage({
   })
 
   const refreshConnections = useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: workspaceKeys.connections(wsId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['workspace-connections-sidebar'],
-      }),
-    ])
+    // The 'workspace-connections-sidebar' key died with the dock-era sidebar —
+    // nothing reads it now; the ws-scoped connections key is the only surface.
+    await queryClient.invalidateQueries({
+      queryKey: workspaceKeys.connections(wsId),
+    })
     notifyConnectionsChanged()
   }, [queryClient, wsId])
 

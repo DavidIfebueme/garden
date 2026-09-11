@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
+import { useWorkspaceId } from '@garden/app-state/hooks'
 import { BrainFileTypeIcon } from './file-type-icon'
 import { BrainAllFilesView } from './all-files-view'
 import {
@@ -172,6 +173,9 @@ function RecentFileCard({
  * sections for the folder detail view.
  */
 export function BrainFilesPage() {
+  // Workspace-scoped query keys keep one workspace's cached files/folders from
+  // ever rendering under another (see brainFileKeys).
+  const wsId = useWorkspaceId()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewFile, setPreviewFile] = useState<BrainFileSummary | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -206,7 +210,7 @@ export function BrainFilesPage() {
   const folderDialogFileRef = useRef<File | null>(null)
 
   const queryClient = useQueryClient()
-  const filesQuery = useQuery(brainFileListOptions(sessionUploadIds))
+  const filesQuery = useQuery(brainFileListOptions(wsId, sessionUploadIds))
   /**
    * Newest upload first. The list route passes Helix's order straight through
    * (no ORDER BY), so recency is enforced here at the display layer — this one
@@ -220,7 +224,7 @@ export function BrainFilesPage() {
   /** The Penpot top row shows the two newest uploads beside the dropzone. */
   const recentFiles = files.slice(0, 2)
 
-  const foldersQuery = useQuery(brainFolderListOptions())
+  const foldersQuery = useQuery(brainFolderListOptions(wsId))
   const folders = foldersQuery.data ?? []
   const visibleFolders =
     folderScope === 'all'
@@ -232,12 +236,12 @@ export function BrainFilesPage() {
     onMutate: () => setUploadProgress(0),
     onSuccess: async (uploadedFile) => {
       await queryClient.cancelQueries({
-        queryKey: brainFileKeys.list(),
+        queryKey: brainFileKeys.list(wsId),
         exact: true,
       })
 
       queryClient.setQueryData<BrainFileSummary[]>(
-        brainFileKeys.list(),
+        brainFileKeys.list(wsId),
         (currentFiles = []) => [
           uploadedFile,
           ...currentFiles.filter((file) => file.id !== uploadedFile.id),
@@ -252,7 +256,7 @@ export function BrainFilesPage() {
         )
 
         void queryClient.invalidateQueries({
-          queryKey: brainFileKeys.list(),
+          queryKey: brainFileKeys.list(wsId),
           exact: true,
         })
       }
@@ -263,7 +267,7 @@ export function BrainFilesPage() {
         const detail = await addFileToBrainFolder(folderId, uploadedFile.id)
         queryClient.setQueryData(brainFolderKeys.detail(folderId), detail)
         void queryClient.invalidateQueries({
-          queryKey: brainFolderKeys.list(),
+          queryKey: brainFolderKeys.list(wsId),
           exact: true,
         })
       }
@@ -282,12 +286,12 @@ export function BrainFilesPage() {
     mutationFn: (id: string) => retryBrainFile(id),
     onSuccess: async (retriedFile) => {
       await queryClient.cancelQueries({
-        queryKey: brainFileKeys.list(),
+        queryKey: brainFileKeys.list(wsId),
         exact: true,
       })
 
       queryClient.setQueryData<BrainFileSummary[]>(
-        brainFileKeys.list(),
+        brainFileKeys.list(wsId),
         (currentFiles = []) =>
           currentFiles.map((file) =>
             file.id === retriedFile.id ? retriedFile : file,
@@ -302,7 +306,7 @@ export function BrainFilesPage() {
         )
 
         void queryClient.invalidateQueries({
-          queryKey: brainFileKeys.list(),
+          queryKey: brainFileKeys.list(wsId),
           exact: true,
         })
       }
@@ -313,7 +317,7 @@ export function BrainFilesPage() {
     mutationFn: (id: string) => deleteBrainFile(id),
     onSuccess: (_result, id) => {
       queryClient.setQueryData<BrainFileSummary[]>(
-        brainFileKeys.list(),
+        brainFileKeys.list(wsId),
         (currentFiles = []) => currentFiles.filter((file) => file.id !== id),
       )
       setPendingDeleteFile(null)
@@ -330,7 +334,7 @@ export function BrainFilesPage() {
       createBrainFolder(input),
     onSuccess: (folder) => {
       queryClient.setQueryData<BrainFolderSummary[]>(
-        brainFolderKeys.list(),
+        brainFolderKeys.list(wsId),
         (current = []) => [folder, ...current],
       )
       setFolderDialog(null)
@@ -355,7 +359,7 @@ export function BrainFilesPage() {
       updateBrainFolder(input.id, { name: input.name, privacy: input.privacy }),
     onSuccess: (folder) => {
       queryClient.setQueryData<BrainFolderSummary[]>(
-        brainFolderKeys.list(),
+        brainFolderKeys.list(wsId),
         (current = []) =>
           current.map((entry) => (entry.id === folder.id ? folder : entry)),
       )
@@ -378,7 +382,7 @@ export function BrainFilesPage() {
     mutationFn: (id: string) => deleteBrainFolder(id),
     onSuccess: (_result, id) => {
       queryClient.setQueryData<BrainFolderSummary[]>(
-        brainFolderKeys.list(),
+        brainFolderKeys.list(wsId),
         (current = []) => current.filter((entry) => entry.id !== id),
       )
       queryClient.removeQueries({ queryKey: brainFolderKeys.detail(id) })
@@ -397,7 +401,7 @@ export function BrainFilesPage() {
     onSuccess: (detail) => {
       queryClient.setQueryData(brainFolderKeys.detail(detail.item.id), detail)
       void queryClient.invalidateQueries({
-        queryKey: brainFolderKeys.list(),
+        queryKey: brainFolderKeys.list(wsId),
         exact: true,
       })
       toast.success('File added to folder', {
@@ -415,7 +419,7 @@ export function BrainFilesPage() {
     onSuccess: (detail) => {
       queryClient.setQueryData(brainFolderKeys.detail(detail.item.id), detail)
       void queryClient.invalidateQueries({
-        queryKey: brainFolderKeys.list(),
+        queryKey: brainFolderKeys.list(wsId),
         exact: true,
       })
       toast.success('File removed from folder', {
