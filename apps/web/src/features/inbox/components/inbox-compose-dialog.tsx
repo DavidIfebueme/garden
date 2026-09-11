@@ -18,9 +18,13 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@garden/ui/components/ui/popover'
-import { Textarea } from '@garden/ui/components/ui/textarea'
 import { QuickEmojiPicker } from '@garden/ui/components/common/quick-emoji-picker'
 import { cn } from '@garden/ui/lib/utils'
+import {
+  ComposeMessageBody,
+  normalizeHref,
+  type ComposeMessageBodyRef,
+} from './inbox-compose-body'
 
 const fieldInputClassName =
   'h-8 border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent'
@@ -44,7 +48,7 @@ export function InboxComposeDialog({
   open,
   onOpenChange,
 }: InboxComposeDialogProps) {
-  const bodyRef = useRef<HTMLTextAreaElement>(null)
+  const bodyRef = useRef<ComposeMessageBodyRef>(null)
   const [to, setTo] = useState('')
   const [cc, setCc] = useState<string[]>([])
   const [bcc, setBcc] = useState<string[]>([])
@@ -63,6 +67,7 @@ export function InboxComposeDialog({
     setShowCc(false)
     setShowBcc(false)
     setAttachments([])
+    bodyRef.current?.clear()
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -80,21 +85,12 @@ export function InboxComposeDialog({
     setAttachments((current) => [...current, file])
   }
 
-  const insertIntoBody = (snippet: string) => {
-    const field = bodyRef.current
-    if (!field) {
-      setBody((current) => `${current}${snippet}`)
-      return
-    }
-    const start = field.selectionStart
-    const end = field.selectionEnd
-    const next = `${body.slice(0, start)}${snippet}${body.slice(end)}`
-    setBody(next)
-    const cursor = start + snippet.length
-    queueMicrotask(() => {
-      field.focus()
-      field.setSelectionRange(cursor, cursor)
-    })
+  const insertText = (snippet: string) => {
+    bodyRef.current?.insertText(snippet)
+  }
+
+  const insertLink = (text: string, href: string) => {
+    bodyRef.current?.insertLink(text, href)
   }
 
   const canSend = to.trim().length > 0 && body.trim().length > 0
@@ -166,13 +162,10 @@ export function InboxComposeDialog({
             />
           </div>
 
-          <Textarea
+          <ComposeMessageBody
             ref={bodyRef}
-            id="inbox-compose-body"
             placeholder="Write your message here..."
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            className="min-h-52 resize-y rounded-none border-0 bg-muted px-4 py-4 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-muted"
+            onChange={setBody}
           />
 
           {attachments.length > 0 ? (
@@ -210,9 +203,9 @@ export function InboxComposeDialog({
               <QuickEmojiPicker
                 align="end"
                 className="rounded-lg"
-                onSelect={(emoji) => insertIntoBody(emoji)}
+                onSelect={(emoji) => insertText(emoji)}
               />
-              <ComposeLinkButton onInsert={insertIntoBody} />
+              <ComposeLinkButton onInsert={insertLink} />
               <ComposeFileButton
                 icon={Paperclip}
                 label="Attach document"
@@ -409,7 +402,11 @@ function avatarTone(email: string) {
 }
 
 
-function ComposeLinkButton({ onInsert }: { onInsert: (snippet: string) => void }) {
+function ComposeLinkButton({
+  onInsert,
+}: {
+  onInsert: (text: string, href: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
@@ -423,7 +420,7 @@ function ComposeLinkButton({ onInsert }: { onInsert: (snippet: string) => void }
     const label = text.trim()
     const href = normalizeHref(url.trim())
     if (!href) return
-    onInsert(`[${label.length > 0 ? label : href}](${href})`)
+    onInsert(label.length > 0 ? label : href, href)
     reset()
     setOpen(false)
   }
@@ -488,18 +485,12 @@ function ComposeLinkButton({ onInsert }: { onInsert: (snippet: string) => void }
             disabled={url.trim().length === 0}
             onClick={insertLink}
           >
-            Embed
+            Apply
           </Button>
         </div>
       </PopoverContent>
     </Popover>
   )
-}
-
-function normalizeHref(value: string) {
-  if (value.length === 0) return ''
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value
-  return `https://${value}`
 }
 
 function ComposeFileButton({
