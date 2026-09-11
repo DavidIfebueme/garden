@@ -382,7 +382,10 @@ export function InboxPage() {
     (item: InboxItem) => {
       if (!item.issue_id) return
       setSelectedKey(item.id, item)
-      openIssue({ id: item.issue_id, title: item.title })
+      openIssue(
+        { id: item.issue_id, title: item.title },
+        { focus: focusForInboxItem(item) },
+      )
     },
     [openIssue, setSelectedKey],
   )

@@ -15,11 +15,15 @@ export function useSurfaceNavigation() {
   const upsertTab = useSurfaceTabsStore((s) => s.upsertTab)
 
   const openIssue = useCallback(
-    (issue: { id: string; title: string }) => {
+    (issue: { id: string; title: string }, options?: { focus?: string | null }) => {
       upsertTab('tasks', { id: issue.id, title: issue.title })
       void navigate({
         to: '/tasks/$issueId',
         params: { issueId: issue.id },
+        // focus carries inbox deep-link targets (comment/run/question/…)
+        // through to the task detail — TanStack clears search when the
+        // destination omits it, so it must be forwarded explicitly.
+        search: options?.focus ? { focus: options.focus } : {},
       })
     },
     [navigate, upsertTab],
