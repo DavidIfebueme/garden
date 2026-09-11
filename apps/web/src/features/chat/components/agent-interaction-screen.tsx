@@ -5,6 +5,7 @@ import { useAuthStore } from '@garden/app-state/auth'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { listThreadDocuments } from '@/lib/api'
 import {
+  isPendingFirstTurn,
   useAgentSessions,
   type AgentChatSession,
 } from '../use-agent-chat-sessions'
@@ -87,8 +88,21 @@ export function AgentInteractionScreen({
     onSessionChangeRef.current = onSessionChange
   }, [onSessionChange])
 
+  // The publish effect must not fire for a warm draft session (idle, no
+  // first turn): on the /chats composer the warm session resolves
+  // immediately, and publishing it would bounce the composer to
+  // /chats/<warmId> — closing that tab then re-claimed the still-warm
+  // session and re-opened it, so /chats could never rest as an empty
+  // composer (found in the 2026-09 pre-production audit). Publishing waits
+  // for the first send to materialize the draft; the warm flag rides the
+  // dedup key so the flip re-publishes the same id.
+  const activeIsWarmDraft = activeSession
+    ? isPendingFirstTurn(activeSession)
+    : false
+
   useEffect(() => {
     if (!activeSession) return
+    if (activeIsWarmDraft) return
     const nextPublishedSession = `${activeSession.id}:${activeSession.title}`
     if (lastPublishedSessionRef.current === nextPublishedSession) return
     lastPublishedSessionRef.current = nextPublishedSession
@@ -96,22 +110,19 @@ export function AgentInteractionScreen({
       id: activeSession.id,
       title: activeSession.title,
     })
-  }, [activeSession?.id, activeSession?.title])
+  }, [activeSession?.id, activeSession?.title, activeIsWarmDraft])
 
   useEffect(() => {
     if (sessionId || activeSession || sessionsQuery.status !== 'success') {
       return
     }
 
+    // Claim only — publishing is the gated effect above's job. Publishing
+    // here too would bounce the composer to the warm thread route on claim.
     void Result.tryPromise(() => claimWarmSession()).then((result) => {
       if (Result.isError(result)) {
         console.warn('[chat.screen] failed to claim warm chat', result.error)
-        return
       }
-      onSessionChangeRef.current?.({
-        id: result.value.id,
-        title: result.value.title,
-      })
     })
   }, [activeSession, claimWarmSession, sessionId, sessionsQuery.status])
 
