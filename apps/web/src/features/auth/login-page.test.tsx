@@ -90,6 +90,7 @@ describe('LoginPage', () => {
     expect(mockSignInSocial).toHaveBeenCalledWith({
       provider: 'google',
       callbackURL: '/workspace',
+      errorCallbackURL: 'http://localhost:3000/',
       loginHint: undefined,
     })
     expect(
@@ -114,8 +115,20 @@ describe('LoginPage', () => {
     expect(mockSignInSocial).toHaveBeenCalledWith({
       provider: 'google',
       callbackURL: redirectTarget,
+      errorCallbackURL: 'http://localhost:3000/',
       loginHint: 'invitee@example.com',
     })
+  })
+
+  it('shows an OAuth callback error before another sign-in attempt', () => {
+    renderLoginPage({
+      initialError:
+        'An account already exists for this email. Sign in with your password, then link Google in Settings.',
+    })
+
+    expect(
+      screen.getByText(/an account already exists for this email/i),
+    ).toBeInTheDocument()
   })
 
   it('shows a resolved Google auth error and restores the button', async () => {

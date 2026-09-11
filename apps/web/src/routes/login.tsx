@@ -8,9 +8,11 @@ import {
   type SignupInvitationPreview,
 } from '@/lib/invitation-flow'
 import { getSignupInvitationPreview } from '@/lib/server/invitations'
+import { oauthErrorMessage } from '@/lib/auth/oauth-error'
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search) => ({
+    ...(typeof search.error === 'string' ? { error: search.error } : {}),
     redirect:
       typeof search.redirect === 'string'
         ? sanitizeRedirectTarget(search.redirect)
@@ -55,6 +57,7 @@ function LoginRoute() {
   return (
     <LoginPage
       googleAuthEnabled={authProviders.google}
+      initialError={oauthErrorMessage(search.error)}
       initialEmail={invitationIsPending ? invitation.email : undefined}
       lockedEmail={invitationIsPending}
       invitationStatusMessage={invitationStatusMessage}
