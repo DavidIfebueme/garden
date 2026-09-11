@@ -28,12 +28,10 @@ import {
 } from '@/lib/server/brain-folders'
 
 /**
- * Folder detail for the Files & Folders folder view: Garden-owned folder row
- * plus its member files resolved through Brain (Helix). Membership stores
- * Helix item ids; members are resolved by id (loadBrainItemsByIds) rather
- * than by filtering the capped listFiles response, so folders stay correct
- * once a workspace has >100 files — stale members whose files were deleted
- * drop out silently either way.
+ * Folder detail for the folder view: Garden-owned folder row plus member
+ * files resolved through Brain by id (loadBrainItemsByIds — filtering the
+ * capped listFiles dropped members past 100 files). Stale members whose
+ * files were deleted drop out silently.
  */
 export const getBrainFolderDetail = async ({
   context,

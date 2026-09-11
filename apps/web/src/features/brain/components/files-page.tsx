@@ -174,8 +174,6 @@ function RecentFileCard({
  * sections for the folder detail view.
  */
 export function BrainFilesPage() {
-  // Workspace-scoped query keys keep one workspace's cached files/folders from
-  // ever rendering under another (see brainFileKeys).
   const wsId = useWorkspaceId()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewFile, setPreviewFile] = useState<BrainFileSummary | null>(null)
@@ -262,12 +260,9 @@ export function BrainFilesPage() {
         })
       }
 
-      // The upload succeeded — say so first. The attach-to-folder step below
-      // is a separate operation with its own failure semantics (folder
-      // deleted mid-upload, workspace switched mid-flight): letting its
-      // rejection escape onSuccess would flip the whole mutation to a
-      // misleading "upload failed" error banner over a file that IS safely
-      // in the knowledge base.
+      // Toast before the attach step: an attach rejection escaping onSuccess
+      // would flip the mutation to a misleading "upload failed" banner over
+      // a file that IS safely uploaded.
       toast.success('A new file has been added', {
         description: truncateMiddle(uploadedFile.name, 56),
       })
@@ -914,9 +909,8 @@ export function BrainFilesPage() {
           pending={
             createFolderMutation.isPending ||
             updateFolderMutation.isPending ||
-            // Block submit while an upload runs: reviewFile early-returns on
-            // uploadMutation.isPending, so the dialog's attached file would
-            // be silently discarded (found in the 2026-09 audit).
+            // reviewFile early-returns during an upload — block submit or the
+            // dialog's attached file is silently discarded.
             uploadMutation.isPending
           }
           error={
@@ -933,10 +927,8 @@ export function BrainFilesPage() {
               updateFolderMutation.mutate({
                 id: folderDialog.folder.id,
                 name: input.name,
-                // Forward privacy only when it actually changed — resubmitting
-                // the possibly-stale cached value would silently revert a
-                // teammate's concurrent flip (last-write-wins on a field the
-                // user didn't touch).
+                // Send privacy only when flipped — resubmitting the stale
+                // cached value could revert a teammate's concurrent change.
                 ...(input.privacy !== folderDialog.folder.privacy
                   ? { privacy: input.privacy }
                   : {}),

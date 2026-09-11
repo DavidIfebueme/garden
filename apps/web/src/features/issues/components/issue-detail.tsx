@@ -897,8 +897,7 @@ export function IssueDetail({
     })
 
     if (deleteResult.isOk()) {
-      // Close the tasks tab for the deleted issue — otherwise the persisted
-      // tab survives and routes to a detail query that 404s.
+      // Close its tab — a persisted tab would route to a 404ing detail query.
       useSurfaceTabsStore.getState().closeTab('tasks', issue!.id)
       toast.success('Issue deleted')
       if (onDelete) onDelete()

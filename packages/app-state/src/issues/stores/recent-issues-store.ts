@@ -38,8 +38,6 @@ export const useRecentIssuesStore = create<RecentIssuesState>()(
         createWorkspaceAwareStorage(defaultStorage),
       ),
       partialize: (state) => ({ items: state.items }),
-      // Cold-storage switch must reset, not keep the previous workspace's
-      // recents — see workspaceScopedMerge.
       merge: workspaceScopedMerge<RecentIssuesState>({ items: [] }),
     },
   ),

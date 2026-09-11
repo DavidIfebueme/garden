@@ -186,9 +186,8 @@ describe('BrainFilesPage', () => {
   })
 
   it('never renders files cached under another workspace', async () => {
-    // Regression: list keys were workspace-less, so after switching workspaces
-    // the previous workspace's cached list rendered while the refetch trailed
-    // behind. Keys are ws-scoped now; a foreign cache entry must be invisible.
+    // Regression: list keys were workspace-less, so a foreign cache entry
+    // rendered while the refetch trailed. Keys are ws-scoped now.
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false, staleTime: Infinity },

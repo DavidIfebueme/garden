@@ -18,8 +18,7 @@ export function useCreateWorkspace() {
         ...old,
         newWs,
       ])
-      // Land on /home first: staying on the old workspace's entity route
-      // (e.g. /tasks/<old-issue>) under the freshly-created workspace fires
+      // Land on /home first — the old workspace's entity route would fire
       // detail queries with ids the new workspace doesn't own.
       void navigate({ to: '/home' })
       void Result.tryPromise(() =>

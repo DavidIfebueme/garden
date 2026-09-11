@@ -23,8 +23,6 @@ export function TaskTabsStrip({ activeId }: { activeId: string | null }) {
   const storedTabs = useSurfaceTabsStore(
     (s) => s.bySurface['tasks'] ?? EMPTY_SURFACE_TABS,
   )
-  // Union with the route-active issue so the strip stays truthful on SSR
-  // hard-loads (loader bookkeeping skipped) and after MAX_TABS eviction.
   const tabs = withActiveTab(storedTabs, activeId)
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openIssue, navigate } = useSurfaceNavigation()

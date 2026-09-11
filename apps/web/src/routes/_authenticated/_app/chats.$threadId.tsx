@@ -3,10 +3,9 @@ import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import { AgentInteractionScreen } from '@/features/chat/components/agent-interaction-screen'
 
 export const Route = createFileRoute('/_authenticated/_app/chats/$threadId')({
-  // Client-only tab bookkeeping on direct loads; the strip (parent layout)
-  // resolves the real title live from the sessions query cache. Upsert only
-  // when absent — re-upserting an existing tab would downgrade a real title
-  // to this placeholder (upsert refreshes titles by design).
+  // Client-only tab bookkeeping on direct loads; the strip resolves the real
+  // title live. Absent-only upsert — re-upserting would downgrade a real
+  // title to this placeholder.
   loader: ({ params }) => {
     if (typeof window === 'undefined') return
     const { bySurface, upsertTab } = useSurfaceTabsStore.getState()

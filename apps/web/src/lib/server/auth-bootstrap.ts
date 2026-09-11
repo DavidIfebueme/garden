@@ -70,12 +70,10 @@ const rawGetAuthBootstrap = createServerFn({ method: 'GET' }).handler(
           activeOrganizationId,
         )
 
-        // Persist an explicit workspace choice from the URL (deep links from
-        // emails/shares) as the session's active org. Without this the
-        // selection was bootstrap-only: after navigating away from the
-        // deep-linked route the param is gone, and the next reload silently
-        // hydrated the previous org (2026-09 audit). Failures degrade to the
-        // old bootstrap-only behavior — selection still wins for this load.
+        // Persist an explicit URL workspace choice as the session's active
+        // org — without it the selection was bootstrap-only, and the next
+        // reload after leaving the deep-linked route silently hydrated the
+        // previous org. Failures degrade to bootstrap-only selection.
         if (
           requestedWorkspaceId !== null &&
           requestedWorkspaceId === preferredWorkspaceId &&
@@ -91,8 +89,7 @@ const rawGetAuthBootstrap = createServerFn({ method: 'GET' }).handler(
             catch: (cause) => cause,
           })
           if (Result.isOk(setActive)) {
-            // Server-side auth.api calls don't reach the browser's cookie
-            // jar on their own — forward the refreshed session cookie.
+            // Forward the refreshed session cookie — server-side auth.api calls don't reach the browser's cookie jar on their own.
             const cookies = setActive.value.headers.getSetCookie()
             if (cookies.length > 0) setResponseHeader('set-cookie', cookies)
           } else {

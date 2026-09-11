@@ -88,14 +88,11 @@ export function AgentInteractionScreen({
     onSessionChangeRef.current = onSessionChange
   }, [onSessionChange])
 
-  // The publish effect must not fire for a warm draft session (idle, no
-  // first turn): on the /chats composer the warm session resolves
-  // immediately, and publishing it would bounce the composer to
-  // /chats/<warmId> — closing that tab then re-claimed the still-warm
-  // session and re-opened it, so /chats could never rest as an empty
-  // composer (found in the 2026-09 pre-production audit). Publishing waits
-  // for the first send to materialize the draft; the warm flag rides the
-  // dedup key so the flip re-publishes the same id.
+  // Never publish a warm draft: on /chats the warm session resolves
+  // immediately, and publishing bounced the composer to /chats/<warmId> —
+  // closing that tab re-claimed the still-warm session and reopened it.
+  // Publishing waits for the first send; the warm flag rides the dedup key
+  // so the flip re-publishes the same id.
   const activeIsWarmDraft = activeSession
     ? isPendingFirstTurn(activeSession)
     : false
@@ -117,8 +114,7 @@ export function AgentInteractionScreen({
       return
     }
 
-    // Claim only — publishing is the gated effect above's job. Publishing
-    // here too would bounce the composer to the warm thread route on claim.
+    // Claim only — the gated effect above owns publishing.
     void Result.tryPromise(() => claimWarmSession()).then((result) => {
       if (Result.isError(result)) {
         console.warn('[chat.screen] failed to claim warm chat', result.error)

@@ -79,11 +79,7 @@ export interface IssueViewState {
   toggleListCollapsed: (status: IssueStatus) => void
 }
 
-/**
- * Initial data slice, shared by the store creator and the persist merge.
- * The merge needs it to reset view state when a workspace switch lands on a
- * workspace with no persisted key — see workspaceScopedMerge.
- */
+/** Initial data slice, shared by the store creator and the persist merge (workspaceScopedMerge resets to it on a cold-key switch). */
 const initialViewData = {
   viewMode: 'board',
   statusFilters: [],
@@ -218,8 +214,6 @@ export const viewStorePersistOptions = (name: string) => ({
     cardProperties: state.cardProperties,
     listCollapsedStatuses: state.listCollapsedStatuses,
   }),
-  // Cold-storage switch must reset, not keep the previous workspace's view
-  // prefs — see workspaceScopedMerge.
   merge: workspaceScopedMerge<IssueViewState>(initialViewData),
 })
 

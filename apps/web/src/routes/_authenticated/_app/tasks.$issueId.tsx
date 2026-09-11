@@ -12,16 +12,14 @@ export const Route = createFileRoute('/_authenticated/_app/tasks/$issueId')({
     const out: { workspace_id?: string; focus?: string } = {}
     if (typeof search.workspace_id === 'string')
       out.workspace_id = search.workspace_id
-    // Inbox deep links carry a focus target (comment:<id>, run:<id>, …) that
-    // IssueDetail reads from the URL to scroll/highlight — admit it or the
-    // param is stripped on navigation.
+    // IssueDetail reads the inbox focus target (comment:<id>, run:<id>, …)
+    // from the URL — admit it or validateSearch strips it.
     if (typeof search.focus === 'string') out.focus = search.focus
     return out
   },
   loader: ({ params }) => {
     if (typeof window === 'undefined') return
-    // Upsert only when absent — re-upserting an existing tab would downgrade
-    // a real title to the raw id (upsert refreshes titles by design).
+    // Absent-only: re-upserting would downgrade a real title to the raw id.
     const { bySurface, upsertTab } = useSurfaceTabsStore.getState()
     const tabs = bySurface['tasks'] ?? []
     if (tabs.some((tab) => tab.id === params.issueId)) return

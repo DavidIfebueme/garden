@@ -80,8 +80,7 @@ export function SurfaceTabs({
                 'flex w-6 shrink-0 cursor-pointer items-center justify-center text-icon-neutral-tertiary transition-opacity hover:text-icon-neutral-default',
                 active
                   ? 'opacity-100'
-                  : // Keyboard users must see the focus target too — hover-only
-                    // opacity strands Tab navigation on an invisible control.
+                  : // Reveal on keyboard focus too, not hover only.
                     'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100',
               )}
             >

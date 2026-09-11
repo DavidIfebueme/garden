@@ -20,9 +20,8 @@ export function useSurfaceNavigation() {
       void navigate({
         to: '/tasks/$issueId',
         params: { issueId: issue.id },
-        // focus carries inbox deep-link targets (comment/run/question/…)
-        // through to the task detail — TanStack clears search when the
-        // destination omits it, so it must be forwarded explicitly.
+        // TanStack clears search when the destination omits it — forward the
+        // inbox focus target explicitly.
         search: options?.focus ? { focus: options.focus } : {},
       })
     },

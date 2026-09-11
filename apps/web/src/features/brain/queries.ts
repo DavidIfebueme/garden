@@ -10,14 +10,12 @@ import {
 import { BRAIN_FILE_POLLING_POLICY } from './policy'
 
 /**
- * Brain cache keys. List keys are workspace-scoped: the shell navigates away
- * from /files on workspace switch, so an invalidate-only approach lets the
- * previous workspace's cached list render on the next mount while the refetch
- * trails behind (observed 2026-09). Keying by wsId makes separation
- * structural — a different workspace can never read another's entry, and each
- * workspace keeps a warm cache when switching back. Detail/content keys stay
- * id-keyed: Helix item ids and folder uuids are globally unique, only
- * reachable through the ws-scoped lists, and the server enforces membership.
+ * Brain cache keys. List keys are workspace-scoped — the shell navigates away
+ * from /files on workspace switch, so a ws-less key rendered the previous
+ * workspace's cached list while the refetch trailed (observed 2026-09).
+ * Keying by wsId makes separation structural and keeps per-workspace caches
+ * warm. Detail/content keys stay id-keyed: ids are globally unique and only
+ * reachable through the ws-scoped lists.
  */
 export const brainFileKeys = {
   all: ['brain', 'files'] as const,

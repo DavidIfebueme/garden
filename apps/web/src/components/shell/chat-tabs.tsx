@@ -27,8 +27,6 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
   const storedTabs = useSurfaceTabsStore(
     (s) => s.bySurface['chats'] ?? EMPTY_SURFACE_TABS,
   )
-  // Union with the route-active session so the strip stays truthful on SSR
-  // hard-loads (loader bookkeeping skipped) and after MAX_TABS eviction.
   const tabs = withActiveTab(storedTabs, activeId)
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openChatSession, navigate } = useSurfaceNavigation()
@@ -66,9 +64,7 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
     })
   }, [claimWarmSession, openChatSession])
 
-  // Controlled popover: the explorer rows are plain divs, not Menu.Items, so
-  // nothing auto-dismisses it — close explicitly on activate/archive or it
-  // stays floating over the chat it just opened (found in the 2026-09 audit).
+  // Explorer rows are plain divs, not Menu.Items — close the popover explicitly on action.
   const [browseOpen, setBrowseOpen] = useState(false)
 
   return (
@@ -99,11 +95,9 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
                   setBrowseOpen(false)
                   openChatSession(session)
                 }}
-                // Archive goes through handleClose, not bare closeTab:
-                // archiving the ACTIVE session must also navigate away,
-                // otherwise /chats/<id> stays mounted over a session the
-                // archive mutation just removed from the list cache and the
-                // pane renders blank (smoke-found 2026-09 audit).
+                // Archive via handleClose: archiving the ACTIVE session must
+                // also navigate away, else /chats/<id> renders blank over a
+                // session just removed from the list cache.
                 onArchive={(sessionId) => {
                   setBrowseOpen(false)
                   handleClose(sessionId)

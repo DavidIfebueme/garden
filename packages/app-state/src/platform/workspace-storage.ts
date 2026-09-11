@@ -42,15 +42,12 @@ export function createWorkspaceAwareStorage(
 }
 
 /**
- * Merge for workspace-scoped persist stores. Zustand's default merge is
- * `{...current, ...persisted}`; when the workspace being switched to has no
- * stored key, persisted is undefined and the spread is a silent no-op, so the
- * PREVIOUS workspace's data survives rehydration and is written into the new
- * workspace's namespace on the next mutation (observed 2026-09 as
- * cross-workspace chat/task tab bleed; verified against zustand
- * middleware.js hydrate). Pass the store's initial data slice: it is applied
- * first, then any persisted data overrides it; actions ride along untouched
- * via the current-state spread.
+ * Merge for workspace-scoped persist stores. Zustand's default merge
+ * (`{...current, ...persisted}`) is a silent no-op when the new workspace has
+ * no stored key, so the previous workspace's data survived rehydration and
+ * bled into the new namespace on the next write (observed 2026-09; zustand
+ * middleware.js hydrate). The initial data slice resets first, then any
+ * persisted data overrides it; actions ride along via the current spread.
  */
 export function workspaceScopedMerge<S extends object>(
   initialData: Partial<S>,

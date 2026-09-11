@@ -8,11 +8,9 @@ import type { AppEnv } from '@/lib/server/env'
  * metadata (name/privacy/creator) and folder↔file membership, joined to Helix
  * items by id at the API boundary.
  *
- * Privacy semantics (product decision, 2026-09): 'private' = visible and
- * editable by the creator only; 'shared' = every workspace member can view,
- * rename, delete, and edit membership. Enforcement lives in these queries'
- * WHERE clauses — non-creators get null/false exactly as if the folder did
- * not exist, so routes answer 404 without leaking that the folder exists.
+ * Privacy (product decision, 2026-09): 'private' = creator-only; 'shared' =
+ * any workspace member. Enforced in these queries' WHERE clauses — a
+ * non-creator gets null/false as if the folder did not exist (no 403 leak).
  */
 export type BrainFolderRow = {
   id: string
@@ -59,11 +57,7 @@ function folderListQuery(db: DbLike) {
     )
 }
 
-/**
- * Visibility predicate: shared folders are open to the workspace, private
- * folders only to their creator. Used by every read and mutation so a
- * non-creator cannot even confirm a private folder exists.
- */
+/** Visibility predicate: shared = workspace-open, private = creator-only. */
 function visibleTo(userId: string) {
   return or(
     eq(schema.brainFolder.privacy, 'shared'),
@@ -90,10 +84,7 @@ export async function listBrainFolders(args: {
   return rows
 }
 
-/**
- * Reads one workspace-scoped folder visible to this member; null when
- * missing, cross-workspace, or a private folder owned by someone else.
- */
+/** Reads one workspace folder visible to this member; null when missing, cross-workspace, or another's private folder. */
 export async function getBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
@@ -134,11 +125,7 @@ export async function createBrainFolder(args: {
   return row
 }
 
-/**
- * Applies a rename/privacy change. The visibility predicate rides the WHERE
- * clause, so a non-creator of a private folder gets false — the route answers
- * 404 without a pre-read and without leaking that the folder exists.
- */
+/** Applies a rename/privacy change. The visibility predicate rides the WHERE clause, so non-creators of private folders get false → 404 without a pre-read. */
 export async function updateBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
@@ -166,10 +153,7 @@ export async function updateBrainFolder(args: {
   return updated.length > 0
 }
 
-/**
- * Deletes a folder; membership rows cascade. Files in Helix are untouched.
- * Same single-statement visibility predicate as updateBrainFolder.
- */
+/** Deletes a folder; membership rows cascade. Files in Helix are untouched. */
 export async function deleteBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
@@ -253,12 +237,7 @@ export async function removeBrainFolderFile(args: {
   return deleted.length > 0
 }
 
-/**
- * Drops every membership row for a deleted brain file, workspace-wide. Called
- * from the file-delete route: without it, folder cards count raw membership
- * rows and would forever disagree with the folder detail's live-filtered
- * file list once a member file is deleted.
- */
+/** Drops every membership row for a deleted brain file — without it, folder cards' raw counts permanently disagree with the detail's live-filtered list. */
 export async function deleteBrainFolderMembershipsByFileId(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
@@ -267,13 +246,11 @@ export async function deleteBrainFolderMembershipsByFileId(args: {
   const db = await getDb(args.env)
   await db
     .delete(schema.brainFolderFile)
-    .where(
-      and(
-        eq(schema.brainFolderFile.fileId, args.fileId),
-        // Scope to the workspace's own folders via the parent row: fileId is
-        // a Helix item id, unique per tenant, but the join keeps the delete
-        // honest even if ids ever collide across tenants.
-        inArray(
+      .where(
+        and(
+          eq(schema.brainFolderFile.fileId, args.fileId),
+          // Scope via the parent folder row in case ids ever collide across tenants.
+          inArray(
           schema.brainFolderFile.folderId,
           db
             .select({ id: schema.brainFolder.id })

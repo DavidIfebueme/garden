@@ -320,10 +320,8 @@ export const deleteBrainFile = async ({
     }
   }
 
-  // Drop folder membership rows for the deleted file so folder cards' raw
-  // membership counts can't drift from the detail view's live-filtered list.
-  // Failure must not fail the request — the file IS deleted; a stale row
-  // would only reintroduce the count desync, so log and continue.
+  // Drop the file's folder membership rows so card counts can't drift from
+  // the detail view. Failure must not fail the request — the file IS deleted.
   const membershipCleanup = await Effect.runPromise(
     Effect.result(
       Effect.tryPromise({

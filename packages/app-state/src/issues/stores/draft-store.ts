@@ -55,8 +55,6 @@ export const useIssueDraftStore = create<IssueDraftStore>()(
       storage: createJSONStorage(() =>
         createWorkspaceAwareStorage(defaultStorage),
       ),
-      // Cold-storage switch must reset, not keep the previous workspace's
-      // draft — see workspaceScopedMerge.
       merge: workspaceScopedMerge<IssueDraftStore>({
         draft: { ...EMPTY_DRAFT },
       }),

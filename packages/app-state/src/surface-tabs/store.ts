@@ -29,12 +29,10 @@ export interface SurfaceTabEntry {
 export const EMPTY_SURFACE_TABS: SurfaceTabEntry[] = []
 
 /**
- * Derived tab list that always contains the route-active entity, even when
- * the store doesn't: SSR hard-loads skip the client-only loader bookkeeping
- * (dehydrated matches don't re-run loaders), and the insertion-ordered
- * MAX_TABS eviction can drop the active tab. Rendering/stepping from the
- * union keeps the strip truthful without a store write — the placeholder
- * title is upgraded live from query caches by the strip components.
+ * Derived tab list that always contains the route-active entity: SSR
+ * hard-loads skip the client-only loader bookkeeping, and insertion-ordered
+ * MAX_TABS eviction can drop the active tab. Strips upgrade the placeholder
+ * title live from query caches.
  */
 export function withActiveTab(
   tabs: SurfaceTabEntry[],
@@ -123,8 +121,6 @@ export const useSurfaceTabsStore = create<SurfaceTabsState>()(
         createWorkspaceAwareStorage(defaultStorage),
       ),
       partialize: (state) => ({ bySurface: state.bySurface }),
-      // Cold-storage switch must reset, not keep the previous workspace's
-      // tabs — see workspaceScopedMerge.
       merge: workspaceScopedMerge<SurfaceTabsState>({ bySurface: {} }),
     },
   ),

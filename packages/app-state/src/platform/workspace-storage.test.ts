@@ -8,13 +8,7 @@ import {
   workspaceScopedMerge,
 } from './workspace-storage'
 
-/**
- * Regression tests for the cross-workspace persist bleed: zustand's default
- * merge (`{...current, ...persisted}`) is a no-op when the workspace being
- * switched to has no stored key, so the previous workspace's state survived
- * rehydration and was written into the new workspace's namespace on the next
- * mutation. `workspaceScopedMerge` resets to the initial data slice instead.
- */
+/** Regression tests for the cross-workspace persist bleed — see workspaceScopedMerge. */
 
 function makeAdapter() {
   const map = new Map<string, string>()

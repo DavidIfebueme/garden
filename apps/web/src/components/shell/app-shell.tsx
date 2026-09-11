@@ -155,9 +155,6 @@ export function AppShell() {
       return params?.threadId ?? params?.issueId ?? null
     },
   })
-  // Union with the route-active entity so the arrows step a strip that
-  // matches what's rendered (SSR hard-loads and MAX_TABS eviction can leave
-  // the active entity out of the store — see withActiveTab).
   const surfaceTabs = useMemo(
     () => withActiveTab(storedSurfaceTabs, tabbedNav ? activeTabId : null),
     [storedSurfaceTabs, tabbedNav, activeTabId],
@@ -198,10 +195,8 @@ export function AppShell() {
   const handleSwitchWorkspace = useCallback(
     (nextWorkspace: NonNullable<typeof workspace>) => {
       if (nextWorkspace.id === workspace?.id) return
-      // Navigate BEFORE switching: leaving an entity route mounted while the
-      // store flips re-renders it against the new workspace (doomed detail
-      // queries with newWsId + oldEntityId, error flash). /home is always
-      // safe under either workspace.
+      // Navigate first: a mounted entity route must never re-render against
+      // the new workspace with foreign ids (doomed detail queries).
       void navigate({ to: '/home' })
       void Result.tryPromise(() => switchWorkspace(nextWorkspace)).then(
         (result) =>

@@ -70,14 +70,11 @@ export type BrainItemsByIdsResult =
   | { status: 'unavailable' }
 
 /**
- * Resolves brain file items by id, for folder membership. `Brain.listFiles`
- * is capped (MAX_FILE_LIST_LIMIT, label-ascending), so filtering that list to
- * resolve members silently drops every member sorting beyond the cutoff once
- * a workspace has >100 files; id lookups are exact and uncapped. Items whose
- * files were deleted resolve to null and drop out — matching the previous
- * filter's stale-member behavior. One bad read fails the whole batch: the
- * route answers 503 and the client retries, rather than rendering a partial
- * folder as authoritative.
+ * Resolves brain file items by id, for folder membership. Filtering
+ * `Brain.listFiles` silently dropped members past its 100-file cap; id
+ * lookups are exact and uncapped. Deleted files resolve to null and drop
+ * out. One bad read fails the whole batch (route answers 503) rather than
+ * rendering a partial folder as authoritative.
  */
 export async function loadBrainItemsByIds(args: {
   env: AppEnv & { HELIX_URL?: string; HELIX_API_KEY?: string }

@@ -135,10 +135,9 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
   // reconnect storm the old dock-era guard prevented; smoke-observed 2026-09).
   const visibleChatThreadId = useRouterState({
     select: (s) => {
-      // Normalize the trailing slash: route matching trims it, but
-      // location.pathname keeps the raw value — '/chats/'.split('/')[2] is
-      // '' (not null), which would defeat the composer sentinel and
-      // double-connect the warm session (2026-09 audit).
+      // Normalize trailing slashes: route matching trims them, but
+      // location.pathname keeps the raw value and '/chats/'.split('/')[2]
+      // is '' — defeating the composer sentinel and double-connecting.
       const pathname = s.location.pathname.replace(/\/+$/, '')
       if (pathname === '/chats') return 'composer'
       return pathname.startsWith('/chats/')

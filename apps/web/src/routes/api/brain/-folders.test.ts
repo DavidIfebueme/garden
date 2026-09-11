@@ -457,10 +457,8 @@ describe('GET /api/brain/folders/$id', () => {
   })
 
   it('keeps members whose labels sort beyond the 100-file list cap', async () => {
-    // Regression: membership used to be resolved by filtering Brain.listFiles
-    // (capped at 100, label-ascending), so a member whose label sorted past
-    // the cutoff vanished from the folder once the workspace had >100 files.
-    // Resolution is by id now, so list ordering/size is irrelevant.
+    // Regression: membership was resolved by filtering the 100-capped
+    // listFiles; resolution is by id now, so list size is irrelevant.
     setupRequest()
     folderRows.set('folder-1', {
       id: 'folder-1',
@@ -731,11 +729,7 @@ describe('DELETE /api/brain/folders/$id/files', () => {
   })
 })
 
-/**
- * Privacy enforcement (product decision 2026-09): 'private' folders are
- * visible and editable by the creator only; other members get the same 404
- * as if the folder did not exist. 'shared' folders stay member-editable.
- */
+/** 'private' = creator-only (404 for others, existence un leaked); 'shared' = member-editable. */
 describe('folder privacy', () => {
   function seedFolder(row: Partial<FolderRow> & { id: string }) {
     folderRows.set(row.id, {

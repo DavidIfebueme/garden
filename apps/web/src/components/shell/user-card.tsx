@@ -75,9 +75,7 @@ export function UserCard({
     .toUpperCase()
 
   const copyUserId = () => {
-    // navigator.clipboard is undefined in non-secure contexts (http over a
-    // LAN IP) — access it unguarded and the click throws synchronously with
-    // no feedback instead of reaching the rejection branch.
+    // Undefined in non-secure contexts (http over LAN IP) — guard or the click throws synchronously.
     const clipboard = navigator.clipboard
     if (!clipboard) {
       toast.error('Copy unavailable in this browser context')
@@ -89,12 +87,7 @@ export function UserCard({
     )
   }
 
-  /**
-   * Dismiss-then-act for flyout actions. These rows are custom layouts, not
-   * Menu.Item, so Base UI doesn't auto-close the popup on activation —
-   * without this the flyout stayed floating over the settings dialog or the
-   * post-switch /home navigation (found in the 2026-09 audit).
-   */
+  /** Dismiss-then-act: these rows are custom markup, not Menu.Item, so Base UI never auto-closes the flyout on activation. */
   const runAndClose = (action: () => void) => () => {
     setFlyoutOpen(false)
     action()

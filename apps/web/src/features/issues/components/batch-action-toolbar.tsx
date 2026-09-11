@@ -49,8 +49,7 @@ export function BatchActionToolbar() {
   const remove = () => {
     deleteIssues.mutate(ids, {
       onSuccess: () => {
-        // Close tasks tabs for deleted issues — persisted tabs would
-        // otherwise route to detail queries that 404.
+        // Close their tabs — persisted tabs would route to 404ing detail queries.
         const { closeTab } = useSurfaceTabsStore.getState()
         for (const id of ids) closeTab('tasks', id)
         clearSelection()
