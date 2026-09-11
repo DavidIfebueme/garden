@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, or } from 'drizzle-orm'
 import { getDb, schema } from '@/lib/server/db'
 import type { AppEnv } from '@/lib/server/env'
 
@@ -7,6 +7,12 @@ import type { AppEnv } from '@/lib/server/env'
  * [DEV READY]"). Brain file items stay in Helix; these rows only own folder
  * metadata (name/privacy/creator) and folder↔file membership, joined to Helix
  * items by id at the API boundary.
+ *
+ * Privacy semantics (product decision, 2026-09): 'private' = visible and
+ * editable by the creator only; 'shared' = every workspace member can view,
+ * rename, delete, and edit membership. Enforcement lives in these queries'
+ * WHERE clauses — non-creators get null/false exactly as if the folder did
+ * not exist, so routes answer 404 without leaking that the folder exists.
  */
 export type BrainFolderRow = {
   id: string
@@ -53,23 +59,45 @@ function folderListQuery(db: DbLike) {
     )
 }
 
-/** Lists the workspace's folders with member counts, newest first. */
+/**
+ * Visibility predicate: shared folders are open to the workspace, private
+ * folders only to their creator. Used by every read and mutation so a
+ * non-creator cannot even confirm a private folder exists.
+ */
+function visibleTo(userId: string) {
+  return or(
+    eq(schema.brainFolder.privacy, 'shared'),
+    eq(schema.brainFolder.createdBy, userId),
+  )
+}
+
+/** Lists the workspace folders visible to this member, newest first. */
 export async function listBrainFolders(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
+  userId: string
 }): Promise<BrainFolderRow[]> {
   const db = await getDb(args.env)
   const rows = await folderListQuery(db)
-    .where(eq(schema.brainFolder.workspaceId, args.workspaceId))
+    .where(
+      and(
+        eq(schema.brainFolder.workspaceId, args.workspaceId),
+        visibleTo(args.userId),
+      ),
+    )
     .groupBy(schema.brainFolder.id, schema.user.name, schema.user.email)
     .orderBy(desc(schema.brainFolder.createdAt))
   return rows
 }
 
-/** Reads one workspace-scoped folder; null when missing or cross-workspace. */
+/**
+ * Reads one workspace-scoped folder visible to this member; null when
+ * missing, cross-workspace, or a private folder owned by someone else.
+ */
 export async function getBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
+  userId: string
   folderId: string
 }): Promise<BrainFolderRow | null> {
   const db = await getDb(args.env)
@@ -78,6 +106,7 @@ export async function getBrainFolder(args: {
       and(
         eq(schema.brainFolder.id, args.folderId),
         eq(schema.brainFolder.workspaceId, args.workspaceId),
+        visibleTo(args.userId),
       ),
     )
     .groupBy(schema.brainFolder.id, schema.user.name, schema.user.email)
@@ -106,12 +135,14 @@ export async function createBrainFolder(args: {
 }
 
 /**
- * Applies a rename/privacy change. Returns false when the folder does not
- * exist in this workspace so the route can answer 404 without a pre-read.
+ * Applies a rename/privacy change. The visibility predicate rides the WHERE
+ * clause, so a non-creator of a private folder gets false — the route answers
+ * 404 without a pre-read and without leaking that the folder exists.
  */
 export async function updateBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
+  userId: string
   folderId: string
   name?: string
   privacy?: 'private' | 'shared'
@@ -128,16 +159,21 @@ export async function updateBrainFolder(args: {
       and(
         eq(schema.brainFolder.id, args.folderId),
         eq(schema.brainFolder.workspaceId, args.workspaceId),
+        visibleTo(args.userId),
       ),
     )
     .returning({ id: schema.brainFolder.id })
   return updated.length > 0
 }
 
-/** Deletes a folder; membership rows cascade. Files in Helix are untouched. */
+/**
+ * Deletes a folder; membership rows cascade. Files in Helix are untouched.
+ * Same single-statement visibility predicate as updateBrainFolder.
+ */
 export async function deleteBrainFolder(args: {
   env: Pick<AppEnv, 'HYPERDRIVE'>
   workspaceId: string
+  userId: string
   folderId: string
 }): Promise<boolean> {
   const db = await getDb(args.env)
@@ -147,6 +183,7 @@ export async function deleteBrainFolder(args: {
       and(
         eq(schema.brainFolder.id, args.folderId),
         eq(schema.brainFolder.workspaceId, args.workspaceId),
+        visibleTo(args.userId),
       ),
     )
     .returning({ id: schema.brainFolder.id })

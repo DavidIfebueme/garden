@@ -62,6 +62,18 @@ vi.mock('@/lib/server/brain-folders', () => {
     const row = folderRows.get(folderId)
     return row !== undefined && row.workspaceId === workspaceId ? row : null
   }
+  // Mirrors the real module's contract: 'shared' folders are visible to every
+  // workspace member; 'private' folders only to their creator.
+  const visibleTo = (row: FolderRow, userId: string) =>
+    row.privacy === 'shared' || row.createdBy === userId
+  const findVisibleRow = (
+    workspaceId: string,
+    userId: string,
+    folderId: string,
+  ) => {
+    const row = findRow(workspaceId, folderId)
+    return row !== null && visibleTo(row, userId) ? row : null
+  }
   return {
     brainFolderSummaryOf: (row: ReturnType<typeof toRow>) => ({
       id: row.id,
@@ -71,19 +83,29 @@ vi.mock('@/lib/server/brain-folders', () => {
       createdByName: row.createdByName,
       createdAt: row.createdAt.toISOString(),
     }),
-    listBrainFolders: async ({ workspaceId }: { workspaceId: string }) =>
+    listBrainFolders: async ({
+      workspaceId,
+      userId,
+    }: {
+      workspaceId: string
+      userId: string
+    }) =>
       [...folderRows.values()]
-        .filter((row) => row.workspaceId === workspaceId)
+        .filter(
+          (row) => row.workspaceId === workspaceId && visibleTo(row, userId),
+        )
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .map(toRow),
     getBrainFolder: async ({
       workspaceId,
+      userId,
       folderId,
     }: {
       workspaceId: string
+      userId: string
       folderId: string
     }) => {
-      const row = findRow(workspaceId, folderId)
+      const row = findVisibleRow(workspaceId, userId, folderId)
       return row === null ? null : toRow(row)
     },
     createBrainFolder: async (input: {
@@ -106,11 +128,12 @@ vi.mock('@/lib/server/brain-folders', () => {
     },
     updateBrainFolder: async (input: {
       workspaceId: string
+      userId: string
       folderId: string
       name?: string
       privacy?: 'private' | 'shared'
     }) => {
-      const row = findRow(input.workspaceId, input.folderId)
+      const row = findVisibleRow(input.workspaceId, input.userId, input.folderId)
       if (row === null) return false
       if (input.name !== undefined) row.name = input.name
       if (input.privacy !== undefined) row.privacy = input.privacy
@@ -118,9 +141,10 @@ vi.mock('@/lib/server/brain-folders', () => {
     },
     deleteBrainFolder: async (input: {
       workspaceId: string
+      userId: string
       folderId: string
     }) => {
-      const row = findRow(input.workspaceId, input.folderId)
+      const row = findVisibleRow(input.workspaceId, input.userId, input.folderId)
       if (row === null) return false
       folderRows.delete(row.id)
       folderFiles.delete(row.id)
@@ -245,7 +269,7 @@ function storeBrainFile({
   return item
 }
 
-function setupRequest(workspaceId = 'ws-one') {
+function setupRequest(workspaceId = 'ws-one', userId = 'user-route') {
   mockRequireAppRequestContext.mockReturnValueOnce({
     env: {
       HYPERDRIVE: {},
@@ -258,7 +282,7 @@ function setupRequest(workspaceId = 'ws-one') {
     waitUntil: () => {},
   } as unknown as AppRequestContext)
   mockRequireWorkspaceContext.mockResolvedValueOnce({
-    session: { user: { id: 'user-route' } },
+    session: { user: { id: userId } },
     workspaceId,
   })
 }
@@ -611,5 +635,133 @@ describe('DELETE /api/brain/folders/$id/files', () => {
     })
 
     expect(response.status).toBe(404)
+  })
+})
+
+/**
+ * Privacy enforcement (product decision 2026-09): 'private' folders are
+ * visible and editable by the creator only; other members get the same 404
+ * as if the folder did not exist. 'shared' folders stay member-editable.
+ */
+describe('folder privacy', () => {
+  function seedFolder(row: Partial<FolderRow> & { id: string }) {
+    folderRows.set(row.id, {
+      workspaceId: 'ws-one',
+      name: row.id,
+      privacy: 'private',
+      createdBy: 'someone-else',
+      createdAt: new Date(),
+      ...row,
+    })
+    folderFiles.set(row.id, new Set())
+  }
+
+  it('list hides other members’ private folders, shows shared and own', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-private-foreign' })
+    seedFolder({ id: 'folder-private-own', createdBy: 'user-route' })
+    seedFolder({ id: 'folder-shared', privacy: 'shared' })
+
+    const response = await getBrainFolders({ context: ctx })
+
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { items: { id: string }[] }
+    expect(body.items.map((item) => item.id).sort()).toEqual([
+      'folder-private-own',
+      'folder-shared',
+    ])
+  })
+
+  it('detail of another member’s private folder answers 404', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1' })
+
+    const response = await getBrainFolderDetail({
+      context: ctx,
+      params: { id: 'folder-1' },
+    })
+
+    expect(response.status).toBe(404)
+  })
+
+  it('rename of another member’s private folder answers 404 and changes nothing', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1' })
+
+    const response = await patchBrainFolder({
+      context: ctx,
+      params: { id: 'folder-1' },
+      request: new Request(`${foldersUrl}/folder-1`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Renamed' }),
+      }),
+    })
+
+    expect(response.status).toBe(404)
+    expect(folderRows.get('folder-1')?.name).toBe('folder-1')
+  })
+
+  it('delete of another member’s private folder answers 404 and keeps the row', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1' })
+
+    const response = await deleteBrainFolderHandler({
+      context: ctx,
+      params: { id: 'folder-1' },
+    })
+
+    expect(response.status).toBe(404)
+    expect(folderRows.has('folder-1')).toBe(true)
+  })
+
+  it('adding a file to another member’s private folder answers 404', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1' })
+    storeBrainFile({ itemId: 'item-a' })
+
+    const response = await postBrainFolderFile({
+      context: ctx,
+      params: { id: 'folder-1' },
+      request: new Request(`${foldersUrl}/folder-1/files`, {
+        method: 'POST',
+        body: JSON.stringify({ fileId: 'item-a' }),
+      }),
+    })
+
+    expect(response.status).toBe(404)
+    expect(folderFiles.get('folder-1')?.size).toBe(0)
+  })
+
+  it('creator keeps full access to their own private folder', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1', createdBy: 'user-route' })
+
+    const response = await patchBrainFolder({
+      context: ctx,
+      params: { id: 'folder-1' },
+      request: new Request(`${foldersUrl}/folder-1`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Mine' }),
+      }),
+    })
+
+    expect(response.status).toBe(200)
+  })
+
+  it('shared folders stay editable by any workspace member', async () => {
+    setupRequest('ws-one', 'user-route')
+    seedFolder({ id: 'folder-1', privacy: 'shared' })
+
+    const response = await patchBrainFolder({
+      context: ctx,
+      params: { id: 'folder-1' },
+      request: new Request(`${foldersUrl}/folder-1`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Renamed by member' }),
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(folderRows.get('folder-1')?.name).toBe('Renamed by member')
   })
 })

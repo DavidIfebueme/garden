@@ -33,6 +33,7 @@ export const getBrainFolders = async ({
   const rows = await listBrainFolders({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
   })
 
   const body = BrainFolderListResponseSchema.parse({
@@ -76,6 +77,7 @@ export const postBrainFolder = async ({
   const row = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: created.id,
   })
   if (row === null) {

@@ -47,6 +47,7 @@ export const getBrainFolderDetail = async ({
   const folder = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: params.id,
   })
   if (folder === null) return notFound('Folder not found')
@@ -129,6 +130,7 @@ export const patchBrainFolder = async ({
   const updated = await updateBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: params.id,
     name: inputResult.data.name,
     privacy: inputResult.data.privacy,
@@ -138,6 +140,7 @@ export const patchBrainFolder = async ({
   const row = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: params.id,
   })
   if (row === null) return notFound('Folder not found')
@@ -164,6 +167,7 @@ export const deleteBrainFolderHandler = async ({
   const deleted = await deleteBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: params.id,
   })
   if (!deleted) return notFound('Folder not found')

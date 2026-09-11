@@ -39,6 +39,7 @@ async function requireFolder(args: FolderFilesArgs) {
   const folder = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: args.params.id,
   })
   if (folder === null) return notFound('Folder not found')
@@ -57,7 +58,7 @@ async function folderDetailResponse({
   folder,
 }: {
   appContext: AppRequestContext
-  workspaceContext: { workspaceId: string }
+  workspaceContext: { workspaceId: string; session: { user: { id: string } } }
   folder: { id: string }
 }): Promise<Response> {
   const env = appContext.env as AppEnv & {
@@ -101,6 +102,7 @@ async function folderDetailResponse({
   const fullFolder = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
+    userId: workspaceContext.session.user.id,
     folderId: folder.id,
   })
   if (fullFolder === null) return notFound('Folder not found')
