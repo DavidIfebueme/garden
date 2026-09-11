@@ -357,6 +357,22 @@ describe('POST /api/brain/folders', () => {
     expect(folderRows.size).toBe(0)
   })
 
+  it('rejects a malformed JSON body with 400, not 500', async () => {
+    setupRequest()
+
+    const response = await postBrainFolder({
+      context: ctx,
+      request: new Request(foldersUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{not json',
+      }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(folderRows.size).toBe(0)
+  })
+
   it('rejects an empty name', async () => {
     setupRequest()
 
@@ -636,6 +652,28 @@ describe('POST /api/brain/folders/$id/files', () => {
 })
 
 describe('DELETE /api/brain/folders/$id/files', () => {
+  it('rejects a missing body with 400, not 500', async () => {
+    setupRequest()
+    folderRows.set('folder-1', {
+      id: 'folder-1',
+      workspaceId: 'ws-one',
+      name: 'Test Case',
+      privacy: 'private',
+      createdBy: 'user-route',
+      createdAt: new Date(),
+    })
+    folderFiles.set('folder-1', new Set())
+
+    const response = await deleteBrainFolderFile({
+      context: ctx,
+      params: { id: 'folder-1' },
+      request: new Request(`${foldersUrl}/folder-1/files`, { method: 'DELETE' }),
+    })
+
+    expect(response.status).toBe(400)
+  })
+
+
   it('removes a member file without deleting it', async () => {
     setupRequest('ws-one')
     folderRows.set('folder-1', {

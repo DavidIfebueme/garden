@@ -123,7 +123,10 @@ export const postBrainFolderFile = async ({
   if (resolved instanceof Response) return resolved
   const { appContext, workspaceContext, folder } = resolved
 
-  const inputResult = BrainFolderFileInputSchema.safeParse(await request.json())
+  // Malformed/empty bodies must 400, not escape as a 500 SyntaxError.
+  const inputResult = BrainFolderFileInputSchema.safeParse(
+    await request.json().catch(() => null),
+  )
   if (!inputResult.success) return badRequest('Invalid file id')
 
   const env = appContext.env as AppEnv & {
@@ -180,7 +183,10 @@ export const deleteBrainFolderFile = async ({
   if (resolved instanceof Response) return resolved
   const { appContext, workspaceContext, folder } = resolved
 
-  const inputResult = BrainFolderFileInputSchema.safeParse(await request.json())
+  // Malformed/empty bodies must 400, not escape as a 500 SyntaxError.
+  const inputResult = BrainFolderFileInputSchema.safeParse(
+    await request.json().catch(() => null),
+  )
   if (!inputResult.success) return badRequest('Invalid file id')
 
   const removed = await removeBrainFolderFile({

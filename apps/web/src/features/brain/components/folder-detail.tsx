@@ -37,6 +37,7 @@ import { brainFileDownloadUrl, type BrainFileSummary } from '../api'
 import type { BrainFolderSummary } from '../contract'
 import { brainFolderDetailOptions } from '../queries'
 import {
+  csvFileNameCell,
   formatFileSize,
   formatUploadedDate,
   formatUploadedTime,
@@ -104,7 +105,7 @@ export function BrainFolderDetail({
     const rows = detail.files
       .map((file) =>
         [
-          `"${file.name.replaceAll('"', '""')}"`,
+          csvFileNameCell(file.name),
           formatUploadedDate(file.uploadedAt),
           formatUploadedTime(file.uploadedAt),
           file.sizeBytes ?? '',

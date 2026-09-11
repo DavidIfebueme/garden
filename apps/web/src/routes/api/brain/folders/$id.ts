@@ -107,8 +107,9 @@ export const patchBrainFolder = async ({
   const workspaceContext = await requireWorkspaceContext(appContext)
   if (workspaceContext instanceof Response) return workspaceContext
 
+  // Malformed/empty bodies must 400, not escape as a 500 SyntaxError.
   const inputResult = BrainFolderUpdateInputSchema.safeParse(
-    await request.json(),
+    await request.json().catch(() => null),
   )
   if (!inputResult.success) {
     return badRequest(

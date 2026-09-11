@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  csvFileNameCell,
   formatFileSize,
   formatUploadedDate,
   formatUploadedTime,
@@ -54,5 +55,19 @@ describe('formatFileSize', () => {
     expect(formatFileSize(11_264)).toBe('11 KB')
     expect(formatFileSize(1536)).toBe('1.5 KB')
     expect(formatFileSize(5_242_880)).toBe('5 MB')
+  })
+})
+
+describe('csvFileNameCell', () => {
+  it('quote-escapes and wraps names', () => {
+    expect(csvFileNameCell('plain.txt')).toBe('"plain.txt"')
+    expect(csvFileNameCell('with "quote".txt')).toBe('"with ""quote"".txt"')
+  })
+
+  it('neutralizes formula-leading names (CSV injection)', () => {
+    expect(csvFileNameCell('=SUM(A1:A9)')).toBe(`"'=SUM(A1:A9)"`)
+    expect(csvFileNameCell('+cmd.txt')).toBe(`"'+cmd.txt"`)
+    expect(csvFileNameCell('-10.txt')).toBe(`"'-10.txt"`)
+    expect(csvFileNameCell('@mention.csv')).toBe(`"'@mention.csv"`)
   })
 })

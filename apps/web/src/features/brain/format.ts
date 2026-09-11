@@ -70,3 +70,13 @@ export function truncateMiddle(text: string, maxLength = 40): string {
   const tail = Math.floor((maxLength - 1) / 2)
   return `${text.slice(0, head)}…${text.slice(text.length - tail)}`
 }
+
+/**
+ * CSV cell for a user-controlled file name. Beyond quote-escaping, a name
+ * beginning with =, +, -, or @ is interpreted as a formula when the export
+ * opens in Excel/Sheets (CSV injection) — prefix it with a single quote.
+ */
+export function csvFileNameCell(name: string): string {
+  const neutralized = /^[=+\-@]/.test(name) ? `'${name}` : name
+  return `"${neutralized.replaceAll('"', '""')}"`
+}

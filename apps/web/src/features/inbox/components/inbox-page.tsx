@@ -270,9 +270,8 @@ export function InboxPage() {
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
-      // Persist selection in the search params on whatever route we're on so
-      // we don't trigger a TanStack Router 404 (no `/inbox` route exists —
-      // the inbox is a dock panel, not a path).
+      // Persist selection in the /inbox URL search params so a reload
+      // re-selects the same notification.
       if (typeof window === 'undefined') return
       const url = new URL(window.location.href)
       if (key) url.searchParams.set('item', key)

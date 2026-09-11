@@ -12,6 +12,7 @@ import { Input } from '@garden/ui/components/ui/input'
 import type { BrainFileSummary } from '../api'
 import type { BrainFolderSummary } from '../contract'
 import {
+  csvFileNameCell,
   formatFileSize,
   formatUploadedDate,
   formatUploadedTime,
@@ -88,7 +89,7 @@ export function BrainAllFilesView({
     const rows = files
       .map((file) =>
         [
-          `"${file.name.replaceAll('"', '""')}"`,
+          csvFileNameCell(file.name),
           formatUploadedDate(file.uploadedAt),
           formatUploadedTime(file.uploadedAt),
           file.sizeBytes ?? '',

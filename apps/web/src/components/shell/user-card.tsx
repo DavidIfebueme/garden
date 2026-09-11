@@ -75,7 +75,15 @@ export function UserCard({
     .toUpperCase()
 
   const copyUserId = () => {
-    void navigator.clipboard.writeText(user.id).then(
+    // navigator.clipboard is undefined in non-secure contexts (http over a
+    // LAN IP) — access it unguarded and the click throws synchronously with
+    // no feedback instead of reaching the rejection branch.
+    const clipboard = navigator.clipboard
+    if (!clipboard) {
+      toast.error('Copy unavailable in this browser context')
+      return
+    }
+    void clipboard.writeText(user.id).then(
       () => toast.success('User ID copied'),
       () => toast.error('Copy failed'),
     )
