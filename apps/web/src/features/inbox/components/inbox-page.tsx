@@ -27,8 +27,9 @@ import { InboxListItem, timeAgo } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
 import { InboxItemPreviewCard, ctaForInboxItem } from './inbox-item-preview'
 import { InboxControlPlane } from './inbox-control-plane'
-import { InboxListHeaderV1 } from './inbox-headers/InboxListHeaderV1'
-import { InboxListHeaderV2 } from './inbox-headers/InboxListHeaderV2'
+import { InboxListHeaderV1 } from './inbox-headers/inbox-header-v1'
+import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
+import { InboxFooter } from './inbox-footer'
 
 // ---------------------------------------------------------------------------
 // List pane header + search — sidebar-09 style
@@ -576,6 +577,9 @@ export function InboxPage() {
         <div className="flex h-full w-[320px] flex-col">
           {listHeader}
           <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
+          <div className="bg-background/30 px-3 py-2">
+            <InboxFooter />
+          </div>
         </div>
       </div>
       <div className="flex flex-1 min-w-0 min-h-0 flex-col">
