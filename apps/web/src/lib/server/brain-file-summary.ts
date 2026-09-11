@@ -1,6 +1,8 @@
-import { DateTime } from 'effect'
+import { DateTime, Effect, Result as EffectResult } from 'effect'
 import { inArray } from 'drizzle-orm'
-import type { BrainItem } from '@garden/brain/domain'
+import { ItemId, WorkspaceId, type BrainItem } from '@garden/brain/domain'
+import { Brain } from '@garden/brain/services/brain'
+import { makeWebBrainLive } from '@garden/brain/services/web'
 import type { BrainFileSummary } from '@/features/brain/contract'
 import { brainFileStatusOf } from '@/features/brain/contract'
 import { getDb, schema } from '@/lib/server/db'
@@ -60,4 +62,54 @@ export async function loadBrainFileOwnerNames(args: {
   return new Map(
     rows.map((row) => [row.id, row.name.trim() || row.email] as const),
   )
+}
+
+export type BrainItemsByIdsResult =
+  | { status: 'ok'; items: BrainItem[] }
+  | { status: 'unconfigured' }
+  | { status: 'unavailable' }
+
+/**
+ * Resolves brain file items by id, for folder membership. `Brain.listFiles`
+ * is capped (MAX_FILE_LIST_LIMIT, label-ascending), so filtering that list to
+ * resolve members silently drops every member sorting beyond the cutoff once
+ * a workspace has >100 files; id lookups are exact and uncapped. Items whose
+ * files were deleted resolve to null and drop out — matching the previous
+ * filter's stale-member behavior. One bad read fails the whole batch: the
+ * route answers 503 and the client retries, rather than rendering a partial
+ * folder as authoritative.
+ */
+export async function loadBrainItemsByIds(args: {
+  env: AppEnv & { HELIX_URL?: string; HELIX_API_KEY?: string }
+  workspaceId: string
+  fileIds: readonly string[]
+}): Promise<BrainItemsByIdsResult> {
+  const helixUrl = args.env.HELIX_URL
+  if (helixUrl === undefined) return { status: 'unconfigured' }
+
+  const brainLive = makeWebBrainLive({
+    baseUrl: helixUrl,
+    apiKey: args.env.HELIX_API_KEY,
+    ai: args.env.AI,
+    files: args.env.BRAIN_FILES,
+  })
+  const tenantId = WorkspaceId.make(args.workspaceId)
+
+  const result = await Effect.runPromise(
+    Effect.result(
+      Effect.flatMap(Brain, (brain) =>
+        Effect.forEach(
+          args.fileIds,
+          (fileId) => brain.readFileItem(ItemId.make(fileId), tenantId),
+          { concurrency: 5 },
+        ),
+      ).pipe(Effect.provide(brainLive)),
+    ),
+  )
+  if (EffectResult.isFailure(result)) return { status: 'unavailable' }
+
+  return {
+    status: 'ok',
+    items: result.success.filter((item) => item !== null),
+  }
 }

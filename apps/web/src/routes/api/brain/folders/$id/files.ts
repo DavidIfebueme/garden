@@ -7,7 +7,10 @@ import {
   BrainFolderDetailResponseSchema,
   BrainFolderFileInputSchema,
 } from '@/features/brain/contract'
-import { brainFileSummaryOf } from '@/lib/server/brain-file-summary'
+import {
+  brainFileSummaryOf,
+  loadBrainItemsByIds,
+} from '@/lib/server/brain-file-summary'
 import {
   requireAppRequestContext,
   type AppRequestContext,
@@ -61,44 +64,11 @@ async function folderDetailResponse({
   workspaceContext: { workspaceId: string; session: { user: { id: string } } }
   folder: { id: string }
 }): Promise<Response> {
-  const env = appContext.env as AppEnv & {
-    HELIX_URL?: string
-    HELIX_API_KEY?: string
-  }
-  const helixUrl = env.HELIX_URL
-  if (helixUrl === undefined) {
-    return badRequest('Brain is not configured (missing HELIX_URL)')
-  }
-
-  const brainLive = makeWebBrainLive({
-    baseUrl: helixUrl,
-    apiKey: env.HELIX_API_KEY,
-    ai: env.AI,
-    files: env.BRAIN_FILES,
+  const memberIds = await listBrainFolderFileIds({
+    env: appContext.env,
+    workspaceId: workspaceContext.workspaceId,
+    folderId: folder.id,
   })
-  const listResult = await Effect.runPromise(
-    Effect.result(
-      Effect.flatMap(Brain, (brain) =>
-        brain.listFiles({
-          tenantId: WorkspaceId.make(workspaceContext.workspaceId),
-        }),
-      ).pipe(Effect.provide(brainLive)),
-    ),
-  )
-  if (EffectResult.isFailure(listResult)) {
-    return Response.json(
-      { error: 'Brain files are unavailable' },
-      { status: 503 },
-    )
-  }
-
-  const memberIds = new Set(
-    await listBrainFolderFileIds({
-      env: appContext.env,
-      workspaceId: workspaceContext.workspaceId,
-      folderId: folder.id,
-    }),
-  )
   const fullFolder = await getBrainFolder({
     env: appContext.env,
     workspaceId: workspaceContext.workspaceId,
@@ -107,9 +77,22 @@ async function folderDetailResponse({
   })
   if (fullFolder === null) return notFound('Folder not found')
 
-  const files = listResult.success
-    .filter((item) => memberIds.has(item.id))
-    .map((item) => brainFileSummaryOf(item))
+  const resolved = await loadBrainItemsByIds({
+    env: appContext.env as AppEnv & { HELIX_URL?: string },
+    workspaceId: workspaceContext.workspaceId,
+    fileIds: memberIds,
+  })
+  if (resolved.status === 'unconfigured') {
+    return badRequest('Brain is not configured (missing HELIX_URL)')
+  }
+  if (resolved.status === 'unavailable') {
+    return Response.json(
+      { error: 'Brain files are unavailable' },
+      { status: 503 },
+    )
+  }
+
+  const files = resolved.items.map((item) => brainFileSummaryOf(item))
 
   const body = BrainFolderDetailResponseSchema.parse({
     item: brainFolderSummaryOf({ ...fullFolder, fileCount: files.length }),

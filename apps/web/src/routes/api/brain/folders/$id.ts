@@ -1,14 +1,13 @@
-import { Effect, Result as EffectResult } from 'effect'
 import { createFileRoute } from '@tanstack/react-router'
-import { WorkspaceId } from '@garden/brain/domain'
-import { Brain } from '@garden/brain/services/brain'
-import { makeWebBrainLive } from '@garden/brain/services/web'
 import {
   BrainFolderDetailResponseSchema,
   BrainFolderResponseSchema,
   BrainFolderUpdateInputSchema,
 } from '@/features/brain/contract'
-import { brainFileSummaryOf } from '@/lib/server/brain-file-summary'
+import {
+  brainFileSummaryOf,
+  loadBrainItemsByIds,
+} from '@/lib/server/brain-file-summary'
 import {
   requireAppRequestContext,
   type AppRequestContext,
@@ -30,8 +29,10 @@ import {
 /**
  * Folder detail for the Files & Folders folder view: Garden-owned folder row
  * plus its member files resolved through Brain (Helix). Membership stores
- * Helix item ids, so files are validated against the workspace's real Brain
- * file list — stale members whose files were deleted drop out silently.
+ * Helix item ids; members are resolved by id (loadBrainItemsByIds) rather
+ * than by filtering the capped listFiles response, so folders stay correct
+ * once a workspace has >100 files — stale members whose files were deleted
+ * drop out silently either way.
  */
 export const getBrainFolderDetail = async ({
   context,
@@ -58,41 +59,22 @@ export const getBrainFolderDetail = async ({
     folderId: params.id,
   })
 
-  const env = appContext.env as AppEnv & {
-    HELIX_URL?: string
-    HELIX_API_KEY?: string
-  }
-  const helixUrl = env.HELIX_URL
-  if (helixUrl === undefined) {
+  const resolved = await loadBrainItemsByIds({
+    env: appContext.env as AppEnv & { HELIX_URL?: string },
+    workspaceId: workspaceContext.workspaceId,
+    fileIds: memberIds,
+  })
+  if (resolved.status === 'unconfigured') {
     return badRequest('Brain is not configured (missing HELIX_URL)')
   }
-
-  const brainLive = makeWebBrainLive({
-    baseUrl: helixUrl,
-    apiKey: env.HELIX_API_KEY,
-    ai: env.AI,
-    files: env.BRAIN_FILES,
-  })
-  const listResult = await Effect.runPromise(
-    Effect.result(
-      Effect.flatMap(Brain, (brain) =>
-        brain.listFiles({
-          tenantId: WorkspaceId.make(workspaceContext.workspaceId),
-        }),
-      ).pipe(Effect.provide(brainLive)),
-    ),
-  )
-  if (EffectResult.isFailure(listResult)) {
+  if (resolved.status === 'unavailable') {
     return Response.json(
       { error: 'Brain files are unavailable' },
       { status: 503 },
     )
   }
 
-  const memberIdSet = new Set(memberIds)
-  const files = listResult.success
-    .filter((item) => memberIdSet.has(item.id))
-    .map((item) => brainFileSummaryOf(item))
+  const files = resolved.items.map((item) => brainFileSummaryOf(item))
 
   const body = BrainFolderDetailResponseSchema.parse({
     item: brainFolderSummaryOf({ ...folder, fileCount: files.length }),

@@ -193,6 +193,25 @@ vi.mock('@/lib/server/brain-file-summary', () => ({
     ...(item.sizeBytes === undefined ? {} : { sizeBytes: item.sizeBytes }),
   }),
   loadBrainFileOwnerNames: async () => new Map<string, string>(),
+  // Mirrors the real helper's contract: id-based resolution, tenant-scoped,
+  // deleted/foreign items drop out.
+  loadBrainItemsByIds: async ({
+    workspaceId,
+    fileIds,
+  }: {
+    workspaceId: string
+    fileIds: readonly string[]
+  }) => ({
+    status: 'ok' as const,
+    items: fileIds
+      .map((id) => mockBrainItems.get(ItemId.make(id)))
+      .filter(
+        (item): item is BrainItem =>
+          item !== undefined &&
+          item.tenantId === workspaceId &&
+          item.kind === 'file',
+      ),
+  }),
 }))
 
 vi.mock('@garden/brain/services/web', async () => {
@@ -418,6 +437,42 @@ describe('GET /api/brain/folders/$id', () => {
     expect(body.item.fileCount).toBe(1)
     expect(body.files).toEqual([
       expect.objectContaining({ name: 'dots.pdf', sizeBytes: 11264 }),
+    ])
+  })
+
+  it('keeps members whose labels sort beyond the 100-file list cap', async () => {
+    // Regression: membership used to be resolved by filtering Brain.listFiles
+    // (capped at 100, label-ascending), so a member whose label sorted past
+    // the cutoff vanished from the folder once the workspace had >100 files.
+    // Resolution is by id now, so list ordering/size is irrelevant.
+    setupRequest()
+    folderRows.set('folder-1', {
+      id: 'folder-1',
+      workspaceId: 'ws-one',
+      name: 'Test Case',
+      privacy: 'private',
+      createdBy: 'user-route',
+      createdAt: new Date(),
+    })
+    folderFiles.set('folder-1', new Set(['item-member']))
+    for (let i = 0; i < 100; i += 1) {
+      storeBrainFile({ itemId: `item-filler-${i}`, label: `a-${String(i).padStart(3, '0')}.txt` })
+    }
+    storeBrainFile({ itemId: 'item-member', label: 'zzz-member.pdf' })
+
+    const response = await getBrainFolderDetail({
+      context: ctx,
+      params: { id: 'folder-1' },
+    })
+
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as {
+      item: { fileCount: number }
+      files: { name: string }[]
+    }
+    expect(body.item.fileCount).toBe(1)
+    expect(body.files).toEqual([
+      expect.objectContaining({ name: 'zzz-member.pdf' }),
     ])
   })
 
