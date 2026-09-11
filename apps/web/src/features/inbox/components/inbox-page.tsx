@@ -27,9 +27,9 @@ import { InboxListItem, timeAgo } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
 import { InboxItemPreviewCard, ctaForInboxItem } from './inbox-item-preview'
 import { InboxControlPlane } from './inbox-control-plane'
-import { InboxListHeaderV1 } from './inbox-headers/inbox-header-v1'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
+import { Icon as IconifyIcon } from '@iconify/react';
 
 // ---------------------------------------------------------------------------
 // List pane header + search — sidebar-09 style
@@ -227,14 +227,26 @@ const InboxEmptyIcon = () => {
   );
 };
 
-function InboxEmptyState({ title, body }: { title: string; body: string }) {
+function InboxEmptyState({
+  title,
+  body,
+  icon,
+}: {
+  title: string;
+  body: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <div className="flex h-full w-full items-center justify-center px-6">
       <div className="flex max-w-sm flex-col items-center text-center">
-        {/* <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-          <Inbox className="h-5 w-5 text-muted-foreground" />
-        </div> */}
-        <InboxEmptyIcon />
+        {
+          icon ? (
+            <div className="flex h-14 w-14 items-center justify-center">
+              {icon}
+            </div>
+          ) : <InboxEmptyIcon />
+        }
+
         <h2 className="mt-4 text-base font-semibold tracking-tight text-foreground">
           {title}
         </h2>
@@ -243,7 +255,7 @@ function InboxEmptyState({ title, body }: { title: string; body: string }) {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 function focusForInboxItem(item: InboxItem): string | null {
@@ -532,12 +544,26 @@ export function InboxPage() {
     )
 
   const detailContent = selected ? (
-    <InboxNotificationDetail
-      item={selected}
-      onArchive={() => handleArchive(selected.id)}
-      onOpenIssue={() => handleOpenIssue(selected)}
-    />
-  ) : null
+    <>
+      <InboxNotificationDetail
+        item={selected}
+        onArchive={() => handleArchive(selected.id)}
+        onOpenIssue={() => handleOpenIssue(selected)}
+      />
+    </>
+  ) : (
+    <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
+      <InboxEmptyState
+        title="No messages"
+        body="Once any new message is sent it'll be documented"
+        icon={
+          <div className="bg-muted h-20 w-20 flex items-center justify-center rounded-full text-muted-foreground shrink-0">
+            <IconifyIcon color='text-muted-foreground' icon="ph:envelope-open-thin" width={35} height={35} />
+          </div>
+        }
+      />
+    </div>
+  )
 
   // -- Mobile layout: list / detail toggle -----------------------------------
 
