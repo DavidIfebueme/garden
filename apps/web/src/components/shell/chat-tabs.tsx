@@ -87,7 +87,12 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
               <ChatSessionExplorer
                 activeDockSessionId={activeId}
                 onActivate={(session) => openChatSession(session)}
-                onArchive={(sessionId) => closeTab('chats', sessionId)}
+                // Archive goes through handleClose, not bare closeTab:
+                // archiving the ACTIVE session must also navigate away,
+                // otherwise /chats/<id> stays mounted over a session the
+                // archive mutation just removed from the list cache and the
+                // pane renders blank (smoke-found 2026-09 audit).
+                onArchive={handleClose}
               />
             </div>
           </PopoverContent>
