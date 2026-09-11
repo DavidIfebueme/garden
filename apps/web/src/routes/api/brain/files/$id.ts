@@ -10,6 +10,7 @@ import {
   brainFileStatusOf,
 } from '@/features/brain/contract'
 import { brainFileSummaryOf } from '@/lib/server/brain-file-summary'
+import { deleteBrainFolderMembershipsByFileId } from '@/lib/server/brain-folders'
 import {
   requireAppRequestContext,
   type AppRequestContext,
@@ -306,6 +307,31 @@ export const deleteBrainFile = async ({
         ...errorFields(cleanupResult.failure),
       })
     }
+  }
+
+  // Drop folder membership rows for the deleted file so folder cards' raw
+  // membership counts can't drift from the detail view's live-filtered list.
+  // Failure must not fail the request — the file IS deleted; a stale row
+  // would only reintroduce the count desync, so log and continue.
+  const membershipCleanup = await Effect.runPromise(
+    Effect.result(
+      Effect.tryPromise({
+        try: () =>
+          deleteBrainFolderMembershipsByFileId({
+            env,
+            workspaceId: workspaceContext.workspaceId,
+            fileId: deleted.id,
+          }),
+        catch: (cause) => cause,
+      }),
+    ),
+  )
+  if (EffectResult.isFailure(membershipCleanup)) {
+    brainFileLogger.error('brain file folder-membership cleanup failed', {
+      itemId: deleted.id,
+      workspaceId: workspaceContext.workspaceId,
+      ...errorFields(membershipCleanup.failure),
+    })
   }
 
   return new Response(null, { status: 204 })

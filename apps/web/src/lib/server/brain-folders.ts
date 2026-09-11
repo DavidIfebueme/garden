@@ -1,4 +1,4 @@
-import { and, count, desc, eq, or } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, or } from 'drizzle-orm'
 import { getDb, schema } from '@/lib/server/db'
 import type { AppEnv } from '@/lib/server/env'
 
@@ -251,4 +251,35 @@ export async function removeBrainFolderFile(args: {
     )
     .returning({ fileId: schema.brainFolderFile.fileId })
   return deleted.length > 0
+}
+
+/**
+ * Drops every membership row for a deleted brain file, workspace-wide. Called
+ * from the file-delete route: without it, folder cards count raw membership
+ * rows and would forever disagree with the folder detail's live-filtered
+ * file list once a member file is deleted.
+ */
+export async function deleteBrainFolderMembershipsByFileId(args: {
+  env: Pick<AppEnv, 'HYPERDRIVE'>
+  workspaceId: string
+  fileId: string
+}): Promise<void> {
+  const db = await getDb(args.env)
+  await db
+    .delete(schema.brainFolderFile)
+    .where(
+      and(
+        eq(schema.brainFolderFile.fileId, args.fileId),
+        // Scope to the workspace's own folders via the parent row: fileId is
+        // a Helix item id, unique per tenant, but the join keeps the delete
+        // honest even if ids ever collide across tenants.
+        inArray(
+          schema.brainFolderFile.folderId,
+          db
+            .select({ id: schema.brainFolder.id })
+            .from(schema.brainFolder)
+            .where(eq(schema.brainFolder.workspaceId, args.workspaceId)),
+        ),
+      ),
+    )
 }

@@ -198,6 +198,12 @@ vi.mock('@/lib/server/db', () => ({
   getDb: vi.fn().mockResolvedValue({ id: 'db' }),
 }))
 
+const mockDeleteBrainFolderMemberships = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/server/brain-folders', () => ({
+  deleteBrainFolderMembershipsByFileId: mockDeleteBrainFolderMemberships,
+}))
+
 vi.mock('@/lib/server/brain-file-summary', async () => {
   const { DateTime } = await import('effect')
   const { brainFileStatusOf } = await vi.importActual<
@@ -889,6 +895,32 @@ describe('DELETE /api/brain/files/$id', () => {
     expect(response.status).toBe(204)
     expect(mockBrainItems.has(item.id)).toBe(false)
     expect(files.objects.has(item.r2Key as string)).toBe(false)
+  })
+
+  it('drops folder membership rows for the deleted file', async () => {
+    mockDeleteBrainFolderMemberships.mockResolvedValueOnce(undefined)
+    const files = makeFiles()
+    const item = storeBrainFile({ indexed: false, indexStatus: 'failed' })
+
+    const { response } = await deleteFile({ files })
+
+    expect(response.status).toBe(204)
+    expect(mockDeleteBrainFolderMemberships).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: item.id }),
+    )
+  })
+
+  it('still answers 204 when membership cleanup fails', async () => {
+    mockDeleteBrainFolderMemberships.mockRejectedValueOnce(
+      new Error('db unavailable'),
+    )
+    const files = makeFiles()
+    const item = storeBrainFile({ indexed: false, indexStatus: 'failed' })
+
+    const { response } = await deleteFile({ files })
+
+    expect(response.status).toBe(204)
+    expect(mockBrainItems.has(item.id)).toBe(false)
   })
 
   it('does not delete a file from another workspace', async () => {
