@@ -2,14 +2,17 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { LoginPage } from '@/features/auth'
 import { sanitizeRedirectTarget } from '@/lib/redirect'
 import { getRouteSession } from '@/lib/server/route-session'
+import { getAuthProviderAvailability } from '@/lib/server/auth-providers'
 import {
   invitationIdFromRedirect,
   type SignupInvitationPreview,
 } from '@/lib/invitation-flow'
 import { getSignupInvitationPreview } from '@/lib/server/invitations'
+import { oauthErrorMessage } from '@/lib/auth/oauth-error'
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search) => ({
+    ...(typeof search.error === 'string' ? { error: search.error } : {}),
     redirect:
       typeof search.redirect === 'string'
         ? sanitizeRedirectTarget(search.redirect)
@@ -26,11 +29,12 @@ export const Route = createFileRoute('/login')({
   loaderDeps: ({ search }) => ({ redirect: search.redirect }),
   loader: async ({ deps }) => {
     const invitationId = invitationIdFromRedirect(deps.redirect)
-    if (!invitationId) return null
-
-    const invitation = await getSignupInvitationPreview({
-      data: { invitationId },
-    })
+    const [authProviders, invitation] = await Promise.all([
+      getAuthProviderAvailability(),
+      invitationId
+        ? getSignupInvitationPreview({ data: { invitationId } })
+        : Promise.resolve(null),
+    ])
     if (invitation?.status === 'pending' && !invitation.userExists) {
       throw redirect({
         to: '/signup',
@@ -38,7 +42,7 @@ export const Route = createFileRoute('/login')({
       })
     }
 
-    return invitation
+    return { authProviders, invitation }
   },
   component: LoginRoute,
 })
@@ -46,12 +50,14 @@ export const Route = createFileRoute('/login')({
 function LoginRoute() {
   const navigate = useNavigate()
   const search = Route.useSearch()
-  const invitation = Route.useLoaderData()
+  const { authProviders, invitation } = Route.useLoaderData()
   const invitationIsPending = invitation?.status === 'pending'
   const invitationStatusMessage = getInvitationStatusMessage(invitation)
 
   return (
     <LoginPage
+      googleAuthEnabled={authProviders.google}
+      initialError={oauthErrorMessage(search.error)}
       initialEmail={invitationIsPending ? invitation.email : undefined}
       lockedEmail={invitationIsPending}
       invitationStatusMessage={invitationStatusMessage}

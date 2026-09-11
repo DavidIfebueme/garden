@@ -217,6 +217,18 @@ assert.match(
   alchemySource,
   /sandbox\.Application = sandbox\.Application\.pipe\(Alchemy\.renamedFrom\('Sandbox'\)\)/,
 )
+assert.match(
+  alchemySource,
+  /optionalPlainBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_ID'/s,
+)
+assert.match(
+  alchemySource,
+  /optionalSecretBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_SECRET'/s,
+)
+assert.doesNotMatch(
+  alchemySource,
+  /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/,
+)
 
 for (const field of [
   'workerName',

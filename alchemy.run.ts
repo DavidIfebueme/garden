@@ -206,6 +206,7 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
     ENVIRONMENT: deployTarget.environment,
     GOOGLE_CLIENT_ID: plainEnv('GOOGLE_CLIENT_ID'),
     ...optionalPlainBindings([
+      'GOOGLE_AUTH_CLIENT_ID',
       'GITHUB_CLIENT_ID',
       'GITHUB_APP_ID',
       'GITHUB_APP_SLUG',
@@ -213,6 +214,7 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
     ]),
     GOOGLE_CLIENT_SECRET: Config.redacted('GOOGLE_CLIENT_SECRET'),
     ...optionalSecretBindings([
+      'GOOGLE_AUTH_CLIENT_SECRET',
       'GITHUB_CLIENT_SECRET',
       'GITHUB_APP_PRIVATE_KEY',
       'GITHUB_WEBHOOK_SECRET',
