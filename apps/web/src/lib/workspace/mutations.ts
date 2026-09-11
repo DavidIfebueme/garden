@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { Result } from 'better-result'
 import type { Workspace } from '@garden/core/types'
 import { api } from '@/lib/api'
@@ -7,6 +8,7 @@ import { useWorkspaceStore } from '@garden/app-state/workspace'
 
 export function useCreateWorkspace() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   return useMutation({
     mutationFn: (data: { name: string; slug: string; description?: string }) =>
       api.createWorkspace(data),
@@ -16,6 +18,10 @@ export function useCreateWorkspace() {
         ...old,
         newWs,
       ])
+      // Land on /home first: staying on the old workspace's entity route
+      // (e.g. /tasks/<old-issue>) under the freshly-created workspace fires
+      // detail queries with ids the new workspace doesn't own.
+      void navigate({ to: '/home' })
       void Result.tryPromise(() =>
         useWorkspaceStore.getState().switchWorkspace(newWs),
       )

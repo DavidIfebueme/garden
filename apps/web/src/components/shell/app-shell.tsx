@@ -198,12 +198,16 @@ export function AppShell() {
   const handleSwitchWorkspace = useCallback(
     (nextWorkspace: NonNullable<typeof workspace>) => {
       if (nextWorkspace.id === workspace?.id) return
+      // Navigate BEFORE switching: leaving an entity route mounted while the
+      // store flips re-renders it against the new workspace (doomed detail
+      // queries with newWsId + oldEntityId, error flash). /home is always
+      // safe under either workspace.
+      void navigate({ to: '/home' })
       void Result.tryPromise(() => switchWorkspace(nextWorkspace)).then(
         (result) =>
           result.tapBoth({
             ok: () => {
               queryClient.invalidateQueries()
-              void navigate({ to: '/home' })
               toast.success(`Switched to ${nextWorkspace.name}`)
             },
             err: (error) => {

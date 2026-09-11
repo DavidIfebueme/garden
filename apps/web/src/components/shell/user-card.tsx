@@ -65,6 +65,7 @@ export function UserCard({
   onCreateWorkspace: () => void
 }) {
   const { theme, setTheme } = useTheme()
+  const [flyoutOpen, setFlyoutOpen] = useState(false)
   const [addWorkspaceOpen, setAddWorkspaceOpen] = useState(false)
   const initials = user.name
     .split(' ')
@@ -80,8 +81,25 @@ export function UserCard({
     )
   }
 
+  /**
+   * Dismiss-then-act for flyout actions. These rows are custom layouts, not
+   * Menu.Item, so Base UI doesn't auto-close the popup on activation —
+   * without this the flyout stayed floating over the settings dialog or the
+   * post-switch /home navigation (found in the 2026-09 audit).
+   */
+  const runAndClose = (action: () => void) => () => {
+    setFlyoutOpen(false)
+    action()
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      open={flyoutOpen}
+      onOpenChange={(open) => {
+        setFlyoutOpen(open)
+        if (!open) setAddWorkspaceOpen(false)
+      }}
+    >
       <DropdownMenuTrigger
         aria-label="Account"
         className={cn(
@@ -156,7 +174,7 @@ export function UserCard({
         <div className="flex gap-2 border-t border-border-default px-4 py-3">
           <button
             type="button"
-            onClick={onAccount}
+            onClick={runAndClose(onAccount)}
             className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm whitespace-nowrap text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <Gear className="size-4 text-icon-neutral-secondary" />
@@ -164,7 +182,7 @@ export function UserCard({
           </button>
           <button
             type="button"
-            onClick={onInviteMembers}
+            onClick={runAndClose(onInviteMembers)}
             className="cursor-pointer flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-border-default bg-background-main-default text-sm whitespace-nowrap text-text-neutral-default shadow-1 transition-colors hover:bg-background-main-secondary"
           >
             <PaperPlaneTilt className="size-4 text-icon-neutral-secondary" />
@@ -230,7 +248,7 @@ export function UserCard({
                       key={workspace.id}
                       type="button"
                       disabled={active}
-                      onClick={() => onSwitchWorkspace(workspace)}
+                      onClick={runAndClose(() => onSwitchWorkspace(workspace))}
                       className="cursor-pointer flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-neutral-default transition-colors hover:bg-background-main-secondary disabled:opacity-60"
                     >
                       <Buildings className="size-4 shrink-0 text-icon-neutral-tertiary" />
@@ -246,7 +264,7 @@ export function UserCard({
               </div>
               <button
                 type="button"
-                onClick={onCreateWorkspace}
+                onClick={runAndClose(onCreateWorkspace)}
                 className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-brand-secondary transition-colors hover:bg-background-main-secondary"
               >
                 <Plus className="size-4" />
@@ -259,7 +277,7 @@ export function UserCard({
         {/* Sign out */}
         <button
           type="button"
-          onClick={onLogout}
+          onClick={runAndClose(onLogout)}
           className="cursor-pointer flex h-10 w-full items-center gap-3 border-t border-border-default px-2 text-sm tracking-wider text-text-neutral-default transition-colors hover:bg-background-main-secondary [&_svg]:size-[18px]"
         >
           <SignOut className="size-4 text-icon-neutral-secondary" />

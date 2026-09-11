@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Result } from 'better-result'
 import { toast } from 'sonner'
 import { ClockCounterClockwise } from '@phosphor-icons/react'
@@ -66,6 +66,11 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
     })
   }, [claimWarmSession, openChatSession])
 
+  // Controlled popover: the explorer rows are plain divs, not Menu.Items, so
+  // nothing auto-dismisses it — close explicitly on activate/archive or it
+  // stays floating over the chat it just opened (found in the 2026-09 audit).
+  const [browseOpen, setBrowseOpen] = useState(false)
+
   return (
     <SurfaceTabs
       tabs={displayTabs}
@@ -78,7 +83,7 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
       onNew={handleNew}
       newLabel="New chat"
       end={
-        <Popover>
+        <Popover open={browseOpen} onOpenChange={setBrowseOpen}>
           <PopoverTrigger
             className="ml-auto flex h-6 shrink-0 items-center gap-1.5 rounded-sm px-2 text-xs text-text-secondary transition-colors hover:bg-background-main-secondary hover:text-text-neutral-default"
             aria-label="Browse all chats"
@@ -90,13 +95,19 @@ export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
             <div className="max-h-96 overflow-y-auto">
               <ChatSessionExplorer
                 activeDockSessionId={activeId}
-                onActivate={(session) => openChatSession(session)}
+                onActivate={(session) => {
+                  setBrowseOpen(false)
+                  openChatSession(session)
+                }}
                 // Archive goes through handleClose, not bare closeTab:
                 // archiving the ACTIVE session must also navigate away,
                 // otherwise /chats/<id> stays mounted over a session the
                 // archive mutation just removed from the list cache and the
                 // pane renders blank (smoke-found 2026-09 audit).
-                onArchive={handleClose}
+                onArchive={(sessionId) => {
+                  setBrowseOpen(false)
+                  handleClose(sessionId)
+                }}
               />
             </div>
           </PopoverContent>
