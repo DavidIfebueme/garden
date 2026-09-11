@@ -28,6 +28,7 @@ import { typeLabels } from './inbox-detail-label'
 import { InboxItemPreviewCard, ctaForInboxItem } from './inbox-item-preview'
 import { InboxControlPlane } from './inbox-control-plane'
 import { InboxListHeaderV1 } from './inbox-headers/InboxListHeaderV1'
+import { InboxListHeaderV2 } from './inbox-headers/InboxListHeaderV2'
 
 // ---------------------------------------------------------------------------
 // List pane header + search — sidebar-09 style
@@ -484,17 +485,18 @@ export function InboxPage() {
   // -- Shared sub-components --------------------------------------------------
 
   const listHeader = (
-    <InboxListHeaderV1
-      unreadCount={unreadCount}
-      search={search}
-      onSearchChange={setSearch}
-      unreadsOnly={unreadsOnly}
-      onUnreadsOnlyChange={setUnreadsOnly}
-      onMarkAllRead={handleMarkAllRead}
-      onArchiveAll={handleArchiveAll}
-      onArchiveAllRead={handleArchiveAllRead}
-      onArchiveCompleted={handleArchiveCompleted}
-    />
+    // <InboxListHeaderV1
+    //   unreadCount={unreadCount}
+    //   search={search}
+    //   onSearchChange={setSearch}
+    //   unreadsOnly={unreadsOnly}
+    //   onUnreadsOnlyChange={setUnreadsOnly}
+    //   onMarkAllRead={handleMarkAllRead}
+    //   onArchiveAll={handleArchiveAll}
+    //   onArchiveAllRead={handleArchiveAllRead}
+    //   onArchiveCompleted={handleArchiveCompleted}
+    // />
+    <InboxListHeaderV2 />
   )
 
   const listBody =
