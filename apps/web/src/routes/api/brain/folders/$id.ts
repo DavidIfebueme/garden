@@ -6,6 +6,7 @@ import {
 } from '@/features/brain/contract'
 import {
   brainFileSummaryOf,
+  loadBrainFileOwnerNames,
   loadBrainItemsByIds,
 } from '@/lib/server/brain-file-summary'
 import {
@@ -74,7 +75,13 @@ export const getBrainFolderDetail = async ({
     )
   }
 
-  const files = resolved.items.map((item) => brainFileSummaryOf(item))
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: resolved.items,
+  })
+  const files = resolved.items.map((item) =>
+    brainFileSummaryOf(item, ownerNames),
+  )
 
   const body = BrainFolderDetailResponseSchema.parse({
     item: brainFolderSummaryOf({ ...folder, fileCount: files.length }),

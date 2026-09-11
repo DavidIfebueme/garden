@@ -1530,11 +1530,49 @@ describe('BrainFilesPage', () => {
 
     // The PATCH payload must not carry the folder id: the strict update
     // schema rejects unknown keys, which turned every rename into a 400.
+    // Privacy is omitted when unchanged — resubmitting the cached value
+    // would silently revert a teammate's concurrent privacy flip.
     expect(mockUpdateBrainFolder).toHaveBeenCalledWith('folder-1', {
       name: 'Renamed Case',
-      privacy: 'private',
     })
     expect(await screen.findByText('Renamed Case')).toBeInTheDocument()
+  })
+
+  it('sends privacy on rename only when the user flipped it', async () => {
+    const user = userEvent.setup()
+    const folder = {
+      id: 'folder-1',
+      name: 'Test Case',
+      privacy: 'private' as const,
+      fileCount: 0,
+      createdByName: 'Fred',
+      createdAt: new Date().toISOString(),
+    }
+
+    mockListBrainFolders.mockResolvedValue([folder])
+    mockUpdateBrainFolder.mockResolvedValue({ ...folder, privacy: 'shared' })
+
+    renderFilesPage()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Folder actions for Test Case',
+      }),
+    )
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(
+      within(dialog).getByRole('switch', { name: /make private/i }),
+    )
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Save changes' }),
+    )
+
+    expect(mockUpdateBrainFolder).toHaveBeenCalledWith('folder-1', {
+      name: 'Test Case',
+      privacy: 'shared',
+    })
   })
 
   it('deletes a folder after confirmation', async () => {

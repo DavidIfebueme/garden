@@ -9,7 +9,10 @@ import {
   BrainFileResponseSchema,
   brainFileStatusOf,
 } from '@/features/brain/contract'
-import { brainFileSummaryOf } from '@/lib/server/brain-file-summary'
+import {
+  brainFileSummaryOf,
+  loadBrainFileOwnerNames,
+} from '@/lib/server/brain-file-summary'
 import { deleteBrainFolderMembershipsByFileId } from '@/lib/server/brain-folders'
 import {
   requireAppRequestContext,
@@ -105,8 +108,12 @@ export const getBrainFileStatus = async ({
   const item = readResult.success
   if (item === null) return notFound('Brain file not found')
 
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: [item],
+  })
   const body = BrainFileResponseSchema.parse({
-    item: brainFileSummaryOf(item),
+    item: brainFileSummaryOf(item, ownerNames),
   })
 
   return Response.json(body, {
@@ -224,8 +231,12 @@ export const retryBrainFileIndexing = async ({
     )
   }
 
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: [item],
+  })
   const body = BrainFileResponseSchema.parse({
-    item: { ...brainFileSummaryOf(item), status },
+    item: { ...brainFileSummaryOf(item, ownerNames), status },
   })
 
   return Response.json(body, { status: status === 'ready' ? 200 : 202 })

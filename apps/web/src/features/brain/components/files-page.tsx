@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Result } from 'better-result'
 import { toast } from 'sonner'
 import {
   FilePlus,
@@ -261,20 +262,36 @@ export function BrainFilesPage() {
         })
       }
 
-      const folderId = uploadFolderIdRef.current
-      uploadFolderIdRef.current = null
-      if (folderId !== null) {
-        const detail = await addFileToBrainFolder(folderId, uploadedFile.id)
-        queryClient.setQueryData(brainFolderKeys.detail(folderId), detail)
-        void queryClient.invalidateQueries({
-          queryKey: brainFolderKeys.list(wsId),
-          exact: true,
-        })
-      }
-
+      // The upload succeeded — say so first. The attach-to-folder step below
+      // is a separate operation with its own failure semantics (folder
+      // deleted mid-upload, workspace switched mid-flight): letting its
+      // rejection escape onSuccess would flip the whole mutation to a
+      // misleading "upload failed" error banner over a file that IS safely
+      // in the knowledge base.
       toast.success('A new file has been added', {
         description: truncateMiddle(uploadedFile.name, 56),
       })
+
+      const folderId = uploadFolderIdRef.current
+      uploadFolderIdRef.current = null
+      if (folderId !== null) {
+        const attachResult = await Result.tryPromise(() =>
+          addFileToBrainFolder(folderId, uploadedFile.id),
+        )
+        attachResult.match({
+          ok: (detail) => {
+            queryClient.setQueryData(brainFolderKeys.detail(folderId), detail)
+            void queryClient.invalidateQueries({
+              queryKey: brainFolderKeys.list(wsId),
+              exact: true,
+            })
+          },
+          err: (error) =>
+            toast.error(
+              errorMessage(error, 'Could not add the file to the folder.'),
+            ),
+        })
+      }
     },
     onSettled: () => {
       setUploadProgress(0)
@@ -895,7 +912,12 @@ export function BrainFilesPage() {
         <BrainFolderDialog
           folder={folderDialog.folder ?? null}
           pending={
-            createFolderMutation.isPending || updateFolderMutation.isPending
+            createFolderMutation.isPending ||
+            updateFolderMutation.isPending ||
+            // Block submit while an upload runs: reviewFile early-returns on
+            // uploadMutation.isPending, so the dialog's attached file would
+            // be silently discarded (found in the 2026-09 audit).
+            uploadMutation.isPending
           }
           error={
             folderDialog.folder
@@ -911,7 +933,13 @@ export function BrainFilesPage() {
               updateFolderMutation.mutate({
                 id: folderDialog.folder.id,
                 name: input.name,
-                privacy: input.privacy,
+                // Forward privacy only when it actually changed — resubmitting
+                // the possibly-stale cached value would silently revert a
+                // teammate's concurrent flip (last-write-wins on a field the
+                // user didn't touch).
+                ...(input.privacy !== folderDialog.folder.privacy
+                  ? { privacy: input.privacy }
+                  : {}),
               })
             } else {
               folderDialogFileRef.current = input.file ?? null
