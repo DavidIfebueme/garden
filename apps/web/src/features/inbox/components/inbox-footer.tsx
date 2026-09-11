@@ -1,12 +1,19 @@
-import { Button } from "@garden/ui/components/ui/button"
+import { useState } from 'react'
+import { Button } from '@garden/ui/components/ui/button'
+import { InboxComposeDialog } from './inbox-compose-dialog'
 
+export function InboxFooter() {
+  const [composeOpen, setComposeOpen] = useState(false)
 
-export const InboxFooter = () => {
-    return (
-        <>
-            <Button className="py-5 w-full cursor-pointer">
-                + Start Email
-            </Button>
-        </>
-    )
+  return (
+    <>
+      <Button
+        className="w-full cursor-pointer py-5"
+        onClick={() => setComposeOpen(true)}
+      >
+        + Start Email
+      </Button>
+      <InboxComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />
+    </>
+  )
 }
