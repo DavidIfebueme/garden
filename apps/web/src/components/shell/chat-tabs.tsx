@@ -11,6 +11,7 @@ import { SurfaceTabs } from '@garden/ui/components/shell/surface-tabs'
 import {
   EMPTY_SURFACE_TABS,
   useSurfaceTabsStore,
+  withActiveTab,
 } from '@garden/app-state/surface-tabs'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { useAgentSessions } from '@/features/chat/use-agent-chat-sessions'
@@ -23,9 +24,12 @@ import { ChatSessionExplorer } from '@/features/chat'
  * first-turn titles appear without a store round-trip.
  */
 export function ChatTabsStrip({ activeId }: { activeId: string | null }) {
-  const tabs = useSurfaceTabsStore(
+  const storedTabs = useSurfaceTabsStore(
     (s) => s.bySurface['chats'] ?? EMPTY_SURFACE_TABS,
   )
+  // Union with the route-active session so the strip stays truthful on SSR
+  // hard-loads (loader bookkeeping skipped) and after MAX_TABS eviction.
+  const tabs = withActiveTab(storedTabs, activeId)
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openChatSession, navigate } = useSurfaceNavigation()
   const { sessions, claimWarmSession } = useAgentSessions()

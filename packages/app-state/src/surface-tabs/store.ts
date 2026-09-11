@@ -28,9 +28,27 @@ export interface SurfaceTabEntry {
  */
 export const EMPTY_SURFACE_TABS: SurfaceTabEntry[] = []
 
+/**
+ * Derived tab list that always contains the route-active entity, even when
+ * the store doesn't: SSR hard-loads skip the client-only loader bookkeeping
+ * (dehydrated matches don't re-run loaders), and the insertion-ordered
+ * MAX_TABS eviction can drop the active tab. Rendering/stepping from the
+ * union keeps the strip truthful without a store write — the placeholder
+ * title is upgraded live from query caches by the strip components.
+ */
+export function withActiveTab(
+  tabs: SurfaceTabEntry[],
+  activeId: string | null,
+): SurfaceTabEntry[] {
+  if (activeId === null || tabs.some((tab) => tab.id === activeId)) {
+    return tabs
+  }
+  return [...tabs, { id: activeId, title: activeId }]
+}
+
 interface SurfaceTabsState {
   bySurface: Record<string, SurfaceTabEntry[]>
-  /** Adds the tab if absent, otherwise moves it to the end and refreshes its title. */
+  /** Adds the tab if absent, otherwise refreshes its title in place (insertion-ordered). */
   upsertTab: (surface: string, tab: SurfaceTabEntry) => void
   renameTab: (surface: string, id: string, title: string) => void
   closeTab: (surface: string, id: string) => void

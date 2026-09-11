@@ -4,6 +4,7 @@ import { SurfaceTabs } from '@garden/ui/components/shell/surface-tabs'
 import {
   EMPTY_SURFACE_TABS,
   useSurfaceTabsStore,
+  withActiveTab,
 } from '@garden/app-state/surface-tabs'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { issueDetailOptions, issueListOptions } from '@/lib/issues/queries'
@@ -19,9 +20,12 @@ import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigati
  * real title once data lands.
  */
 export function TaskTabsStrip({ activeId }: { activeId: string | null }) {
-  const tabs = useSurfaceTabsStore(
+  const storedTabs = useSurfaceTabsStore(
     (s) => s.bySurface['tasks'] ?? EMPTY_SURFACE_TABS,
   )
+  // Union with the route-active issue so the strip stays truthful on SSR
+  // hard-loads (loader bookkeeping skipped) and after MAX_TABS eviction.
+  const tabs = withActiveTab(storedTabs, activeId)
   const closeTab = useSurfaceTabsStore((s) => s.closeTab)
   const { openIssue, navigate } = useSurfaceNavigation()
   const workspaceId = useWorkspaceStore((s) => s.workspace?.id ?? '')

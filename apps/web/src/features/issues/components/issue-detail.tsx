@@ -91,6 +91,7 @@ import type {
   IssueRunEvent,
 } from '@garden/core/types'
 import type { StructuredQuestion } from '@garden/app-state/chat'
+import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import {
   ALL_STATUSES,
   STATUS_CONFIG,
@@ -896,6 +897,9 @@ export function IssueDetail({
     })
 
     if (deleteResult.isOk()) {
+      // Close the tasks tab for the deleted issue — otherwise the persisted
+      // tab survives and routes to a detail query that 404s.
+      useSurfaceTabsStore.getState().closeTab('tasks', issue!.id)
       toast.success('Issue deleted')
       if (onDelete) onDelete()
       else handleOpenIssues()

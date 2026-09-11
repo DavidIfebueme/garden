@@ -3,6 +3,7 @@ import { Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { UpdateIssueRequest } from '@garden/core/types'
 import { useIssueSelectionStore } from '@garden/app-state/issues/stores/selection-store'
+import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   AlertDialog,
@@ -48,6 +49,10 @@ export function BatchActionToolbar() {
   const remove = () => {
     deleteIssues.mutate(ids, {
       onSuccess: () => {
+        // Close tasks tabs for deleted issues — persisted tabs would
+        // otherwise route to detail queries that 404.
+        const { closeTab } = useSurfaceTabsStore.getState()
+        for (const id of ids) closeTab('tasks', id)
         clearSelection()
         toast.success(`Deleted ${count} issue${count === 1 ? '' : 's'}`)
       },

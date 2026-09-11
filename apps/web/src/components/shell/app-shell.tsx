@@ -25,6 +25,7 @@ import { CreateWorkspaceModal } from '@/features/modals/create-workspace'
 import {
   EMPTY_SURFACE_TABS,
   useSurfaceTabsStore,
+  withActiveTab,
 } from '@garden/app-state/surface-tabs'
 import { NAV_ITEMS, navItemForPathname } from '@/features/navigation/nav-items'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
@@ -141,7 +142,7 @@ export function AppShell() {
   // surface's open tabs. Active id comes from the route param when present.
   const tabbedNav =
     activeNavId === 'chats' || activeNavId === 'tasks' ? activeNavId : null
-  const surfaceTabs = useSurfaceTabsStore((s) =>
+  const storedSurfaceTabs = useSurfaceTabsStore((s) =>
     tabbedNav
       ? (s.bySurface[tabbedNav] ?? EMPTY_SURFACE_TABS)
       : EMPTY_SURFACE_TABS,
@@ -154,6 +155,13 @@ export function AppShell() {
       return params?.threadId ?? params?.issueId ?? null
     },
   })
+  // Union with the route-active entity so the arrows step a strip that
+  // matches what's rendered (SSR hard-loads and MAX_TABS eviction can leave
+  // the active entity out of the store — see withActiveTab).
+  const surfaceTabs = useMemo(
+    () => withActiveTab(storedSurfaceTabs, tabbedNav ? activeTabId : null),
+    [storedSurfaceTabs, tabbedNav, activeTabId],
+  )
   const tabStep = useMemo(() => {
     const current = surfaceTabs.findIndex((tab) => tab.id === activeTabId)
     return { current, count: surfaceTabs.length }

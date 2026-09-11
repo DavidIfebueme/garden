@@ -20,9 +20,12 @@ export const Route = createFileRoute('/_authenticated/_app/tasks/$issueId')({
   },
   loader: ({ params }) => {
     if (typeof window === 'undefined') return
-    useSurfaceTabsStore
-      .getState()
-      .upsertTab('tasks', { id: params.issueId, title: params.issueId })
+    // Upsert only when absent — re-upserting an existing tab would downgrade
+    // a real title to the raw id (upsert refreshes titles by design).
+    const { bySurface, upsertTab } = useSurfaceTabsStore.getState()
+    const tabs = bySurface['tasks'] ?? []
+    if (tabs.some((tab) => tab.id === params.issueId)) return
+    upsertTab('tasks', { id: params.issueId, title: params.issueId })
   },
   component: TaskDetailRoute,
 })
