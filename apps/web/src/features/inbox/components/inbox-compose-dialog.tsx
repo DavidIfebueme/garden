@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Image as ImageIcon, Link, Paperclip, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, Link, Paperclip, Trash2, X } from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   Dialog,
@@ -9,12 +9,30 @@ import {
   DialogTitle,
 } from '@garden/ui/components/ui/dialog'
 import { Input } from '@garden/ui/components/ui/input'
+import { Label } from '@garden/ui/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@garden/ui/components/ui/popover'
 import { Textarea } from '@garden/ui/components/ui/textarea'
 import { QuickEmojiPicker } from '@garden/ui/components/common/quick-emoji-picker'
 import { cn } from '@garden/ui/lib/utils'
 
 const fieldInputClassName =
   'h-8 border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const AVATAR_TONES = [
+  'bg-brand text-brand-foreground',
+  'bg-[color:var(--background-success-default)] text-[color:var(--text-success-on-success)]',
+  'bg-[color:var(--background-warning-default)] text-[color:var(--text-warning-on-warning)]',
+  'bg-[color:var(--blue-600)] text-white',
+] as const
 
 type InboxComposeDialogProps = {
   open: boolean
@@ -26,9 +44,10 @@ export function InboxComposeDialog({
   open,
   onOpenChange,
 }: InboxComposeDialogProps) {
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
   const [to, setTo] = useState('')
-  const [cc, setCc] = useState('')
-  const [bcc, setBcc] = useState('')
+  const [cc, setCc] = useState<string[]>([])
+  const [bcc, setBcc] = useState<string[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [showCc, setShowCc] = useState(false)
@@ -37,8 +56,8 @@ export function InboxComposeDialog({
 
   const resetCompose = () => {
     setTo('')
-    setCc('')
-    setBcc('')
+    setCc([])
+    setBcc([])
     setSubject('')
     setBody('')
     setShowCc(false)
@@ -51,7 +70,7 @@ export function InboxComposeDialog({
     if (!nextOpen) resetCompose()
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!to.trim() || !body.trim()) return
     handleOpenChange(false)
@@ -59,6 +78,23 @@ export function InboxComposeDialog({
 
   const addAttachment = (file: File) => {
     setAttachments((current) => [...current, file])
+  }
+
+  const insertIntoBody = (snippet: string) => {
+    const field = bodyRef.current
+    if (!field) {
+      setBody((current) => `${current}${snippet}`)
+      return
+    }
+    const start = field.selectionStart
+    const end = field.selectionEnd
+    const next = `${body.slice(0, start)}${snippet}${body.slice(end)}`
+    setBody(next)
+    const cursor = start + snippet.length
+    queueMicrotask(() => {
+      field.focus()
+      field.setSelectionRange(cursor, cursor)
+    })
   }
 
   const canSend = to.trim().length > 0 && body.trim().length > 0
@@ -106,23 +142,19 @@ export function InboxComposeDialog({
               }
             />
             {showCc ? (
-              <ComposeAddressRow
+              <ComposeEmailChipRow
                 id="inbox-compose-cc"
                 label="Cc:"
-                placeholder="Enter an email"
-                type="email"
-                value={cc}
-                onChange={setCc}
+                emails={cc}
+                onEmailsChange={setCc}
               />
             ) : null}
             {showBcc ? (
-              <ComposeAddressRow
+              <ComposeEmailChipRow
                 id="inbox-compose-bcc"
                 label="Bcc:"
-                placeholder="Enter an email"
-                type="email"
-                value={bcc}
-                onChange={setBcc}
+                emails={bcc}
+                onEmailsChange={setBcc}
               />
             ) : null}
             <ComposeAddressRow
@@ -135,6 +167,7 @@ export function InboxComposeDialog({
           </div>
 
           <Textarea
+            ref={bodyRef}
             id="inbox-compose-body"
             placeholder="Write your message here..."
             value={body}
@@ -145,7 +178,10 @@ export function InboxComposeDialog({
           {attachments.length > 0 ? (
             <ul className="border-t px-4 py-2 text-xs text-muted-foreground">
               {attachments.map((file) => (
-                <li key={`${file.name}-${file.lastModified}`} className="truncate">
+                <li
+                  key={`${file.name}-${file.lastModified}`}
+                  className="truncate"
+                >
                   {file.name}
                 </li>
               ))}
@@ -157,14 +193,14 @@ export function InboxComposeDialog({
               <Button
                 type="submit"
                 disabled={!canSend}
-                className="disabled:bg-muted py-5 cursor-pointer disabled:text-muted-foreground disabled:opacity-100"
+                className="cursor-pointer py-5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               >
                 Send message
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                className="py-5 px-5 cursor-pointer"
+                className="cursor-pointer px-5 py-5"
                 onClick={() => handleOpenChange(false)}
               >
                 Save to draft
@@ -174,13 +210,9 @@ export function InboxComposeDialog({
               <QuickEmojiPicker
                 align="end"
                 className="rounded-lg"
-                onSelect={(emoji) => setBody((current) => `${current}${emoji}`)}
+                onSelect={(emoji) => insertIntoBody(emoji)}
               />
-              <ComposeFileButton
-                icon={Link}
-                label="Attach file"
-                onSelect={addAttachment}
-              />
+              <ComposeLinkButton onInsert={insertIntoBody} />
               <ComposeFileButton
                 icon={Paperclip}
                 label="Attach document"
@@ -248,6 +280,226 @@ function ComposeAddressRow({
       {trailing}
     </div>
   )
+}
+
+
+function ComposeEmailChipRow({
+  id,
+  label,
+  emails,
+  onEmailsChange,
+}: {
+  id: string
+  label: string
+  emails: string[]
+  onEmailsChange: (emails: string[]) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [invalid, setInvalid] = useState(false)
+
+  const commitDraft = () => {
+    const next = draft.trim()
+    if (next.length === 0) return
+    if (!EMAIL_PATTERN.test(next)) {
+      setInvalid(true)
+      return
+    }
+    const alreadyAdded = emails.some(
+      (email) => email.toLowerCase() === next.toLowerCase(),
+    )
+    if (!alreadyAdded) onEmailsChange([...emails, next])
+    setDraft('')
+    setInvalid(false)
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitDraft()
+      return
+    }
+    if (event.key === 'Backspace' && draft.length === 0 && emails.length > 0) {
+      event.preventDefault()
+      onEmailsChange(emails.slice(0, -1))
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-3">
+      <label
+        htmlFor={id}
+        className="mt-1.5 shrink-0 text-sm font-semibold text-foreground"
+      >
+        {label}
+      </label>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+        {emails.map((email) => (
+          <EmailChip
+            key={email}
+            email={email}
+            onRemove={() =>
+              onEmailsChange(emails.filter((item) => item !== email))
+            }
+          />
+        ))}
+        <Input
+          id={id}
+          type="text"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="Enter an email"
+          value={draft}
+          aria-invalid={invalid || undefined}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            if (invalid) setInvalid(false)
+          }}
+          onKeyDown={handleKeyDown}
+          onBlur={commitDraft}
+          className={fieldInputClassName}
+          wrapperClassName="min-w-[10rem] flex-1"
+        />
+      </div>
+    </div>
+  )
+}
+
+function EmailChip({
+  email,
+  onRemove,
+}: {
+  email: string
+  onRemove: () => void
+}) {
+  const localPart = email.split('@')[0] ?? email
+  const initial = (localPart[0] ?? '?').toLowerCase()
+  const tone = avatarTone(email)
+
+  return (
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-muted py-0.5 pr-1 pl-0.5">
+      <span
+        className={cn(
+          'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium',
+          tone,
+        )}
+      >
+        {initial}
+      </span>
+      <span className="max-w-56 truncate text-sm text-foreground">
+        {email}
+      </span>
+      <button
+        type="button"
+        className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+        aria-label={`Remove ${email}`}
+        onClick={onRemove}
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  )
+}
+
+function avatarTone(email: string) {
+  let hash = 0
+  for (const char of email) {
+    hash = (hash + char.charCodeAt(0)) % AVATAR_TONES.length
+  }
+  return AVATAR_TONES[hash] ?? AVATAR_TONES[0]
+}
+
+
+function ComposeLinkButton({ onInsert }: { onInsert: (snippet: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [url, setUrl] = useState('')
+
+  const reset = () => {
+    setText('')
+    setUrl('')
+  }
+
+  const insertLink = () => {
+    const label = text.trim()
+    const href = normalizeHref(url.trim())
+    if (!href) return
+    onInsert(`[${label.length > 0 ? label : href}](${href})`)
+    reset()
+    setOpen(false)
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) reset()
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label="Enter link"
+          />
+        }
+      >
+        <Link className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        <PopoverHeader>
+          <PopoverTitle>Enter link</PopoverTitle>
+          <PopoverDescription>
+            Embed a labeled URL in the message.
+          </PopoverDescription>
+        </PopoverHeader>
+        <div className="grid gap-2">
+          <div className="grid gap-1">
+            <Label htmlFor="inbox-compose-link-text">Text</Label>
+            <Input
+              id="inbox-compose-link-text"
+              placeholder="Link text"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="inbox-compose-link-url">Link</Label>
+            <Input
+              id="inbox-compose-link-url"
+              type="url"
+              placeholder="https://"
+              value={url}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  insertLink()
+                }
+              }}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={url.trim().length === 0}
+            onClick={insertLink}
+          >
+            Embed
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function normalizeHref(value: string) {
+  if (value.length === 0) return ''
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value
+  return `https://${value}`
 }
 
 function ComposeFileButton({
