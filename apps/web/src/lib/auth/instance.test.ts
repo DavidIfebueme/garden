@@ -176,4 +176,47 @@ describe('createBetterAuth Google sign-in policy', () => {
     ).resolves.toBeUndefined()
     expect(findAccounts).toHaveBeenCalledWith('user-id')
   })
+
+  it('blocks concurrent credential unlink while Google unlink proceeds', async () => {
+    const auth = createBetterAuth(null as unknown as Db, authEnv)
+    const beforeHook = auth.options.hooks?.before
+    const findAccounts = vi
+      .fn()
+      .mockResolvedValue([
+        { providerId: 'google' },
+        { providerId: 'credential' },
+        { providerId: 'gmail' },
+      ])
+    const unlinkContext = (providerId: 'credential' | 'google') =>
+      ({
+        path: '/unlink-account',
+        method: 'POST',
+        body: { providerId },
+        context: {
+          session: {
+            session: { id: 'session-id' },
+            user: { id: 'user-id' },
+          },
+          internalAdapter: { findAccounts },
+        },
+      }) as never
+
+    expect(beforeHook).toBeDefined()
+    const [googleResult, credentialResult] = await Promise.allSettled([
+      beforeHook?.(unlinkContext('google')),
+      beforeHook?.(unlinkContext('credential')),
+    ])
+
+    expect(googleResult).toEqual({ status: 'fulfilled', value: undefined })
+    expect(credentialResult).toMatchObject({ status: 'rejected' })
+    if (credentialResult.status === 'rejected') {
+      expect(credentialResult.reason).toMatchObject({
+        body: {
+          code: 'CREDENTIAL_UNLINK_NOT_SUPPORTED',
+          message: 'Password sign-in cannot be removed',
+        },
+      })
+    }
+    expect(findAccounts).toHaveBeenCalledTimes(1)
+  })
 })
