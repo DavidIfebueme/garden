@@ -8,6 +8,7 @@ import type {
 import {
   createWorkspaceAwareStorage,
   registerForWorkspaceRehydration,
+  workspaceScopedMerge,
 } from '../../platform/workspace-storage'
 import { defaultStorage } from '../../platform/storage'
 
@@ -54,6 +55,11 @@ export const useIssueDraftStore = create<IssueDraftStore>()(
       storage: createJSONStorage(() =>
         createWorkspaceAwareStorage(defaultStorage),
       ),
+      // Cold-storage switch must reset, not keep the previous workspace's
+      // draft — see workspaceScopedMerge.
+      merge: workspaceScopedMerge<IssueDraftStore>({
+        draft: { ...EMPTY_DRAFT },
+      }),
     },
   ),
 )

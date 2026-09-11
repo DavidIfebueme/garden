@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   createWorkspaceAwareStorage,
   registerForWorkspaceRehydration,
+  workspaceScopedMerge,
 } from '../platform/workspace-storage'
 import { defaultStorage } from '../platform/storage'
 
@@ -104,6 +105,9 @@ export const useSurfaceTabsStore = create<SurfaceTabsState>()(
         createWorkspaceAwareStorage(defaultStorage),
       ),
       partialize: (state) => ({ bySurface: state.bySurface }),
+      // Cold-storage switch must reset, not keep the previous workspace's
+      // tabs — see workspaceScopedMerge.
+      merge: workspaceScopedMerge<SurfaceTabsState>({ bySurface: {} }),
     },
   ),
 )
