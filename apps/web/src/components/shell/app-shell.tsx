@@ -231,7 +231,7 @@ export function AppShell() {
     queryClient.clear()
     clearWorkspace()
     toast.success('Signed out')
-    void navigate({ to: '/login' })
+    void navigate({ to: '/login', search: { redirect: undefined } })
   }, [clearWorkspace, logout, queryClient, navigate])
 
   const hasSession = Boolean(user)

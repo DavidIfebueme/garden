@@ -11,6 +11,7 @@ import {
 import { Input } from '@garden/ui/components/ui/input'
 import { BrandIcon } from '@garden/ui/components/common/brand-icon'
 import { EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react'
+import { BrandGoogleIcon } from '@/components/icons/brand-google-icon'
 
 /**
  * Auth panel for sign-in / sign-up.
@@ -40,7 +41,10 @@ export function LoginForm({
   password,
   error,
   loading,
+  googleAuthEnabled = false,
+  googleLoading = false,
   redirectTarget,
+  onGoogleSignIn,
   onSubmit,
   onNameChange,
   onEmailChange,
@@ -62,7 +66,10 @@ export function LoginForm({
   password: string
   error?: string
   loading?: boolean
+  googleAuthEnabled?: boolean
+  googleLoading?: boolean
   redirectTarget?: string
+  onGoogleSignIn?: () => void
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
   onNameChange: (value: string) => void
   onEmailChange: (value: string) => void
@@ -115,6 +122,35 @@ export function LoginForm({
 
         <form className="mt-8" onSubmit={onSubmit}>
           <FieldGroup className="gap-5">
+            {googleAuthEnabled ? (
+              <>
+                <Field>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-full bg-bone/60"
+                    disabled={loading || googleLoading}
+                    onClick={onGoogleSignIn}
+                  >
+                    {googleLoading ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : (
+                      <BrandGoogleIcon className="size-4" aria-hidden="true" />
+                    )}
+                    {googleLoading
+                      ? 'Opening Google...'
+                      : 'Continue with Google'}
+                  </Button>
+                </Field>
+
+                <div className="flex items-center gap-3" aria-hidden="true">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              </>
+            ) : null}
+
             {isSignup ? (
               <Field>
                 <FieldLabel htmlFor="name">Name</FieldLabel>
@@ -196,7 +232,11 @@ export function LoginForm({
             <FieldError>{error}</FieldError>
 
             <Field>
-              <Button type="submit" className="h-10 w-full" disabled={loading}>
+              <Button
+                type="submit"
+                className="h-10 w-full"
+                disabled={loading || googleLoading}
+              >
                 {loading ? (
                   <Loader2Icon className="size-4 animate-spin" />
                 ) : null}
