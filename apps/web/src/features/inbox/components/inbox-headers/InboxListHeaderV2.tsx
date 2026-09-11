@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Input } from '@garden/ui/components/ui/input';
+import { Search, Sparkles } from 'lucide-react';
 
 export const InboxListHeaderV2 = () => {
     const [searchValue, setSearchValue] = useState('');
@@ -32,6 +33,27 @@ export const InboxListHeaderV2 = () => {
                     onChange={handleSearchChange}
                     placeholder="Search"
                     className="h-10 bg-background shadow-none"
+                    leftIcon={<Search className="w-4 h-4 text-muted-foreground" />}
+                    rightIcon={
+                        <button
+                            type="button"
+                            className="flex items-center justify-center transition-opacity hover:opacity-80 focus:outline-none cursor-pointer"
+                            aria-label="AI Search"
+                        >
+                            <svg width="0" height="0" className="absolute">
+                                <defs>
+                                    <linearGradient id="sparkles-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="rgba(138, 56, 245, 1)" />
+                                        <stop offset="100%" stopColor="rgba(23, 124, 255, 1)" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <Sparkles
+                                className="w-4 h-4"
+                                stroke="url(#sparkles-gradient)"
+                            />
+                        </button>
+                    }
                 />
             </div>
 
@@ -55,7 +77,7 @@ export const InboxListHeaderV2 = () => {
                 })}
             </div>
 
-            {/* Dynamic Banner */}
+            {/* Banner */}
             <div className="px-2.5 text-xs py-1 bg-muted uppercase mt-3 rounded-sm text-muted-foreground font-medium">
                 {filterDescriptions[activeFilter] ?? `${activeFilter} notifications`}
             </div>
