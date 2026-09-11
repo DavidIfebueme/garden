@@ -1,6 +1,7 @@
 import { Result } from 'better-result'
 import { eq } from 'drizzle-orm'
 import { createServerFn } from '@tanstack/react-start'
+import { setResponseHeader } from '@tanstack/react-start/server'
 import { requireAppRequestContext } from '@/lib/server/context'
 import { toWorkspaceFromOrganization } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
@@ -68,6 +69,39 @@ const rawGetAuthBootstrap = createServerFn({ method: 'GET' }).handler(
           requestedWorkspaceId,
           activeOrganizationId,
         )
+
+        // Persist an explicit workspace choice from the URL (deep links from
+        // emails/shares) as the session's active org. Without this the
+        // selection was bootstrap-only: after navigating away from the
+        // deep-linked route the param is gone, and the next reload silently
+        // hydrated the previous org (2026-09 audit). Failures degrade to the
+        // old bootstrap-only behavior — selection still wins for this load.
+        if (
+          requestedWorkspaceId !== null &&
+          requestedWorkspaceId === preferredWorkspaceId &&
+          requestedWorkspaceId !== activeOrganizationId
+        ) {
+          const setActive = await Result.tryPromise({
+            try: async () =>
+              (await auth.api.setActiveOrganization({
+                headers: appContext.request.headers,
+                body: { organizationId: requestedWorkspaceId },
+                returnHeaders: true,
+              })) as { headers: Headers; response: unknown },
+            catch: (cause) => cause,
+          })
+          if (Result.isOk(setActive)) {
+            // Server-side auth.api calls don't reach the browser's cookie
+            // jar on their own — forward the refreshed session cookie.
+            const cookies = setActive.value.headers.getSetCookie()
+            if (cookies.length > 0) setResponseHeader('set-cookie', cookies)
+          } else {
+            bootstrapLogger.warn('auth.bootstrap.set_active_failed', {
+              ...requestFields(appContext.request),
+              ...errorFields(setActive.error),
+            })
+          }
+        }
 
         return {
           preferredWorkspaceId,

@@ -57,7 +57,13 @@ export const Route = createFileRoute('/_authenticated/workspace')({
         },
       })
     }
-    throw redirect({ to: '/home' })
+    // Forward workspace_id: dock-era links carrying only the org param must
+    // still land on the requested workspace (bootstrap reads it at SSR and
+    // persists it as the session's active org).
+    throw redirect({
+      to: '/home',
+      search: search.workspace_id ? { workspace_id: search.workspace_id } : {},
+    })
   },
   component: () => null,
 })

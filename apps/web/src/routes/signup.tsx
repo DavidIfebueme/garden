@@ -20,7 +20,7 @@ export const Route = createFileRoute('/signup')({
     if (!session) return
 
     throw redirect({
-      href: search.redirect ?? '/workspace',
+      href: search.redirect ?? '/home',
     })
   },
   loaderDeps: ({ search }) => ({ redirect: search.redirect }),
@@ -60,7 +60,7 @@ function SignUpRoute() {
         invitationIsPending ? invitation.organizationName : undefined
       }
       onSuccess={() =>
-        void navigate({ href: search.redirect ?? '/workspace', replace: true })
+        void navigate({ href: search.redirect ?? '/home', replace: true })
       }
     />
   )
