@@ -6,11 +6,12 @@ import { appEnv } from '../env'
 
 export class ConnectionMirrorError extends Schema.TaggedError<ConnectionMirrorError>()(
   'ConnectionMirrorError',
-)({
-  operation: Schema.String,
-  message: Schema.String,
-  cause: Schema.optional(Schema.Unknown),
-}) {}
+  {
+    operation: Schema.String,
+    message: Schema.String,
+    cause: Schema.optional(Schema.Unknown),
+  },
+) {}
 
 const mirrorProviderId = (executorSlug: string, connectionName: string) =>
   `executor:${executorSlug}:${connectionName}`
