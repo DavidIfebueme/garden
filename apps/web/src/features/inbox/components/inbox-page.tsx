@@ -17,7 +17,7 @@ import type { InboxItem } from '@garden/core/types'
 import { Button } from '@garden/ui/components/ui/button'
 
 import { useIsMobile } from '@garden/ui/hooks/use-mobile'
-import { InboxListItem } from './inbox-list-item'
+import { InboxListItemV2 } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
@@ -421,7 +421,7 @@ export function InboxPage() {
     ) : (
       <div>
         {items.map((item) => (
-          <InboxListItem
+          <InboxListItemV2
             key={item.id}
             item={item}
             isSelected={item.id === selectedKey}

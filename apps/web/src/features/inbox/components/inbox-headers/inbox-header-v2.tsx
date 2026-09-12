@@ -93,7 +93,7 @@ export const InboxListHeaderV2 = ({
             </div>
 
             {/* Banner */}
-            <div className="px-2.5 text-xs py-1 bg-muted uppercase mt-3 rounded-sm text-muted-foreground font-medium">
+            <div className="px-2.5 text-xs py-1 bg-muted uppercase my-3 rounded-sm text-muted-foreground font-medium">
                 {filterDescriptions[activeFilter] ?? `${activeFilter} notifications`}
             </div>
         </div>
