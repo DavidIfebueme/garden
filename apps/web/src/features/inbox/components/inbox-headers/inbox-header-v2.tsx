@@ -2,26 +2,41 @@ import React, { useState } from 'react';
 import { Input } from '@garden/ui/components/ui/input';
 import { Search, Sparkles } from 'lucide-react';
 
-export const InboxListHeaderV2 = () => {
-    const [searchValue, setSearchValue] = useState('');
-    const [activeFilter, setActiveFilter] = useState('All');
+type InboxListHeaderV2Props = {
+    search: string
+    onSearchChange: (value: string) => void
+    unreadsOnly: boolean
+    onUnreadsOnlyChange: (value: boolean) => void
+    unreadCount: number
+}
 
+export const InboxListHeaderV2 = ({
+    search,
+    onSearchChange,
+    unreadsOnly,
+    onUnreadsOnlyChange,
+    unreadCount,
+}: InboxListHeaderV2Props) => {
+    const [activeFilter, setActiveFilter] = useState(unreadsOnly ? 'Unread' : 'All');
     const filterOptions = ['All', 'Unread', 'Sent', 'In-draft'];
 
     const filterDescriptions: Record<string, string> = {
         All: 'All notifications',
-        Unread: 'Unread notifications',
+        Unread: `${unreadCount} unread notifications`,
         Sent: 'Sent notifications',
         'In-draft': 'Draft notifications',
     };
 
     const handleFilterClick = (filter: string) => {
         setActiveFilter(filter);
+        if (filter === 'All' || filter === 'Unread') {
+            onUnreadsOnlyChange(filter === 'Unread');
+        }
     };
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setSearchValue(value);
+        onSearchChange(value);
     };
 
     return (
@@ -29,7 +44,7 @@ export const InboxListHeaderV2 = () => {
             {/* Search */}
             <div className="p-3">
                 <Input
-                    value={searchValue}
+                    value={search}
                     onChange={handleSearchChange}
                     placeholder="Search"
                     className="h-10 bg-background shadow-none"

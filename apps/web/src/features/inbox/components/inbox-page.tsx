@@ -5,10 +5,6 @@ import { inboxListOptions, deduplicateInboxItems } from '@/lib/inbox/queries'
 import {
   useMarkInboxRead,
   useArchiveInbox,
-  useMarkAllInboxRead,
-  useArchiveAllInbox,
-  useArchiveAllReadInbox,
-  useArchiveCompletedInbox,
 } from '@/lib/inbox/mutations'
 import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
@@ -27,10 +23,8 @@ import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
 import { Icon as IconifyIcon } from '@iconify/react';
 import { InboxNotificationDetailV1 } from './inbox-details/inbox-notification-details-v1'
+import { generateInboxTestItems } from './inbox-utils'
 
-// ---------------------------------------------------------------------------
-// List pane header + search — sidebar-09 style
-// ---------------------------------------------------------------------------
 
 
 
@@ -294,72 +288,10 @@ function focusForInboxItem(item: InboxItem): string | null {
   return null
 }
 
-// function InboxNotificationDetail({
-//   item,
-//   onArchive,
-//   onOpenIssue,
-// }: {
-//   item: InboxItem
-//   onArchive: () => void
-//   onOpenIssue: () => void
-// }) {
-//   const { getActorName } = useActorName()
-//   const actorName =
-//     getActorName(
-//       item.actor_type ?? item.recipient_type,
-//       item.actor_id ?? item.recipient_id,
-//     ) || typeLabels[item.type]
-//   const issueNumber = item.details?.issue_number
-//   const cta = ctaForInboxItem(item)
 
-//   return (
-//     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-//       <div className="shrink-0 border-b px-6 py-5">
-//         <div className="flex items-start justify-between gap-4">
-//           <div className="min-w-0 space-y-1">
-//             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-//               {!item.read && (
-//                 <span className="size-1.5 rounded-full bg-brand" />
-//               )}
-//               <span>{typeLabels[item.type]}</span>
-//               <span>·</span>
-//               <span>{timeAgo(item.created_at)}</span>
-//               {issueNumber && (
-//                 <>
-//                   <span>·</span>
-//                   <span className="font-mono">#{issueNumber}</span>
-//                 </>
-//               )}
-//             </div>
-//             <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
-//               {item.title}
-//             </h2>
-//             <p className="text-sm text-muted-foreground">{actorName}</p>
-//           </div>
-//           <Button variant="ghost" size="sm" onClick={onArchive}>
-//             <Archive className="mr-1.5 h-3.5 w-3.5" />
-//             Archive
-//           </Button>
-//         </div>
-//       </div>
-
-//       <div className="w-full max-w-3xl space-y-5 p-6">
-//         <InboxItemPreviewCard item={item} />
-//         <InboxControlPlane item={item} />
-//         {item.issue_id && (
-//           <Button size="sm" onClick={onOpenIssue}>
-//             <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-//             {cta}
-//           </Button>
-//         )}
-//       </div>
-//     </div>
-//   )
-// }
-
-// ---------------------------------------------------------------------------
+// -------------------------
 // Page
-// ---------------------------------------------------------------------------
+// ------------------------
 
 export function InboxPage() {
   const { searchParams, replace } = useNavigation()
@@ -371,9 +303,7 @@ export function InboxPage() {
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
-      // Persist selection in the search params on whatever route we're on so
-      // we don't trigger a TanStack Router 404 (no `/inbox` route exists —
-      // the inbox is a dock panel, not a path).
+
       if (typeof window === 'undefined') return
       const url = new URL(window.location.href)
       if (key) url.searchParams.set('item', key)
@@ -391,7 +321,8 @@ export function InboxPage() {
   )
 
   const wsId = useWorkspaceId()
-  const { data: rawItems = [] } = useQuery(inboxListOptions(wsId))
+  const { data: queryItems = [] } = useQuery(inboxListOptions(wsId))
+  const rawItems = useMemo(() => generateInboxTestItems(queryItems), [queryItems])
   const allItems = useMemo(() => deduplicateInboxItems(rawItems), [rawItems])
 
   const { getActorName } = useActorName()
@@ -427,12 +358,7 @@ export function InboxPage() {
 
   const markReadMutation = useMarkInboxRead()
   const archiveMutation = useArchiveInbox()
-  const markAllReadMutation = useMarkAllInboxRead()
-  const archiveAllMutation = useArchiveAllInbox()
-  const archiveAllReadMutation = useArchiveAllReadInbox()
-  const archiveCompletedMutation = useArchiveCompletedInbox()
 
-  // Click-to-read: select + auto-mark-read
   const handleSelect = (item: InboxItem) => {
     setSelectedKey(item.id, item)
     if (!item.read) {
@@ -447,35 +373,6 @@ export function InboxPage() {
     if (archived && archived.id === selectedKey) setSelectedKey('')
     archiveMutation.mutate(id, {
       onError: () => toast.error('Failed to archive'),
-    })
-  }
-
-  // Batch operations
-  const handleMarkAllRead = () => {
-    markAllReadMutation.mutate(undefined, {
-      onError: () => toast.error('Failed to mark all as read'),
-    })
-  }
-
-  const handleArchiveAll = () => {
-    setSelectedKey('')
-    archiveAllMutation.mutate(undefined, {
-      onError: () => toast.error('Failed to archive all'),
-    })
-  }
-
-  const handleArchiveAllRead = () => {
-    const readKeys = allItems.filter((i) => i.read).map((i) => i.id)
-    if (readKeys.includes(selectedKey)) setSelectedKey('')
-    archiveAllReadMutation.mutate(undefined, {
-      onError: () => toast.error('Failed to archive read items'),
-    })
-  }
-
-  const handleArchiveCompleted = () => {
-    setSelectedKey('')
-    archiveCompletedMutation.mutate(undefined, {
-      onError: () => toast.error('Failed to archive completed'),
     })
   }
 
@@ -495,18 +392,13 @@ export function InboxPage() {
   // -- Shared sub-components --------------------------------------------------
 
   const listHeader = (
-    // <InboxListHeaderV1
-    //   unreadCount={unreadCount}
-    //   search={search}
-    //   onSearchChange={setSearch}
-    //   unreadsOnly={unreadsOnly}
-    //   onUnreadsOnlyChange={setUnreadsOnly}
-    //   onMarkAllRead={handleMarkAllRead}
-    //   onArchiveAll={handleArchiveAll}
-    //   onArchiveAllRead={handleArchiveAllRead}
-    //   onArchiveCompleted={handleArchiveCompleted}
-    // />
-    <InboxListHeaderV2 />
+    <InboxListHeaderV2
+      unreadCount={unreadCount}
+      search={search}
+      onSearchChange={setSearch}
+      unreadsOnly={unreadsOnly}
+      onUnreadsOnlyChange={setUnreadsOnly}
+    />
   )
 
   const listBody =
