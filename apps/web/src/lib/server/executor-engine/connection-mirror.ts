@@ -4,7 +4,7 @@ import { getConnectorByExecutorSlug } from '@garden/connectors/registry'
 import { getDb, schema } from '../db'
 import { appEnv } from '../env'
 
-export class ConnectionMirrorError extends Schema.ErrorClass<ConnectionMirrorError>(
+export class ConnectionMirrorError extends Schema.TaggedError<ConnectionMirrorError>()(
   'ConnectionMirrorError',
 )({
   operation: Schema.String,
