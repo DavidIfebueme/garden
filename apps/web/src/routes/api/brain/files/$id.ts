@@ -10,6 +10,11 @@ import {
   brainFileStatusOf,
 } from '@/features/brain/contract'
 import {
+  brainFileSummaryOf,
+  loadBrainFileOwnerNames,
+} from '@/lib/server/brain-file-summary'
+import { deleteBrainFolderMembershipsByFileId } from '@/lib/server/brain-folders'
+import {
   requireAppRequestContext,
   type AppRequestContext,
 } from '@/lib/server/context'
@@ -103,12 +108,12 @@ export const getBrainFileStatus = async ({
   const item = readResult.success
   if (item === null) return notFound('Brain file not found')
 
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: [item],
+  })
   const body = BrainFileResponseSchema.parse({
-    item: {
-      id: item.id,
-      name: item.label,
-      status: brainFileStatusOf(item),
-    },
+    item: brainFileSummaryOf(item, ownerNames),
   })
 
   return Response.json(body, {
@@ -226,12 +231,12 @@ export const retryBrainFileIndexing = async ({
     )
   }
 
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: [item],
+  })
   const body = BrainFileResponseSchema.parse({
-    item: {
-      id: item.id,
-      name: item.label,
-      status,
-    },
+    item: { ...brainFileSummaryOf(item, ownerNames), status },
   })
 
   return Response.json(body, { status: status === 'ready' ? 200 : 202 })
@@ -313,6 +318,29 @@ export const deleteBrainFile = async ({
         ...errorFields(cleanupResult.failure),
       })
     }
+  }
+
+  // Drop the file's folder membership rows so card counts can't drift from
+  // the detail view. Failure must not fail the request — the file IS deleted.
+  const membershipCleanup = await Effect.runPromise(
+    Effect.result(
+      Effect.tryPromise({
+        try: () =>
+          deleteBrainFolderMembershipsByFileId({
+            env,
+            workspaceId: workspaceContext.workspaceId,
+            fileId: deleted.id,
+          }),
+        catch: (cause) => cause,
+      }),
+    ),
+  )
+  if (EffectResult.isFailure(membershipCleanup)) {
+    brainFileLogger.error('brain file folder-membership cleanup failed', {
+      itemId: deleted.id,
+      workspaceId: workspaceContext.workspaceId,
+      ...errorFields(membershipCleanup.failure),
+    })
   }
 
   return new Response(null, { status: 204 })

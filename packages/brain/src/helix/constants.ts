@@ -10,6 +10,7 @@ export const PROPS = {
   label: 'label',
   summary: 'summary',
   r2Key: 'r2_key',
+  sizeBytes: 'size_bytes',
   canonicalType: 'canonical_type',
   canonicalValue: 'canonical_value',
   indexed: 'indexed',

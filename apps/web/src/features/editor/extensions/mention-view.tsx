@@ -21,7 +21,7 @@ import type { NodeViewProps } from '@tiptap/react'
 import { useQuery } from '@tanstack/react-query'
 import { issueListOptions, issueDetailOptions } from '@/lib/issues/queries'
 import { useWorkspaceId } from '@garden/app-state/hooks'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { Badge } from '@garden/ui/components/ui/badge'
 import { StatusIcon } from '../../issues/components/status-icon'
 import { MemberMentionTag } from '../../common/member-mention-tag'
@@ -53,7 +53,7 @@ function IssueMention({
 }) {
   const wsId = useWorkspaceId()
   const { data: issues = [] } = useQuery(issueListOptions(wsId))
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const listIssue = issues.find((i) => i.id === issueId)
 
   const { data: detailIssue } = useQuery({
@@ -65,10 +65,9 @@ function IssueMention({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    dock?.openPanel({
-      kind: 'issue-detail',
+    openIssue({
+      id: issueId,
       title: issue?.title ?? fallbackLabel ?? issueId,
-      entityId: issueId,
     })
   }
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { issueListOptions, issueDetailOptions } from '@/lib/issues/queries'
 import { useWorkspaceId } from '@garden/app-state/hooks'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { Badge } from '@garden/ui/components/ui/badge'
 import type { IssueStatus } from '@garden/core/types'
 import { StatusIcon } from './status-icon'
@@ -40,7 +40,7 @@ export function IssueMentionCard({
   const wsId = useWorkspaceId()
   const { data: issues = [] } = useQuery(issueListOptions(wsId))
   const listIssue = issues.find((i) => i.id === issueId)
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
 
   // Fetch individual issue when not found in the list (e.g. done issues beyond
   // the first page). Only fires when listIssue is undefined.
@@ -53,10 +53,9 @@ export function IssueMentionCard({
   const handleOpen = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    dock?.openPanel({
-      kind: 'issue-detail',
+    openIssue({
+      id: issueId,
       title: issue?.title ?? fallbackLabel ?? issueId,
-      entityId: issueId,
     })
   }
 

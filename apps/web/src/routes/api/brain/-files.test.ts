@@ -70,6 +70,9 @@ vi.mock('@garden/brain/services/web', async () => {
                 ? {}
                 : { summary: input.summary }),
               ...(input.r2Key === undefined ? {} : { r2Key: input.r2Key }),
+              ...(input.sizeBytes === undefined
+                ? {}
+                : { sizeBytes: input.sizeBytes }),
               ...(input.canonical === undefined
                 ? {}
                 : { canonical: input.canonical }),
@@ -194,6 +197,36 @@ vi.mock('@/lib/server/chat-agents', () => ({
 vi.mock('@/lib/server/db', () => ({
   getDb: vi.fn().mockResolvedValue({ id: 'db' }),
 }))
+
+const mockDeleteBrainFolderMemberships = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/server/brain-folders', () => ({
+  deleteBrainFolderMembershipsByFileId: mockDeleteBrainFolderMemberships,
+}))
+
+vi.mock('@/lib/server/brain-file-summary', async () => {
+  const { DateTime } = await import('effect')
+  const { brainFileStatusOf } = await vi.importActual<
+    typeof import('@/features/brain/contract')
+  >('@/features/brain/contract')
+  return {
+    brainFileSummaryOf: (item: {
+      id: string
+      label: string
+      indexed: boolean
+      indexStatus?: 'processing' | 'ready' | 'failed'
+      sizeBytes?: number
+      origin: { at: Parameters<typeof DateTime.toDate>[0] }
+    }) => ({
+      id: item.id,
+      name: item.label,
+      status: brainFileStatusOf(item),
+      uploadedAt: DateTime.toDate(item.origin.at).toISOString(),
+      ...(item.sizeBytes === undefined ? {} : { sizeBytes: item.sizeBytes }),
+    }),
+    loadBrainFileOwnerNames: async () => new Map<string, string>(),
+  }
+})
 
 const stubAi = {
   run: async (model: string, input: { text: string | string[] }) => {
@@ -576,7 +609,13 @@ describe('POST /api/brain/files', () => {
     expect(item.id).toBeTruthy()
     expect(item.name).toBe('helixdb.pdf')
     expect(item.status).toBe('processing')
-    expect(Object.keys(item).sort()).toEqual(['id', 'name', 'status'])
+    expect(Object.keys(item).sort()).toEqual([
+      'id',
+      'name',
+      'sizeBytes',
+      'status',
+      'uploadedAt',
+    ])
     expect(objects.size).toBe(1)
     expect([...objects.keys()][0]).toContain(workspaceId)
 
@@ -752,8 +791,14 @@ describe('GET /api/brain/files/$id', () => {
       id: item.id,
       name: item.label,
       status,
+      uploadedAt: expect.any(String),
     })
-    expect(Object.keys(body.item).sort()).toEqual(['id', 'name', 'status'])
+    expect(Object.keys(body.item).sort()).toEqual([
+      'id',
+      'name',
+      'status',
+      'uploadedAt',
+    ])
   })
 
   it('does not expose a file from another workspace', async () => {
@@ -797,6 +842,7 @@ describe('POST /api/brain/files/$id', () => {
         id: item.id,
         name: item.label,
         status: 'processing',
+        uploadedAt: expect.any(String),
       },
     })
     expect(deferred).toHaveLength(1)
@@ -849,6 +895,32 @@ describe('DELETE /api/brain/files/$id', () => {
     expect(response.status).toBe(204)
     expect(mockBrainItems.has(item.id)).toBe(false)
     expect(files.objects.has(item.r2Key as string)).toBe(false)
+  })
+
+  it('drops folder membership rows for the deleted file', async () => {
+    mockDeleteBrainFolderMemberships.mockResolvedValueOnce(undefined)
+    const files = makeFiles()
+    const item = storeBrainFile({ indexed: false, indexStatus: 'failed' })
+
+    const { response } = await deleteFile({ files })
+
+    expect(response.status).toBe(204)
+    expect(mockDeleteBrainFolderMemberships).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: item.id }),
+    )
+  })
+
+  it('still answers 204 when membership cleanup fails', async () => {
+    mockDeleteBrainFolderMemberships.mockRejectedValueOnce(
+      new Error('db unavailable'),
+    )
+    const files = makeFiles()
+    const item = storeBrainFile({ indexed: false, indexStatus: 'failed' })
+
+    const { response } = await deleteFile({ files })
+
+    expect(response.status).toBe(204)
+    expect(mockBrainItems.has(item.id)).toBe(false)
   })
 
   it('does not delete a file from another workspace', async () => {
@@ -1046,23 +1118,31 @@ describe('GET /api/brain/files', () => {
           id: processing.id,
           name: processing.label,
           status: 'processing',
+          uploadedAt: expect.any(String),
         },
         {
           id: ready.id,
           name: ready.label,
           status: 'ready',
+          uploadedAt: expect.any(String),
         },
         {
           id: failed.id,
           name: failed.label,
           status: 'failed',
+          uploadedAt: expect.any(String),
         },
       ]),
     )
     expect(body.items).toHaveLength(3)
 
     for (const item of body.items) {
-      expect(Object.keys(item).sort()).toEqual(['id', 'name', 'status'])
+      expect(Object.keys(item).sort()).toEqual([
+        'id',
+        'name',
+        'status',
+        'uploadedAt',
+      ])
     }
   })
 })

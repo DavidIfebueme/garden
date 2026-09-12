@@ -34,7 +34,7 @@ import { cn } from '@garden/ui/lib/utils'
 import { useWorkspaceId } from '@garden/app-state/hooks'
 import { STATUS_CONFIG } from '@garden/core/issues/config'
 import { PriorityIcon, StatusIcon } from '@/features/issues/components'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import {
   dashboardActivityOptions,
   dashboardDistributionOptions,
@@ -414,9 +414,9 @@ function DashboardPageFixture() {
             <DistributionBars
               emptyLabel="No status data"
               entries={[
-                { name: 'todo', value: 7, color: '#3b82f6' },
-                { name: 'in progress', value: 5, color: '#0ea5e9' },
-                { name: 'done', value: 6, color: '#22c55e' },
+                { name: 'todo', value: 7, color: 'var(--blue-500)' },
+                { name: 'in progress', value: 5, color: 'var(--blue-400)' },
+                { name: 'done', value: 6, color: 'var(--green-600)' },
               ]}
             />
           </ChartCard>
@@ -424,9 +424,9 @@ function DashboardPageFixture() {
             <DistributionBars
               emptyLabel="No priority data"
               entries={[
-                { name: 'high', value: 4, color: '#ef4444' },
-                { name: 'medium', value: 8, color: '#f59e0b' },
-                { name: 'low', value: 6, color: '#22c55e' },
+                { name: 'high', value: 4, color: 'var(--util-color-10)' },
+                { name: 'medium', value: 8, color: 'var(--yellow-500)' },
+                { name: 'low', value: 6, color: 'var(--green-500)' },
               ]}
             />
           </ChartCard>
@@ -826,28 +826,20 @@ function DashboardResourcesSection({
 
 export function DashboardPage() {
   const wsId = useWorkspaceId()
-  const dock = useWorkspaceDock()
+  const { openIssue, openConnections, navigate } = useSurfaceNavigation()
 
   const openIssues = useCallback(
-    () => dock?.openPanel({ kind: 'issues', title: 'Tasks' }),
-    [dock],
+    () => void navigate({ to: '/tasks' }),
+    [navigate],
   )
   const openInbox = useCallback(
-    () => dock?.openPanel({ kind: 'inbox', title: 'Inbox' }),
-    [dock],
-  )
-  const openConnections = useCallback(
-    () => dock?.openPanel({ kind: 'capabilities', title: 'Connections' }),
-    [dock],
+    () => void navigate({ to: '/inbox' }),
+    [navigate],
   )
   const openIssueDetail = useCallback(
     (issue: { id: string; title: string }) =>
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: issue.title,
-        entityId: issue.id,
-      }),
-    [dock],
+      openIssue({ id: issue.id, title: issue.title }),
+    [openIssue],
   )
 
   return (

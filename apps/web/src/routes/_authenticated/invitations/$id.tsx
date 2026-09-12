@@ -29,12 +29,9 @@ export const Route = createFileRoute('/_authenticated/invitations/$id')({
 
     if (result.status === 'accepted') {
       throw redirect({
-        to: '/workspace',
+        to: '/home',
         search: {
-          connector_flow: undefined,
-          connector_id: undefined,
           workspace_id: result.workspaceId,
-          issue: undefined,
         },
       })
     }
@@ -72,13 +69,8 @@ function InvitationRoute() {
             variant="outline"
             onClick={() =>
               void navigate({
-                to: '/workspace',
-                search: {
-                  connector_flow: undefined,
-                  connector_id: undefined,
-                  workspace_id: undefined,
-                  issue: undefined,
-                },
+                to: '/home',
+                search: {},
               })
             }
           >
@@ -99,13 +91,8 @@ function InvitationRoute() {
         className="mt-8"
         onClick={() =>
           void navigate({
-            to: '/workspace',
-            search: {
-              connector_flow: undefined,
-              connector_id: undefined,
-              workspace_id: undefined,
-              issue: undefined,
-            },
+            to: '/home',
+            search: {},
           })
         }
       >

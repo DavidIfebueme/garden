@@ -71,10 +71,6 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import {
-  IconLayoutSidebarLeftCollapse,
-  IconLayoutSidebarLeftExpand,
-} from '@tabler/icons-react'
 import { HeaderAttachmentsMenu } from './chat-message-files'
 import { IssueMentionCard } from '@/features/issues/components/issue-mention-card'
 
@@ -175,8 +171,6 @@ export function ConnectedChatPanelInteraction({
   panelDescription,
   panelTitle,
   runtime,
-  sidebarState,
-  toggleSidebar,
   updateSessionPreview,
 }: {
   activeSession: AgentChatSession
@@ -187,8 +181,6 @@ export function ConnectedChatPanelInteraction({
   panelDescription?: string | null
   panelTitle: string
   runtime: ChatRuntime
-  sidebarState: 'collapsed' | 'expanded'
-  toggleSidebar: () => void
   updateSessionPreview: ReturnType<
     typeof useAgentSessions
   >['updateSessionPreview']
@@ -523,8 +515,6 @@ export function ConnectedChatPanelInteraction({
       primaryIssue={activeSession.primaryIssue}
       onClose={onClose}
       sessionId={sessionId}
-      sidebarState={sidebarState}
-      onToggleSidebar={toggleSidebar}
       onOpenAttachment={openDocumentAttachment}
       sidePanel={
         <DocumentSidePanel
@@ -683,28 +673,24 @@ function ShellFrame({
   className,
   onClose,
   onOpenAttachment,
-  onToggleSidebar,
   panelDescription,
   panelTitle,
   primaryIssueId = null,
   primaryIssue = null,
   sessionId = null,
   sidePanel,
-  sidebarState,
 }: {
   attachments?: ChatHeaderAttachment[]
   children: React.ReactNode
   className?: string
   onClose?: () => void
   onOpenAttachment?: (attachment: ChatHeaderAttachment) => void
-  onToggleSidebar: () => void
   panelDescription?: string | null
   panelTitle: string
   primaryIssueId?: string | null
   primaryIssue?: AgentChatSession['primaryIssue']
   sessionId?: string | null
   sidePanel?: React.ReactNode
-  sidebarState: 'collapsed' | 'expanded'
 }) {
   const debugMode = useDevSettingsStore((s) => s.debugMode)
 
@@ -713,27 +699,6 @@ function ShellFrame({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggleSidebar}
-              aria-label={
-                sidebarState === 'expanded'
-                  ? 'Collapse sidebar'
-                  : 'Expand sidebar'
-              }
-              title={
-                sidebarState === 'expanded'
-                  ? 'Collapse sidebar'
-                  : 'Expand sidebar'
-              }
-            >
-              {sidebarState === 'expanded' ? (
-                <IconLayoutSidebarLeftCollapse className="size-4" />
-              ) : (
-                <IconLayoutSidebarLeftExpand className="size-4" />
-              )}
-            </Button>
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 <div className="truncate font-prose text-sm font-semibold">

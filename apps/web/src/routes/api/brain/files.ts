@@ -10,8 +10,11 @@ import { createGardenLogger, errorFields } from '@garden/observability/logger'
 import {
   BrainFileListResponseSchema,
   BrainFileResponseSchema,
-  brainFileStatusOf,
 } from '@/features/brain/contract'
+import {
+  brainFileSummaryOf,
+  loadBrainFileOwnerNames,
+} from '@/lib/server/brain-file-summary'
 import {
   requireAppRequestContext,
   type AppRequestContext,
@@ -91,12 +94,14 @@ export const getBrainFiles = async ({
     )
   }
 
+  const ownerNames = await loadBrainFileOwnerNames({
+    env: appContext.env,
+    items: listResult.success,
+  })
   const body = BrainFileListResponseSchema.parse({
-    items: listResult.success.map((item) => ({
-      id: item.id,
-      name: item.label,
-      status: brainFileStatusOf(item),
-    })),
+    items: listResult.success.map((item) =>
+      brainFileSummaryOf(item, ownerNames),
+    ),
   })
 
   return Response.json(body, {
@@ -214,11 +219,7 @@ export const postBrainFileUpload = async ({
   }
 
   const body = BrainFileResponseSchema.parse({
-    item: {
-      id: added.id,
-      name: added.label,
-      status: brainFileStatusOf(added),
-    },
+    item: brainFileSummaryOf(added),
   })
 
   return Response.json(body, { status: 201 })

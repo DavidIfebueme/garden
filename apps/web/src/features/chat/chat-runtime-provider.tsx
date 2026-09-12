@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useRouterState } from '@tanstack/react-router'
 import { Result } from 'better-result'
 import { useAgent } from 'agents/react'
 import { useAgentChat } from '@cloudflare/ai-chat/react'
@@ -127,9 +128,23 @@ function ChatRuntimeWarmConnection({ session }: { session: AgentChatSession }) {
 export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
   const userId = useAuthStore((state) => state.user?.id ?? null)
   const workspaceId = useWorkspaceStore((state) => state.workspace?.id ?? null)
-  const visibleChatSessionIds = useChatStore(
-    (state) => state.visibleChatSessionIds,
-  )
+  // The visible chat thread is the mounted /chats/$threadId route — the
+  // router is the source of truth now that the dock is gone. On the /chats
+  // index the composer visibly mounts the warm session itself, so it counts
+  // as visible too — otherwise the hidden warmer double-connects it (the
+  // reconnect storm the old dock-era guard prevented; smoke-observed 2026-09).
+  const visibleChatThreadId = useRouterState({
+    select: (s) => {
+      // Normalize trailing slashes: route matching trims them, but
+      // location.pathname keeps the raw value and '/chats/'.split('/')[2]
+      // is '' — defeating the composer sentinel and double-connecting.
+      const pathname = s.location.pathname.replace(/\/+$/, '')
+      if (pathname === '/chats') return 'composer'
+      return pathname.startsWith('/chats/')
+        ? (pathname.split('/')[2] ?? null)
+        : null
+    },
+  })
   const { claimWarmSession, sessionsQuery, warmSession } = useAgentSessions()
   const warmSessionQuery = useQuery({
     queryKey: [
@@ -158,7 +173,9 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
    * checked: local Agents SDK `useAgent` / `useAgentChat` connection lifecycle.
    */
   const sessionToWarm =
-    warmCandidate && !visibleChatSessionIds.includes(warmCandidate.id)
+    warmCandidate &&
+    warmCandidate.id !== visibleChatThreadId &&
+    visibleChatThreadId !== 'composer'
       ? warmCandidate
       : null
 

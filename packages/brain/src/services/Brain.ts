@@ -191,6 +191,7 @@ const ItemRow = Schema.Struct({
   label: Schema.String,
   summary: Schema.optional(Schema.String),
   r2_key: Schema.optional(Schema.String),
+  size_bytes: Schema.optional(Schema.Number),
   canonical_type: Schema.optional(Schema.String),
   canonical_value: Schema.optional(Schema.String),
   indexed: Schema.optional(Schema.Boolean),
@@ -273,6 +274,7 @@ const decodeRow = (row: Row): Effect.Effect<BrainItem, HelixError> =>
       label: item.label,
       summary: item.summary,
       r2Key: item.r2_key,
+      sizeBytes: item.size_bytes,
       canonical:
         item.canonical_type === undefined || item.canonical_value === undefined
           ? undefined
@@ -398,6 +400,7 @@ const propsOf = (item: NewBrainItem): Record<string, PropertyValueInput> => {
   }
   if (item.summary !== undefined) props[PROPS.summary] = item.summary
   if (item.r2Key !== undefined) props[PROPS.r2Key] = item.r2Key
+  if (item.sizeBytes !== undefined) props[PROPS.sizeBytes] = item.sizeBytes
   if (item.canonical !== undefined) {
     props[PROPS.canonicalType] = item.canonical.type
     props[PROPS.canonicalValue] = item.canonical.value

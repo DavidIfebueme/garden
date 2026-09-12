@@ -30,8 +30,11 @@ const serverSchema = {
   EXA_API_KEY: z.string().min(1).optional(),
   // Optional: absent in environments without an Org Brain HelixDB instance.
   // The brain routes/tools report an unconfigured error rather than failing the
-  // turn when these are missing.
-  HELIX_URL: z.httpUrl().optional(),
+  // turn when these are missing. Uses string().url() like BETTER_AUTH_URL, not
+  // z.httpUrl(): zod's httpUrl rejects non-FQDN hostnames, so the local dev
+  // value http://localhost:6968 (compose.dev.yaml, wrangler.containers.jsonc,
+  // brain tests) would fail every parseServerEnv caller, e.g. db:migrate.
+  HELIX_URL: z.string().url().optional(),
   HELIX_API_KEY: z.string().min(1).optional(),
   ENVIRONMENT: z
     .enum(['development', 'test', 'staging', 'production'])

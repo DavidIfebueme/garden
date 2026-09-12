@@ -37,11 +37,8 @@ import {
 } from '@garden/ui/components/ui/dialog'
 import { Kbd, KbdGroup } from '@garden/ui/components/ui/kbd'
 import { Loader2 } from 'lucide-react'
-import {
-  useWorkspaceDock,
-  type WorkspacePanelKind,
-} from '@/components/shell/workspace-dock'
 import { useAgentSessions } from '@/features/chat/use-agent-chat-sessions'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { useSettingsDialogStore } from '@/features/settings'
 import { useSearchStore } from './search-store'
 import { useIssueSearch } from '@/features/issues/hooks/use-issue-search'
@@ -90,7 +87,8 @@ function HighlightText({ text, query }: { text: string; query: string }) {
 
 interface NavPage {
   id: string
-  kind: WorkspacePanelKind
+  /** Route target; null marks the new-chat action handled via claimWarmSession. */
+  to: string | null
   title: string
   label: string
   icon: Icon
@@ -101,7 +99,7 @@ interface NavPage {
 const navPages: NavPage[] = [
   {
     id: 'dashboard',
-    kind: 'dashboard',
+    to: '/home',
     title: 'Dashboard',
     label: 'Dashboard',
     icon: IconLayoutDashboard,
@@ -109,7 +107,7 @@ const navPages: NavPage[] = [
   },
   {
     id: 'inbox',
-    kind: 'inbox',
+    to: '/inbox',
     title: 'Inbox',
     label: 'Inbox',
     icon: IconInbox,
@@ -117,7 +115,7 @@ const navPages: NavPage[] = [
   },
   {
     id: 'issues',
-    kind: 'issues',
+    to: '/tasks',
     title: 'Tasks',
     label: 'Tasks',
     icon: IconSparkles,
@@ -125,7 +123,7 @@ const navPages: NavPage[] = [
   },
   {
     id: 'new-chat',
-    kind: 'chat',
+    to: null,
     title: 'New Chat',
     label: 'Chat',
     icon: IconMessageCircle,
@@ -133,7 +131,7 @@ const navPages: NavPage[] = [
   },
   {
     id: 'agent-chat',
-    kind: 'chat',
+    to: null,
     title: 'Agent Chat',
     label: 'Agent Chat',
     icon: IconRobot,
@@ -141,7 +139,7 @@ const navPages: NavPage[] = [
   },
   {
     id: 'skill-editor',
-    kind: 'skill-editor',
+    to: '/skills',
     title: 'Skills',
     label: 'Skills',
     icon: IconBook,
@@ -149,9 +147,9 @@ const navPages: NavPage[] = [
   },
   {
     id: 'capabilities',
-    kind: 'capabilities',
-    title: 'Connections',
-    label: 'Connections',
+    to: '/connectors',
+    title: 'Connectors',
+    label: 'Connectors',
     icon: IconSettingsCog,
     keywords: ['connections', 'capabilities', 'permissions'],
   },
@@ -168,12 +166,7 @@ interface QuickAction {
 const ITEM_CLASS = 'mx-2 rounded-lg py-2.5'
 
 export function SearchCommand() {
-  const dock = useWorkspaceDock()
-  const openPanel = useCallback(
-    (...args: Parameters<NonNullable<typeof dock>['openPanel']>) =>
-      dock?.openPanel(...args) ?? null,
-    [dock],
-  )
+  const { openIssue, openChatSession, navigate } = useSurfaceNavigation()
   const { claimWarmSession } = useAgentSessions()
   const openSettingsDialog = useSettingsDialogStore((s) => s.openSettings)
   const open = useSearchStore((s) => s.open)
@@ -239,22 +232,18 @@ export function SearchCommand() {
     [setQuery],
   )
 
-  const openIssue = useCallback(
+  const openIssueFromSearch = useCallback(
     (issueId: string, title: string) => {
       setOpen(false)
-      openPanel({
-        kind: 'issue-detail',
-        title,
-        entityId: issueId,
-      })
+      openIssue({ id: issueId, title })
     },
-    [openPanel, setOpen],
+    [openIssue, setOpen],
   )
 
   const openPage = useCallback(
     (page: NavPage) => {
       setOpen(false)
-      if (page.kind === 'chat') {
+      if (page.to === null) {
         void Result.tryPromise(() => claimWarmSession()).then((result) => {
           if (Result.isError(result)) {
             toast.error(
@@ -264,17 +253,13 @@ export function SearchCommand() {
             )
             return
           }
-          openPanel({
-            kind: 'chat',
-            title: result.value.title,
-            entityId: result.value.id,
-          })
+          openChatSession(result.value)
         })
         return
       }
-      openPanel({ kind: page.kind, title: page.title })
+      void navigate({ to: page.to })
     },
-    [claimWarmSession, openPanel, setOpen],
+    [claimWarmSession, openChatSession, navigate, setOpen],
   )
 
   const quickActions: QuickAction[] = useMemo(
@@ -295,11 +280,7 @@ export function SearchCommand() {
               )
               return
             }
-            openPanel({
-              kind: 'chat',
-              title: result.value.title,
-              entityId: result.value.id,
-            })
+            openChatSession(result.value)
           })
         },
       },
@@ -314,7 +295,7 @@ export function SearchCommand() {
         },
       },
     ],
-    [claimWarmSession, openPanel, openSettingsDialog],
+    [claimWarmSession, openChatSession, openSettingsDialog],
   )
 
   return (
@@ -397,7 +378,7 @@ export function SearchCommand() {
                   <CommandItem
                     className={ITEM_CLASS}
                     key={issue.id}
-                    onSelect={() => openIssue(issue.id, issue.title)}
+                    onSelect={() => openIssueFromSearch(issue.id, issue.title)}
                     value={issue.id}
                   >
                     <StatusIcon
@@ -426,7 +407,7 @@ export function SearchCommand() {
                   <CommandItem
                     className={ITEM_CLASS}
                     key={item.id}
-                    onSelect={() => openIssue(item.id, item.title)}
+                    onSelect={() => openIssueFromSearch(item.id, item.title)}
                     value={item.id}
                   >
                     <StatusIcon

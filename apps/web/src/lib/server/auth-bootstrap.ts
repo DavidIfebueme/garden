@@ -1,6 +1,7 @@
 import { Result } from 'better-result'
 import { eq } from 'drizzle-orm'
 import { createServerFn } from '@tanstack/react-start'
+import { setResponseHeader } from '@tanstack/react-start/server'
 import { requireAppRequestContext } from '@/lib/server/context'
 import { toWorkspaceFromOrganization } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
@@ -68,6 +69,36 @@ const rawGetAuthBootstrap = createServerFn({ method: 'GET' }).handler(
           requestedWorkspaceId,
           activeOrganizationId,
         )
+
+        // Persist an explicit URL workspace choice as the session's active
+        // org — without it the selection was bootstrap-only, and the next
+        // reload after leaving the deep-linked route silently hydrated the
+        // previous org. Failures degrade to bootstrap-only selection.
+        if (
+          requestedWorkspaceId !== null &&
+          requestedWorkspaceId === preferredWorkspaceId &&
+          requestedWorkspaceId !== activeOrganizationId
+        ) {
+          const setActive = await Result.tryPromise({
+            try: async () =>
+              (await auth.api.setActiveOrganization({
+                headers: appContext.request.headers,
+                body: { organizationId: requestedWorkspaceId },
+                returnHeaders: true,
+              })) as { headers: Headers; response: unknown },
+            catch: (cause) => cause,
+          })
+          if (Result.isOk(setActive)) {
+            // Forward the refreshed session cookie — server-side auth.api calls don't reach the browser's cookie jar on their own.
+            const cookies = setActive.value.headers.getSetCookie()
+            if (cookies.length > 0) setResponseHeader('set-cookie', cookies)
+          } else {
+            bootstrapLogger.warn('auth.bootstrap.set_active_failed', {
+              ...requestFields(appContext.request),
+              ...errorFields(setActive.error),
+            })
+          }
+        }
 
         return {
           preferredWorkspaceId,

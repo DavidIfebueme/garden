@@ -180,14 +180,9 @@ export function ConnectionsPage({
   })
 
   const refreshConnections = useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: workspaceKeys.connections(wsId),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ['workspace-connections-sidebar'],
-      }),
-    ])
+    await queryClient.invalidateQueries({
+      queryKey: workspaceKeys.connections(wsId),
+    })
     notifyConnectionsChanged()
   }, [queryClient, wsId])
 

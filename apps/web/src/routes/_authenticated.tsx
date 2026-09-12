@@ -31,7 +31,7 @@ export const Route = createFileRoute('/_authenticated')({
       throw redirect({
         to: '/login',
         search: {
-          redirect: sanitizeRedirectTarget(location.href, '/workspace'),
+          redirect: sanitizeRedirectTarget(location.href, '/home'),
         },
       })
     }

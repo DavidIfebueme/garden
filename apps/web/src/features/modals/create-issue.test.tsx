@@ -53,8 +53,15 @@ vi.mock('@/lib/issues/mutations', () => ({
   useUpdateIssue: () => ({ mutate: vi.fn() }),
 }))
 
-vi.mock('@/components/shell/workspace-dock', () => ({
-  useWorkspaceDock: () => ({ openPanel: mockOpenPanel }),
+vi.mock('@/features/navigation/use-surface-navigation', () => ({
+  useSurfaceNavigation: () => ({
+    openIssue: (issue: { id: string; title: string }) =>
+      mockOpenPanel({
+        kind: 'issue-detail',
+        title: issue.title,
+        entityId: issue.id,
+      }),
+  }),
 }))
 
 vi.mock('@garden/app-state/hooks/use-file-upload', () => ({

@@ -3,7 +3,6 @@
 @import '../../../packages/ui/styles/fonts.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import 'flexlayout-react/style/alpha_light.css';
 @import '../../../packages/ui/styles/tokens.css';
 @import '../../../packages/ui/styles/base.css';
 @import './custom.css';

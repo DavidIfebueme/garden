@@ -10,7 +10,8 @@ You do not need prior Cloudflare experience.
 
 Garden supports two model configurations. Both configurations keep the web
 app, Postgres database, D1 database, R2 storage, Durable Objects, and Workflows
-on your machine.
+on your machine, plus a local HelixDB server for the Brain graph and vector
+store.
 
 | Mode | Model location | Account required | Command |
 | --- | --- | --- | --- |
@@ -28,8 +29,9 @@ You need:
 - pnpm 10.33.0, installed through Corepack; and
 - Docker Desktop or another Docker engine.
 
-Docker runs the local Postgres database. It can also run Ollama if you do not
-want to install Ollama on your computer.
+Docker runs the local Postgres database and the local HelixDB server for
+Brain. It can also run Ollama if you do not want to install Ollama on your
+computer.
 
 ## Clone and install Garden
 
@@ -74,7 +76,7 @@ Ollama provides the local model. Choose one Ollama installation method.
 
 ### Run Ollama in Docker
 
-Start Postgres and Ollama:
+Start Postgres, HelixDB, and Ollama:
 
 ```bash
 pnpm offline:up:ollama
@@ -94,7 +96,7 @@ ollama pull qwen3:8b
 pnpm offline:up
 ```
 
-This command starts only Postgres in Docker.
+This command starts only Postgres and HelixDB in Docker.
 
 ### Migrate the database and start the app
 

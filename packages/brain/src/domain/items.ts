@@ -54,6 +54,8 @@ export class BrainItem extends Schema.Class<BrainItem>('BrainItem')({
   label: Schema.String,
   summary: Schema.optional(Schema.String),
   r2Key: Schema.optional(Schema.String),
+  /** Byte size of the staged upload; feeds the Files & Folders size column. */
+  sizeBytes: Schema.optional(Schema.Number),
   canonical: Schema.optional(Canonical),
   indexed: Schema.Boolean,
   indexStatus: Schema.optional(BrainIndexStatus),
@@ -68,6 +70,7 @@ export class NewBrainItem extends Schema.Class<NewBrainItem>('NewBrainItem')({
   label: Schema.String,
   summary: Schema.optional(Schema.String),
   r2Key: Schema.optional(Schema.String),
+  sizeBytes: Schema.optional(Schema.Number),
   canonical: Schema.optional(Canonical),
   indexStatus: Schema.optional(BrainIndexStatus),
   indexError: Schema.optional(Schema.String),

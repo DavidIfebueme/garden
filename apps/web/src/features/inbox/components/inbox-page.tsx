@@ -12,7 +12,7 @@ import {
 } from '@/lib/inbox/mutations'
 import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { toast } from 'sonner'
 import {
   MoreHorizontal,
@@ -262,7 +262,7 @@ function InboxNotificationDetail({
 
 export function InboxPage() {
   const { searchParams, replace } = useNavigation()
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const selectedKey = searchParams.get('item') ?? ''
 
   const [search, setSearch] = useState('')
@@ -270,9 +270,8 @@ export function InboxPage() {
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
-      // Persist selection in the search params on whatever route we're on so
-      // we don't trigger a TanStack Router 404 (no `/inbox` route exists —
-      // the inbox is a dock panel, not a path).
+      // Persist selection in the /inbox URL search params so a reload
+      // re-selects the same notification.
       if (typeof window === 'undefined') return
       const url = new URL(window.location.href)
       if (key) url.searchParams.set('item', key)
@@ -382,13 +381,12 @@ export function InboxPage() {
     (item: InboxItem) => {
       if (!item.issue_id) return
       setSelectedKey(item.id, item)
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: item.title,
-        entityId: item.issue_id,
-      })
+      openIssue(
+        { id: item.issue_id, title: item.title },
+        { focus: focusForInboxItem(item) },
+      )
     },
-    [dock, setSelectedKey],
+    [openIssue, setSelectedKey],
   )
 
   // -- Shared sub-components --------------------------------------------------

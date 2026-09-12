@@ -15,6 +15,7 @@
   "exports": {
     "./components/ui/*": "./components/ui/*.tsx",
     "./components/common/*": "./components/common/*.tsx",
+    "./components/shell/*": "./components/shell/*.tsx",
     "./markdown": "./markdown/index.ts",
     "./markdown/*": "./markdown/*.tsx",
     "./hooks/*": "./hooks/*.ts",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@base-ui/react": "^1.3.0",
     "@emoji-mart/data": "^1.2.1",
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
@@ -55,7 +57,7 @@
     "@types/linkify-it": "^5.0.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "rehype-sanitize": "^6.0.0",
-    "@typescript/native": "catalog:"
+    "@typescript/native": "catalog:",
+    "rehype-sanitize": "^6.0.0"
   }
 }

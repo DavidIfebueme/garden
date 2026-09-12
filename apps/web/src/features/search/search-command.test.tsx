@@ -62,9 +62,23 @@ vi.mock('../navigation', () => ({
   }),
 }))
 
-vi.mock('@/components/shell/workspace-dock', () => ({
-  useWorkspaceDock: () => ({
-    openPanel: mockOpenPanel,
+vi.mock('@/features/navigation/use-surface-navigation', () => ({
+  useSurfaceNavigation: () => ({
+    openIssue: (issue: { id: string; title: string }) =>
+      mockOpenPanel({
+        kind: 'issue-detail',
+        title: issue.title,
+        entityId: issue.id,
+      }),
+    openChatSession: (session: { id: string; title: string }) =>
+      mockOpenPanel({
+        kind: 'chat',
+        title: session.title,
+        entityId: session.id,
+      }),
+    openConnections: () =>
+      mockOpenPanel({ kind: 'capabilities', title: 'Connections' }),
+    navigate: vi.fn(),
   }),
 }))
 

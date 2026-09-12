@@ -76,20 +76,24 @@ export type DashboardResourcesSnapshot = {
   connections: DashboardConnection[]
 }
 
+/**
+ * Distribution colors reference token vars (not literals) so charts follow the
+ * design system in both modes. Resolved client-side by CSS.
+ */
 const statusColors: Record<string, string> = {
-  todo: '#60a5fa',
-  in_progress: '#14b8a6',
-  in_review: '#f59e0b',
-  blocked: '#ef4444',
-  done: '#22c55e',
+  todo: 'var(--blue-500)',
+  in_progress: 'var(--green-500)',
+  in_review: 'var(--yellow-500)',
+  blocked: 'var(--red-500)',
+  done: 'var(--green-600)',
 }
 
 const priorityColors: Record<string, string> = {
-  urgent: '#ef4444',
-  high: '#f97316',
-  medium: '#eab308',
-  low: '#22c55e',
-  none: '#94a3b8',
+  urgent: 'var(--red-600)',
+  high: 'var(--util-color-10)',
+  medium: 'var(--yellow-500)',
+  low: 'var(--green-500)',
+  none: 'var(--gray-400)',
 }
 
 const issueStatuses = new Set<IssueStatus>([

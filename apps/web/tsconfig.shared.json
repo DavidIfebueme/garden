@@ -6,7 +6,8 @@
     "src/lib/api/skills-contract.ts",
     "src/lib/auth/sign-in-methods.ts",
     "src/lib/executor-contract.ts",
-    "src/lib/invitation-flow.ts"
+    "src/lib/invitation-flow.ts",
+    "src/features/brain/contract.ts"
   ],
   "compilerOptions": {
     "composite": true,

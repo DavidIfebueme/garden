@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@garden/app-state/auth'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import { listThreadDocuments } from '@/lib/api'
-import { useSidebar } from '@garden/ui/components/ui/sidebar'
 import {
+  isPendingFirstTurn,
   useAgentSessions,
   type AgentChatSession,
 } from '../use-agent-chat-sessions'
@@ -68,7 +68,6 @@ export function AgentInteractionScreen({
 }) {
   const user = useAuthStore((state) => state.user)
   const workspace = useWorkspaceStore((state) => state.workspace)
-  const { state: sidebarState, toggleSidebar } = useSidebar()
   const {
     claimWarmSession,
     sessions,
@@ -89,8 +88,18 @@ export function AgentInteractionScreen({
     onSessionChangeRef.current = onSessionChange
   }, [onSessionChange])
 
+  // Never publish a warm draft: on /chats the warm session resolves
+  // immediately, and publishing bounced the composer to /chats/<warmId> —
+  // closing that tab re-claimed the still-warm session and reopened it.
+  // Publishing waits for the first send; the warm flag rides the dedup key
+  // so the flip re-publishes the same id.
+  const activeIsWarmDraft = activeSession
+    ? isPendingFirstTurn(activeSession)
+    : false
+
   useEffect(() => {
     if (!activeSession) return
+    if (activeIsWarmDraft) return
     const nextPublishedSession = `${activeSession.id}:${activeSession.title}`
     if (lastPublishedSessionRef.current === nextPublishedSession) return
     lastPublishedSessionRef.current = nextPublishedSession
@@ -98,22 +107,18 @@ export function AgentInteractionScreen({
       id: activeSession.id,
       title: activeSession.title,
     })
-  }, [activeSession?.id, activeSession?.title])
+  }, [activeSession?.id, activeSession?.title, activeIsWarmDraft])
 
   useEffect(() => {
     if (sessionId || activeSession || sessionsQuery.status !== 'success') {
       return
     }
 
+    // Claim only — the gated effect above owns publishing.
     void Result.tryPromise(() => claimWarmSession()).then((result) => {
       if (Result.isError(result)) {
         console.warn('[chat.screen] failed to claim warm chat', result.error)
-        return
       }
-      onSessionChangeRef.current?.({
-        id: result.value.id,
-        title: result.value.title,
-      })
     })
   }, [activeSession, claimWarmSession, sessionId, sessionsQuery.status])
 
@@ -134,8 +139,6 @@ export function AgentInteractionScreen({
       onClose={onClose}
       panelDescription={null}
       panelTitle={panelTitle}
-      sidebarState={sidebarState}
-      toggleSidebar={toggleSidebar}
       updateSessionPreview={updateSessionPreview}
     />
   )
@@ -150,8 +153,6 @@ function ChatPanelInteraction({
   onClose?: () => void
   panelDescription?: string | null
   panelTitle: string
-  sidebarState: 'collapsed' | 'expanded'
-  toggleSidebar: () => void
   updateSessionPreview: ReturnType<
     typeof useAgentSessions
   >['updateSessionPreview']

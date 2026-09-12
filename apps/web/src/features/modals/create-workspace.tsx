@@ -52,7 +52,7 @@ export function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
         await createWorkspace.mutateAsync({ name, slug })
         logger.info('submit.success', { slug })
         onClose()
-        router.push('/workspace')
+        router.push('/home')
       } catch (error) {
         logger.error('submit.error', error)
         if (isWorkspaceSlugConflict(error)) {
