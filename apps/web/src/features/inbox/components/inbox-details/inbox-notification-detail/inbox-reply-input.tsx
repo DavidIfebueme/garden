@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import {
   ArrowUp,
@@ -16,38 +16,37 @@ import {
   TextAlignJustify,
   TextAlignStart,
   Underline,
+  X,
 } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { cn } from '@garden/ui/lib/utils';
 
 type SpeechRecognitionEvent = Event & {
-  resultIndex: number
+  resultIndex: number;
   results: {
-    length: number
+    length: number;
     [index: number]: {
-      isFinal: boolean
-      [index: number]: {
-        transcript: string
-      }
-    }
-  }
-}
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
 
 type BrowserSpeechRecognition = EventTarget & {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  start: () => void
-  stop: () => void
-  onend: ((event: Event) => void) | null
-  onerror: ((event: Event) => void) | null
-  onresult: ((event: SpeechRecognitionEvent) => void) | null
-}
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onend: ((event: Event) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+};
 
 type SpeechRecognitionWindow = Window & {
-  SpeechRecognition?: new () => BrowserSpeechRecognition
-  webkitSpeechRecognition?: new () => BrowserSpeechRecognition
-}
+  SpeechRecognition?: new () => BrowserSpeechRecognition;
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+};
 
 const HighlighterIcon = ({ className }: { className?: string }) => (
   <IconifyIcon
@@ -60,8 +59,6 @@ const HighlighterIcon = ({ className }: { className?: string }) => (
 const HarnessyIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="23.995"
     viewBox="0 0 18 23.995"
     fill="none"
     className={className}
@@ -82,14 +79,14 @@ type EditorCommand =
   | 'justifyLeft'
   | 'justifyCenter'
   | 'justifyRight'
-  | 'justifyFull'
+  | 'justifyFull';
 
 type ToolbarItem = {
-  command: EditorCommand
-  icon: ComponentType<{ className?: string }>
-  label: string
-  value?: string
-}
+  command: EditorCommand;
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value?: string;
+};
 
 const toolbarGroups: ToolbarItem[][] = [
   [
@@ -191,14 +188,48 @@ function ModelPicker<T extends string>({
   );
 }
 
+/** Animated waveform shown while voice capture is active. */
+function ListeningIndicator({ elapsed }: { elapsed: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="relative inline-flex size-2.5">
+        <span className="absolute inset-0 animate-ping rounded-full bg-red-500/70" />
+        <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+      </span>
+
+      <div
+        className="flex h-6 items-end gap-[2px]"
+        role="status"
+        aria-live="polite"
+        aria-label="Listening"
+      >
+        {Array.from({ length: 12 }).map((_, i) => (
+          <span
+            key={i}
+            className="voice-bar w-[3px] rounded-full bg-brand/80"
+            style={{ animationDelay: `${i * 90}ms` }}
+          />
+        ))}
+      </div>
+
+      <span className="text-xs font-medium tabular-nums text-muted-foreground">
+        {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
+        {String(elapsed % 60).padStart(2, '0')}
+      </span>
+    </div>
+  );
+}
+
 export function InboxReplyInput() {
   const [model, setModel] = useState<ModelId>('harnessy');
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [hasContent, setHasContent] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const baselineTextRef = useRef('');
 
   const focusEditor = () => {
     editorRef.current?.focus();
@@ -208,6 +239,14 @@ export function InboxReplyInput() {
     const text = editorRef.current?.textContent?.trim() ?? '';
     setHasContent(text.length > 0);
   };
+
+  // Elapsed-seconds counter while listening.
+  useEffect(() => {
+    if (!isListening) return;
+    setElapsed(0);
+    const id = window.setInterval(() => setElapsed((v) => v + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [isListening]);
 
   const toolKey = (command: EditorCommand, value?: string) =>
     `${command}:${value ?? ''}`;
@@ -267,11 +306,18 @@ export function InboxReplyInput() {
     updateContentState();
   };
 
-  const insertEditorText = (text: string) => {
-    focusEditor();
-    const prefix = editorRef.current?.textContent?.trim() ? ' ' : '';
-    document.execCommand('insertText', false, `${prefix}${text.trim()}`);
+  /** Replaces the editor content with the given text (used for voice). */
+  const setEditorText = (text: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.textContent = text;
     updateContentState();
+  };
+
+  /** Appends a spoken chunk to the baseline captured when listening started. */
+  const appendTranscript = (chunk: string) => {
+    const base = baselineTextRef.current;
+    const merged = base ? `${base} ${chunk}` : chunk;
+    setEditorText(merged);
   };
 
   const createRecognition = () => {
@@ -286,22 +332,34 @@ export function InboxReplyInput() {
 
     const recognition = new SpeechRecognition() as BrowserSpeechRecognition;
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
-    recognition.onresult = (event) => {
-      let transcript = '';
 
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        if (result?.isFinal) transcript += result[0]?.transcript ?? '';
+    recognition.onresult = (event) => {
+      // Accumulate final chunks; show interim live.
+      let interim = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result[0]?.transcript ?? '';
+        if (result.isFinal) {
+          appendTranscript(transcript.trim());
+        } else {
+          interim += transcript;
+        }
       }
 
-      if (transcript) insertEditorText(transcript);
+      if (interim) {
+        const base = baselineTextRef.current;
+        setEditorText(`${base ? `${base} ` : ''}${interim}`);
+      }
     };
+
     recognition.onerror = () => {
       setIsListening(false);
       setVoiceMessage('Voice input stopped.');
     };
+
     recognition.onend = () => {
       setIsListening(false);
     };
@@ -309,19 +367,35 @@ export function InboxReplyInput() {
     return recognition;
   };
 
-  const toggleVoiceInput = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
+  const startListening = () => {
     const recognition = recognitionRef.current ?? createRecognition();
     if (!recognition) return;
     recognitionRef.current = recognition;
+    baselineTextRef.current = editorRef.current?.textContent?.trim() ?? '';
     setVoiceMessage(null);
     setIsListening(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      // Already started — ignore.
+    }
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
+
+  const cancelListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+    // Roll back to whatever was there before recording started.
+    setEditorText(baselineTextRef.current);
+  };
+
+  const toggleVoiceInput = () => {
+    if (isListening) stopListening();
+    else startListening();
   };
 
   return (
@@ -392,29 +466,55 @@ export function InboxReplyInput() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-pressed={isListening}
-            title={isListening ? 'Stop voice input' : 'Start voice input'}
-            onClick={toggleVoiceInput}
-            className={cn(
-              'inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground',
-              isListening && 'text-brand',
-            )}
-          >
-            <Mic className="size-3.5" />
-          </button>
+          {isListening ? (
+            <>
+              <button
+                type="button"
+                aria-label="Cancel recording"
+                title="Cancel"
+                onClick={cancelListening}
+                className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
 
-          <ModelPicker value={model} onChange={setModel} options={models} />
+              <ListeningIndicator elapsed={elapsed} />
 
-          <button
-            type="button"
-            className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <ArrowUp className="size-4" />
-          </button>
+              <button
+                type="button"
+                aria-label="Stop recording"
+                title="Stop"
+                onClick={stopListening}
+                className="inline-flex size-8 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-500/90"
+              >
+                <span className="block size-3 rounded-[3px] bg-white" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                aria-pressed={false}
+                title="Start voice input"
+                onClick={toggleVoiceInput}
+                className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Mic className="size-3.5" />
+              </button>
+
+              <ModelPicker value={model} onChange={setModel} options={models} />
+
+              <button
+                type="button"
+                className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <ArrowUp className="size-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
+
       {voiceMessage && (
         <p className="mt-2 text-xs text-muted-foreground">{voiceMessage}</p>
       )}
