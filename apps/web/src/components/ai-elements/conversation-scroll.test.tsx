@@ -1,8 +1,10 @@
 import { forwardRef, useImperativeHandle } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 
 let mockIsAtEnd = true
+let mockScroll = 0
+let mockScrollLength = 500
 let scrollToEndCalls: Array<{ animated: boolean }> = []
 let onScrollRef: (() => void) | undefined
 
@@ -13,7 +15,11 @@ const MockLegendList = forwardRef<any, any>(function MockLegendList(
   onScrollRef = onScroll
 
   useImperativeHandle(ref, () => ({
-    getState: () => ({ isAtEnd: mockIsAtEnd }),
+    getState: () => ({
+      isAtEnd: mockIsAtEnd,
+      scroll: mockScroll,
+      scrollLength: mockScrollLength,
+    }),
     scrollToEnd(opts?: { animated?: boolean }) {
       scrollToEndCalls.push({ animated: opts?.animated ?? true })
     },
@@ -36,12 +42,18 @@ const { Conversation } = await import('./conversation')
 
 function flushRAF() {
   return act(
-    () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      }),
   )
 }
 
 function simulateScrollToTop() {
   mockIsAtEnd = false
+  mockScroll = 0
   act(() => {
     onScrollRef?.()
   })
@@ -49,6 +61,7 @@ function simulateScrollToTop() {
 
 function simulateScrollToBottom() {
   mockIsAtEnd = true
+  mockScroll = mockScrollLength
   act(() => {
     onScrollRef?.()
   })
@@ -222,6 +235,56 @@ describe('Conversation scroll stickiness', () => {
     })
     await flushRAF()
     expect(scrollToEndCalls.length).toBe(1)
+
+    unmount()
+  })
+
+  it('wheel scroll-up during streaming shows button and blocks auto-scroll', async () => {
+    mockIsAtEnd = true
+    mockScroll = 500
+    scrollToEndCalls = []
+    const { rerender, unmount } = render(
+      <Conversation
+        data={[{ id: 'user-1' }]}
+        getItemKey={(item: any) => item.id}
+        renderItem={({ item }: { item: any }) => <div>{item.id}</div>}
+      />,
+    )
+    scrollToEndCalls = []
+
+    const log = screen.getByRole('log')
+    act(() => {
+      fireEvent.wheel(log, { deltaY: -100 })
+    })
+    mockIsAtEnd = false
+    mockScroll = 400
+
+    act(() => {
+      rerender(
+        <Conversation
+          data={[{ id: 'user-1' }, { id: 'pending' }]}
+          getItemKey={(item: any) => item.id}
+          renderItem={({ item }: { item: any }) => <div>{item.id}</div>}
+        />,
+      )
+    })
+    await flushRAF()
+    expect(scrollToEndCalls).toEqual([])
+
+    act(() => {
+      rerender(
+        <Conversation
+          data={[
+            { id: 'user-1' },
+            { id: 'assistant-1', parts: [{ type: 'text', text: 'Hello' }] },
+          ]}
+          getItemKey={(item: any) => item.id}
+          renderItem={({ item }: { item: any }) => <div>{item.id}</div>}
+        />,
+      )
+    })
+    await flushRAF()
+    expect(scrollToEndCalls).toEqual([])
 
     unmount()
   })

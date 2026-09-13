@@ -61,29 +61,60 @@ export function Conversation<TItem>({
   const listRef = useRef<LegendListRef | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isAtBottomRef = useRef(true)
+  const pendingScrollRef = useRef(0)
+  const prevScrollRef = useRef(0)
+  const isAutoScrollingRef = useRef(false)
+  const userScrolledUpRef = useRef(false)
 
   const updateStickiness = useCallback(() => {
     const state = listRef.current?.getState?.()
     if (!state) return
-    isAtBottomRef.current = state.isAtEnd
-    setIsAtBottom((current) =>
-      current === state.isAtEnd ? current : state.isAtEnd,
-    )
+    if (isAutoScrollingRef.current) {
+      prevScrollRef.current = state.scroll
+      isAutoScrollingRef.current = false
+      return
+    }
+    prevScrollRef.current = state.scroll
+    const atBottom =
+      state.isAtEnd || (!userScrolledUpRef.current && state.scrollLength - state.scroll < 50)
+    if (!atBottom) {
+      cancelAnimationFrame(pendingScrollRef.current)
+    }
+    isAtBottomRef.current = atBottom
+    setIsAtBottom((current) => (current === atBottom ? current : atBottom))
   }, [])
 
   const scrollToBottom = useCallback(() => {
-    listRef.current?.scrollToEnd?.({ animated: true })
     isAtBottomRef.current = true
+    userScrolledUpRef.current = false
     setIsAtBottom(true)
+    listRef.current?.scrollToEnd?.({ animated: true })
   }, [])
 
-  useEffect(() => {
-    if (!isAtBottomRef.current) return
-    const id = requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd?.({ animated: false })
+  const onUserScrollIntent = useCallback(
+    (e: React.WheelEvent | React.TouchEvent) => {
+      cancelAnimationFrame(pendingScrollRef.current)
+      if ('deltaY' in e && e.deltaY < 0) {
+        userScrolledUpRef.current = true
+        isAtBottomRef.current = false
+        setIsAtBottom(false)
+      }
+    },
+    [],
+  )
+
+  const prevDataRef = useRef(data)
+  if (prevDataRef.current !== data) {
+    cancelAnimationFrame(pendingScrollRef.current)
+    pendingScrollRef.current = requestAnimationFrame(() => {
+      if (isAtBottomRef.current) {
+        isAutoScrollingRef.current = true
+        listRef.current?.scrollToEnd?.({ animated: false })
+      }
+      updateStickiness()
     })
-    return () => cancelAnimationFrame(id)
-  }, [data])
+  }
+  prevDataRef.current = data
 
   const rawRows = useMemo(
     () =>
@@ -119,6 +150,8 @@ export function Conversation<TItem>({
       <div
         role="log"
         {...props}
+        onWheel={onUserScrollIntent}
+        onTouchStart={onUserScrollIntent}
         className={cn('relative min-h-0 flex-1 overflow-hidden', className)}
       >
         <LegendList<ConversationRow<TItem>>
