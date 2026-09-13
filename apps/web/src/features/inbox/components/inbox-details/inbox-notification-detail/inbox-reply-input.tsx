@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ReactElement } from 'react';
+import { useRef, useState } from 'react';
+import type { ComponentType } from 'react';
 import {
   ArrowUp,
   Bold,
@@ -18,6 +18,36 @@ import {
   Underline,
 } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { cn } from '@garden/ui/lib/utils';
+
+type SpeechRecognitionEvent = Event & {
+  resultIndex: number
+  results: {
+    length: number
+    [index: number]: {
+      isFinal: boolean
+      [index: number]: {
+        transcript: string
+      }
+    }
+  }
+}
+
+type BrowserSpeechRecognition = EventTarget & {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start: () => void
+  stop: () => void
+  onend: ((event: Event) => void) | null
+  onerror: ((event: Event) => void) | null
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+}
+
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: new () => BrowserSpeechRecognition
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition
+}
 
 const HighlighterIcon = ({ className }: { className?: string }) => (
   <IconifyIcon
@@ -30,6 +60,8 @@ const HighlighterIcon = ({ className }: { className?: string }) => (
 const HarnessyIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
+    width="18"
+    height="23.995"
     viewBox="0 0 18 23.995"
     fill="none"
     className={className}
@@ -41,10 +73,41 @@ const HarnessyIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const toolbarGroups = [
-  [HighlighterIcon, Underline, Code2],
-  [Bold, Italic, Heading],
-  [TextAlignCenter, TextAlignStart, TextAlignEnd, TextAlignJustify],
+type EditorCommand =
+  | 'highlight'
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'formatBlock'
+  | 'justifyLeft'
+  | 'justifyCenter'
+  | 'justifyRight'
+  | 'justifyFull'
+
+type ToolbarItem = {
+  command: EditorCommand
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value?: string
+}
+
+const toolbarGroups: ToolbarItem[][] = [
+  [
+    { command: 'highlight', icon: HighlighterIcon, label: 'Highlight' },
+    { command: 'underline', icon: Underline, label: 'Underline' },
+    { command: 'formatBlock', icon: Code2, label: 'Code block', value: 'pre' },
+  ],
+  [
+    { command: 'bold', icon: Bold, label: 'Bold' },
+    { command: 'italic', icon: Italic, label: 'Italic' },
+    { command: 'formatBlock', icon: Heading, label: 'Heading', value: 'h3' },
+  ],
+  [
+    { command: 'justifyCenter', icon: TextAlignCenter, label: 'Align center' },
+    { command: 'justifyLeft', icon: TextAlignStart, label: 'Align left' },
+    { command: 'justifyRight', icon: TextAlignEnd, label: 'Align right' },
+    { command: 'justifyFull', icon: TextAlignJustify, label: 'Justify' },
+  ],
 ];
 
 const models = [
@@ -58,7 +121,7 @@ export type ModelId = (typeof models)[number]['id'];
 type ModelOption<T extends string> = {
   id: T;
   label: string;
-  Icon: (props: { className?: string }) => ReactElement;
+  Icon: ComponentType<{ className?: string }>;
 };
 
 function ModelPicker<T extends string>({
@@ -130,6 +193,136 @@ function ModelPicker<T extends string>({
 
 export function InboxReplyInput() {
   const [model, setModel] = useState<ModelId>('harnessy');
+  const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [hasContent, setHasContent] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+
+  const focusEditor = () => {
+    editorRef.current?.focus();
+  };
+
+  const updateContentState = () => {
+    const text = editorRef.current?.textContent?.trim() ?? '';
+    setHasContent(text.length > 0);
+  };
+
+  const toolKey = (command: EditorCommand, value?: string) =>
+    `${command}:${value ?? ''}`;
+
+  const setToolSelected = (
+    command: EditorCommand,
+    value: string | undefined,
+    selected: boolean,
+  ) => {
+    const key = toolKey(command, value);
+    setActiveTools((current) => {
+      const withoutAlignment = command.startsWith('justify')
+        ? current.filter((item) => !item.startsWith('justify'))
+        : current;
+      const next = withoutAlignment.filter((item) => item !== key);
+      return selected ? [...next, key] : next;
+    });
+  };
+
+  const highlightSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const span = document.createElement('span');
+    span.style.backgroundColor = 'var(--muted)';
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    selection.removeAllRanges();
+    selection.selectAllChildren(span);
+    return true;
+  };
+
+  const runEditorCommand = (command: EditorCommand, value?: string) => {
+    focusEditor();
+    if (command === 'highlight') {
+      const didHighlight = highlightSelection();
+      setToolSelected(command, value, didHighlight);
+      updateContentState();
+      return;
+    }
+
+    document.execCommand(command, false, value);
+    const key = toolKey(command, value);
+    const alignmentCommand = command.startsWith('justify');
+    setActiveTools((current) => {
+      const withoutAlignment = alignmentCommand
+        ? current.filter((item) => !item.startsWith('justify'))
+        : current;
+      if (alignmentCommand) return [...withoutAlignment, key];
+      return withoutAlignment.includes(key)
+        ? withoutAlignment.filter((item) => item !== key)
+        : [...withoutAlignment, key];
+    });
+    updateContentState();
+  };
+
+  const insertEditorText = (text: string) => {
+    focusEditor();
+    const prefix = editorRef.current?.textContent?.trim() ? ' ' : '';
+    document.execCommand('insertText', false, `${prefix}${text.trim()}`);
+    updateContentState();
+  };
+
+  const createRecognition = () => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognition =
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceMessage('Voice input is not available in this browser.');
+      return null;
+    }
+
+    const recognition = new SpeechRecognition() as BrowserSpeechRecognition;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let transcript = '';
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        if (result?.isFinal) transcript += result[0]?.transcript ?? '';
+      }
+
+      if (transcript) insertEditorText(transcript);
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      setVoiceMessage('Voice input stopped.');
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    return recognition;
+  };
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = recognitionRef.current ?? createRecognition();
+    if (!recognition) return;
+    recognitionRef.current = recognition;
+    setVoiceMessage(null);
+    setIsListening(true);
+    recognition.start();
+  };
 
   return (
     <div className="rounded-[28px] border border-border bg-background p-4">
@@ -139,11 +332,20 @@ export function InboxReplyInput() {
             {groupIndex > 0 && (
               <span className="h-4 w-px bg-border" aria-hidden="true" />
             )}
-            {group.map((Icon, index) => (
+            {group.map(({ command, icon: Icon, label, value }, index) => (
               <button
-                key={index}
+                key={`${command}-${value ?? index}`}
                 type="button"
-                className="inline-flex size-4 cursor-pointer items-center justify-center transition-colors hover:text-foreground"
+                title={label}
+                aria-label={label}
+                aria-pressed={activeTools.includes(toolKey(command, value))}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => runEditorCommand(command, value)}
+                className={cn(
+                  'inline-flex size-6 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-muted hover:text-foreground',
+                  activeTools.includes(toolKey(command, value)) &&
+                    'bg-muted text-foreground',
+                )}
               >
                 <Icon className="size-3.5" />
               </button>
@@ -152,10 +354,25 @@ export function InboxReplyInput() {
         ))}
       </div>
 
-      <textarea
-        className="mt-4 h-16 w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-        placeholder="Write your reply here..."
-      />
+      <div className="relative mt-4 min-h-16">
+        {!hasContent && (
+          <div className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
+            Write your reply here...
+          </div>
+        )}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Reply body"
+          onInput={updateContentState}
+          onKeyUp={updateContentState}
+          onMouseUp={updateContentState}
+          className="rich-text-editor min-h-16 w-full text-sm text-foreground outline-none"
+        />
+      </div>
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs font-medium text-foreground">
@@ -177,7 +394,13 @@ export function InboxReplyInput() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-pressed={isListening}
+            title={isListening ? 'Stop voice input' : 'Start voice input'}
+            onClick={toggleVoiceInput}
+            className={cn(
+              'inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground',
+              isListening && 'text-brand',
+            )}
           >
             <Mic className="size-3.5" />
           </button>
@@ -192,6 +415,9 @@ export function InboxReplyInput() {
           </button>
         </div>
       </div>
+      {voiceMessage && (
+        <p className="mt-2 text-xs text-muted-foreground">{voiceMessage}</p>
+      )}
     </div>
   );
 }
