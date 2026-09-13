@@ -188,7 +188,7 @@ function ModelPicker<T extends string>({
   );
 }
 
-/** Animated waveform shown while voice capture is active. */
+/** Animated voice */
 function ListeningIndicator({ elapsed }: { elapsed: number }) {
   return (
     <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ function ListeningIndicator({ elapsed }: { elapsed: number }) {
       </span>
 
       <div
-        className="flex h-6 items-end gap-[2px]"
+        className="flex h-6 items-end gap-0.5"
         role="status"
         aria-live="polite"
         aria-label="Listening"
@@ -206,7 +206,7 @@ function ListeningIndicator({ elapsed }: { elapsed: number }) {
         {Array.from({ length: 12 }).map((_, i) => (
           <span
             key={i}
-            className="voice-bar w-[3px] rounded-full bg-brand/80"
+            className="voice-bar w-0.75 rounded-full bg-brand/80"
             style={{ animationDelay: `${i * 90}ms` }}
           />
         ))}
@@ -274,7 +274,7 @@ export function InboxReplyInput() {
 
     const range = selection.getRangeAt(0);
     const span = document.createElement('span');
-    span.style.backgroundColor = 'var(--muted)';
+    span.style.backgroundColor = 'var(--background-warning-default)';
     span.appendChild(range.extractContents());
     range.insertNode(span);
     selection.removeAllRanges();
@@ -336,7 +336,6 @@ export function InboxReplyInput() {
     recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
-      // Accumulate final chunks; show interim live.
       let interim = '';
 
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -389,7 +388,6 @@ export function InboxReplyInput() {
   const cancelListening = () => {
     recognitionRef.current?.stop();
     setIsListening(false);
-    // Roll back to whatever was there before recording started.
     setEditorText(baselineTextRef.current);
   };
 
