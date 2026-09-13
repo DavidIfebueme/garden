@@ -22,7 +22,7 @@ import { typeLabels } from './inbox-detail-label'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
 import { Icon as IconifyIcon } from '@iconify/react';
-import { InboxNotificationDetailV1 } from './inbox-details/inbox-notification-details-v1'
+import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
 import { generateInboxTestItems } from './inbox-utils'
 
 
@@ -434,7 +434,7 @@ export function InboxPage() {
 
   const detailContent = selected ? (
     <>
-      <InboxNotificationDetailV1
+      <InboxNotificationDetailV2
         item={selected}
         onArchive={() => handleArchive(selected.id)}
         onOpenIssue={() => handleOpenIssue(selected)}
