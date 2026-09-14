@@ -473,10 +473,11 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
       updateAccountOnSignIn: true,
       accountLinking: {
         trustedProviders: ['google'],
-        // Google verifies ownership of the email before OAuth completes. This
-        // lets older Garden users with an unverified local row link lazily;
-        // the callback also marks the matching local email as verified.
-        requireLocalEmailVerified: false,
+        // Require the existing Garden account to verify its email before
+        // trusted-provider linking. Otherwise, anyone can pre-register an
+        // unverified password account with another person's email and claim
+        // the account when that person later signs in with Google.
+        requireLocalEmailVerified: true,
         allowDifferentEmails: false,
         allowUnlinkingAll: false,
       },
