@@ -42,8 +42,7 @@ const SANDBOX_IMAGE = 'docker.io/cloudflare/sandbox:0.12.4-python'
 
 const files = Cloudflare.R2.Bucket(deployTarget.filesId, {
   name: deployTarget.filesBucket,
-  // Shared preview storage is binding-compatible with canonical Postgres, but
-  // only production owns destructive lifecycle.
+  // Persistent staging/dev buckets must not be emptied during teardown.
   forceDestroy: deployTarget.emptyBucketsOnDestroy,
 })
 const brainFiles = Cloudflare.R2.Bucket(deployTarget.brainFilesId, {
@@ -201,7 +200,7 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
     ),
     VITE_PUBLIC_POSTHOG_HOST: plainEnv('VITE_PUBLIC_POSTHOG_HOST'),
     ...(deployTarget.bindConfiguredBetterAuthUrl
-      ? { BETTER_AUTH_URL: requiredProductionWebOrigin(deployTarget) }
+      ? { BETTER_AUTH_URL: requiredStagingWebOrigin(deployTarget) }
       : {}),
     ENVIRONMENT: deployTarget.environment,
     GOOGLE_CLIENT_ID: plainEnv('GOOGLE_CLIENT_ID'),
@@ -224,7 +223,7 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
 })
 
 export default Alchemy.Stack(
-  `garden-${deployTarget.key}`,
+  deployTarget.stackName,
   {
     providers: Cloudflare.providers(),
     state: Cloudflare.state(),
@@ -303,11 +302,11 @@ function plainEnv(name: string, fallback?: string) {
   return value
 }
 
-/** Requires the production origin at deploy time and rejects localhost.
+/** Requires the staging origin at deploy time and rejects localhost.
  * Workers Builds variables are build-only, so Alchemy must explicitly carry
  * this value into the uploaded Worker version rather than silently falling back
  * to a localhost host configuration. */
-function requiredProductionWebOrigin(
+function requiredStagingWebOrigin(
   target: ReturnType<typeof deploymentTargetFromEnv>,
 ) {
   const value = plainEnv('BETTER_AUTH_URL')
