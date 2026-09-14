@@ -2,10 +2,33 @@
 
 Garden uses Cloudflare Workers Logs as the primary debugging surface. Use the Garden app Worker logs first (`garden-staging`); connector APIs and Executor MCP Durable Objects run in that deployment. The Tail Worker (`garden-staging-tail`) is only an optional summary stream.
 
-## Production build trigger
+## Git build trigger
 
-Cloudflare Workers Builds deploys `garden-staging` from the `main` branch of
-`Flow-Research/garden`. Cloudflare stores the GitHub repository ID, not only its
+Cloudflare Workers Builds uses production (`main`) and non-production triggers
+in `Flow-Research/garden`. Both attach to `garden-staging`, so both branches' build logs appear
+there. Both use root directory `/apps/web`. Production runs
+`cd ../.. && pnpm run deploy`; non-production runs
+`cd ../.. && pnpm run deploy:ci`. The dispatcher uses Cloudflare's `WORKERS_CI_BRANCH`:
+
+| Branch | Alchemy target | Worker | Migrations |
+| --- | --- | --- | --- |
+| `main` | `staging` | `garden-staging` | Yes |
+| `dev` | `dev` | `garden-dev` | No |
+| Manual only | `preview` | `garden-preview` | No |
+
+Dev and preview share staging's PostgreSQL origin. Their Cloudflare resources
+are independently owned. Preview stays manual through `pnpm run deploy:preview`;
+other branches exit the dispatcher without deploying. Cloudflare may still
+create a build job for those branches. Configure build secrets separately on
+both triggers: enabling non-production builds copies plain variables only.
+
+Staging retains the existing `garden-production` Alchemy stack and `production`
+state stage to preserve resource ownership. The product target is `staging`.
+
+Cloudflare documents branch selection and build-time variables in its
+[Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+
+Cloudflare stores the GitHub repository ID, not only its
 owner and name. After a repository transfer or replacement, reconnect the
 Workers Builds trigger even when the GitHub URL remains unchanged.
 

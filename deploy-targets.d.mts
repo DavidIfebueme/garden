@@ -1,6 +1,7 @@
 export interface DeploymentTarget {
-  readonly key: 'production' | 'preview'
-  readonly appName: string
+  readonly key: 'staging' | 'dev' | 'preview'
+  readonly branch: 'main' | 'dev' | null
+  readonly stackName: string
   readonly stage: string
   readonly workerId: string
   readonly workerName: string
@@ -30,7 +31,9 @@ export interface DeploymentTarget {
 }
 
 export const deploymentTargets: Readonly<
-  Record<'production' | 'preview', DeploymentTarget>
+  Record<'staging' | 'dev' | 'preview', DeploymentTarget>
 >
 
 export function deploymentTargetFromEnv(value?: string): DeploymentTarget
+
+export function deploymentTargetFromBranch(branch?: string): DeploymentTarget
