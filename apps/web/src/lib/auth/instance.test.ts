@@ -109,7 +109,7 @@ describe('createBetterAuth Google sign-in policy', () => {
     )
   })
 
-  it('requires explicit account linking with the same email', () => {
+  it('enables lazy linking for trusted Google accounts with the same email', () => {
     const auth = createBetterAuth(null as unknown as Db, {
       ...authEnv,
       GOOGLE_AUTH_CLIENT_ID: 'google-auth-client',
@@ -118,7 +118,7 @@ describe('createBetterAuth Google sign-in policy', () => {
 
     expect(auth.options.account?.accountLinking).toEqual({
       trustedProviders: ['google'],
-      disableImplicitLinking: true,
+      requireLocalEmailVerified: false,
       allowDifferentEmails: false,
       allowUnlinkingAll: false,
     })
