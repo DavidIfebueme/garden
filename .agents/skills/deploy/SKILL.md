@@ -13,7 +13,8 @@ Garden has three Alchemy deployment targets:
 
 Two Workers Builds triggers are attached to `garden-staging`: the production
 trigger watches `main`; the non-production trigger watches other branches.
-Both run `cd ../.. && pnpm run deploy:ci`. The dispatcher deploys only `main`
+Production runs `cd ../.. && pnpm run deploy`; non-production runs
+`cd ../.. && pnpm run deploy:ci`. The dispatcher deploys only `main`
 and `dev`, skipping other branches before typechecks or migrations. Preview
 remains manual. Build secrets must be configured separately on both triggers;
 Cloudflare copies plain variables when enabling non-production builds, not secrets.

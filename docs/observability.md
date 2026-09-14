@@ -6,8 +6,9 @@ Garden uses Cloudflare Workers Logs as the primary debugging surface. Use the Ga
 
 Cloudflare Workers Builds uses production (`main`) and non-production triggers
 in `Flow-Research/garden`. Both attach to `garden-staging`, so both branches' build logs appear
-there. Their deploy command is `cd ../.. && pnpm run deploy:ci`, with root directory
-`/apps/web`. The dispatcher uses Cloudflare's `WORKERS_CI_BRANCH`:
+there. Both use root directory `/apps/web`. Production runs
+`cd ../.. && pnpm run deploy`; non-production runs
+`cd ../.. && pnpm run deploy:ci`. The dispatcher uses Cloudflare's `WORKERS_CI_BRANCH`:
 
 | Branch | Alchemy target | Worker | Migrations |
 | --- | --- | --- | --- |
