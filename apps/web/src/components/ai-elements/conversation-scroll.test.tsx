@@ -45,7 +45,7 @@ function flushRAF() {
     () =>
       new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => resolve())
+          setTimeout(resolve, 50)
         })
       }),
   )

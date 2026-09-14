@@ -8,7 +8,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -55,6 +54,8 @@ export function Conversation<TItem>({
   estimateItemSize = 90,
   getItemKey,
   initialContainerPoolRatio,
+  onWheel: callerOnWheel,
+  onTouchStart: callerOnTouchStart,
   renderItem: renderDataItem,
   ...props
 }: ConversationProps<TItem>) {
@@ -62,6 +63,7 @@ export function Conversation<TItem>({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isAtBottomRef = useRef(true)
   const pendingScrollRef = useRef(0)
+  const pendingScrollTimeoutRef = useRef(0)
   const prevScrollRef = useRef(0)
   const isAutoScrollingRef = useRef(false)
   const userScrolledUpRef = useRef(false)
@@ -79,6 +81,7 @@ export function Conversation<TItem>({
       state.isAtEnd || (!userScrolledUpRef.current && state.scrollLength - state.scroll < 50)
     if (!atBottom) {
       cancelAnimationFrame(pendingScrollRef.current)
+      clearTimeout(pendingScrollTimeoutRef.current)
     }
     isAtBottomRef.current = atBottom
     setIsAtBottom((current) => (current === atBottom ? current : atBottom))
@@ -94,6 +97,7 @@ export function Conversation<TItem>({
   const onUserScrollIntent = useCallback(
     (e: React.WheelEvent | React.TouchEvent) => {
       cancelAnimationFrame(pendingScrollRef.current)
+      clearTimeout(pendingScrollTimeoutRef.current)
       if ('deltaY' in e && e.deltaY < 0) {
         userScrolledUpRef.current = true
         isAtBottomRef.current = false
@@ -103,13 +107,32 @@ export function Conversation<TItem>({
     [],
   )
 
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      onUserScrollIntent(e)
+      callerOnWheel?.(e)
+    },
+    [onUserScrollIntent, callerOnWheel],
+  )
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      onUserScrollIntent(e)
+      callerOnTouchStart?.(e)
+    },
+    [onUserScrollIntent, callerOnTouchStart],
+  )
+
   const prevDataRef = useRef(data)
   if (prevDataRef.current !== data) {
     cancelAnimationFrame(pendingScrollRef.current)
+    clearTimeout(pendingScrollTimeoutRef.current)
     pendingScrollRef.current = requestAnimationFrame(() => {
       if (isAtBottomRef.current) {
         isAutoScrollingRef.current = true
-        listRef.current?.scrollToEnd?.({ animated: false })
+        pendingScrollTimeoutRef.current = setTimeout(() => {
+          listRef.current?.scrollToEnd?.({ animated: false })
+        }, 10)
       }
       updateStickiness()
     })
@@ -150,8 +173,8 @@ export function Conversation<TItem>({
       <div
         role="log"
         {...props}
-        onWheel={onUserScrollIntent}
-        onTouchStart={onUserScrollIntent}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
         className={cn('relative min-h-0 flex-1 overflow-hidden', className)}
       >
         <LegendList<ConversationRow<TItem>>
