@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { deploymentTargets } from '../deploy-targets.mjs'
+import {
+  deploymentTargets,
+  deploymentTargetFromBranch,
+  deploymentTargetFromEnv,
+} from '../deploy-targets.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const alchemySource = readFileSync(resolve(root, 'alchemy.run.ts'), 'utf8')
@@ -33,10 +37,10 @@ const sandboxVersion = workspaceSource.match(
 )?.[1]
 const sandboxImage = `docker.io/cloudflare/sandbox:${sandboxVersion}-python`
 
-assert.deepEqual(Object.keys(deploymentTargets), ['production', 'preview'])
-assert.equal(deploymentTargets.production.workerName, 'garden-staging')
+assert.deepEqual(Object.keys(deploymentTargets), ['staging', 'dev', 'preview'])
+assert.equal(deploymentTargets.staging.workerName, 'garden-staging')
 assert.equal(deploymentTargets.preview.workerName, 'garden-preview')
-assert.equal(deploymentTargets.production.emptyBucketsOnDestroy, false)
+assert.equal(deploymentTargets.staging.emptyBucketsOnDestroy, false)
 assert.equal(deploymentTargets.preview.emptyBucketsOnDestroy, true)
 assert.equal(deploymentTargets.preview.databaseUrlEnv, 'DATABASE_URL')
 assert.equal(deploymentTargets.preview.bindConfiguredBetterAuthUrl, false)
@@ -115,7 +119,9 @@ assert.match(
 )
 
 const uniqueFields = [
-  'appName',
+  'stackName',
+  'brainFilesId',
+  'brainFilesBucket',
   'workerId',
   'workerName',
   'tailWorkerId',
@@ -232,10 +238,7 @@ assert.match(
   alchemySource,
   /optionalSecretBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_SECRET'/s,
 )
-assert.doesNotMatch(
-  alchemySource,
-  /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/,
-)
+assert.doesNotMatch(alchemySource, /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/)
 
 for (const field of [
   'workerName',
@@ -292,7 +295,7 @@ assert.equal(
 )
 assert.match(
   packageJson.scripts['deploy:alchemy'],
-  /GARDEN_DEPLOY_TARGET=production.*alchemy deploy --stage production --yes/,
+  /GARDEN_DEPLOY_TARGET=staging.*alchemy deploy --stage production --yes/,
 )
 assert.doesNotMatch(packageJson.scripts['deploy:alchemy'], /--adopt/)
 assert.doesNotMatch(packageJson.scripts['deploy:alchemy'], /ALCHEMY_STAGE/)
@@ -314,5 +317,34 @@ assert.doesNotMatch(packageJson.scripts['destroy:preview'], /--adopt/)
 assert.doesNotMatch(packageJson.scripts['destroy:preview'], /ALCHEMY_STAGE/)
 
 console.log(
-  'deploy config passed: garden-staging and garden-preview are isolated Alchemy targets',
+  'deploy config passed: garden-staging, garden-dev, and garden-preview are isolated Alchemy targets',
 )
+
+// A branch typo must never deploy staging or silently turn preview automatic.
+assert.equal(deploymentTargetFromBranch('main'), deploymentTargets.staging)
+assert.equal(deploymentTargetFromBranch('dev'), deploymentTargets.dev)
+for (const branch of ['', 'staging', 'preview', 'feature/example']) {
+  assert.throws(
+    () => deploymentTargetFromBranch(branch),
+    /Automatic deploys require/,
+  )
+}
+assert.throws(
+  () => deploymentTargetFromEnv('production'),
+  /Set GARDEN_DEPLOY_TARGET/,
+)
+assert.equal(deploymentTargets.staging.stackName, 'garden-production')
+assert.equal(deploymentTargets.staging.stage, 'production')
+assert.equal(deploymentTargets.dev.workerName, 'garden-dev')
+assert.equal(deploymentTargets.dev.emptyBucketsOnDestroy, false)
+assert.equal(deploymentTargets.preview.branch, null)
+assert.equal(packageJson.scripts['deploy:ci'], 'node scripts/deploy-ci.mjs')
+assert.equal(
+  packageJson.scripts['deploy:dev'],
+  'pnpm typecheck && pnpm run deploy:dev:alchemy',
+)
+assert.match(
+  packageJson.scripts['deploy:dev:alchemy'],
+  /GARDEN_DEPLOY_TARGET=dev.*alchemy deploy --stage dev --yes/,
+)
+assert.match(alchemySource, /Alchemy.Stack\(\s*deployTarget.stackName/)

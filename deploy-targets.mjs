@@ -3,10 +3,13 @@
  * keeping every Cloudflare resource independently named and destructible.
  */
 export const deploymentTargets = {
-  production: {
-    key: 'production',
-    appName: 'garden',
-    stage: 'staging',
+  staging: {
+    key: 'staging',
+    branch: 'main',
+    // Alchemy v2 already owns staging under this stack/stage pair. Renaming
+    // the product target must not create a second owner for existing resources.
+    stackName: 'garden-production',
+    stage: 'production',
     workerId: 'web',
     workerName: 'garden-staging',
     tailWorkerId: 'tail',
@@ -39,9 +42,44 @@ export const deploymentTargets = {
     bindConfiguredBetterAuthUrl: true,
     emptyBucketsOnDestroy: false,
   },
+  dev: {
+    key: 'dev',
+    branch: 'dev',
+    stackName: 'garden-dev',
+    stage: 'dev',
+    workerId: 'web-dev',
+    workerName: 'garden-dev',
+    tailWorkerId: 'tail-dev',
+    tailWorkerName: 'garden-dev-tail',
+    filesId: 'files-dev',
+    filesBucket: 'garden-files-dev',
+    brainFilesId: 'brain-files-dev',
+    brainFilesBucket: 'org-brain-dev',
+    databaseId: 'database-dev',
+    databaseName: 'garden-database-dev',
+    // Dev uses the configured Postgres origin; only staging runs migrations.
+    // Cloudflare resources and Executor storage remain independently owned.
+    databaseUrlEnv: 'DATABASE_URL',
+    executorDatabaseId: 'executor-connectors-db-dev',
+    executorDatabaseName: 'harnessy-connectors-dev',
+    executorBlobsId: 'executor-blobs-dev',
+    executorBlobsBucket: 'harnessy-connectors-blobs-dev',
+    agentDoId: 'agent-do-dev',
+    // Match the runtime binding name for newly provisioned Durable Objects.
+    automationTriggerId: 'AUTOMATION_TRIGGER',
+    workflowId: 'run-workflow-dev',
+    workflowName: 'garden-run-workflow-dev',
+    sandboxId: 'sandbox-dev',
+    sandboxName: 'garden-web-sandbox-dev',
+    aiGatewayId: 'garden-dev',
+    environment: 'development',
+    bindConfiguredBetterAuthUrl: false,
+    emptyBucketsOnDestroy: false,
+  },
   preview: {
     key: 'preview',
-    appName: 'garden-preview',
+    branch: null,
+    stackName: 'garden-preview',
     stage: 'preview',
     workerId: 'web-preview',
     workerName: 'garden-preview',
@@ -84,4 +122,19 @@ export function deploymentTargetFromEnv(
   throw new Error(
     `Set GARDEN_DEPLOY_TARGET to one of: ${Object.keys(deploymentTargets).join(', ')}`,
   )
+}
+
+/**
+ * Workers Builds supplies WORKERS_CI_BRANCH for push and manual builds. Only
+ * main and dev select persistent targets; all other branches must use the
+ * explicit preview command. See Cloudflare Workers Builds configuration docs.
+ */
+export function deploymentTargetFromBranch(
+  branch = process.env.WORKERS_CI_BRANCH,
+) {
+  const target = Object.values(deploymentTargets).find(
+    (target) => target.branch !== null && target.branch === branch,
+  )
+  if (target) return target
+  throw new Error('Automatic deploys require WORKERS_CI_BRANCH=main or dev')
 }
