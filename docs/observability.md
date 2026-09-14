@@ -4,9 +4,9 @@ Garden uses Cloudflare Workers Logs as the primary debugging surface. Use the Ga
 
 ## Git build trigger
 
-Cloudflare Workers Builds watches `main` and `dev` in `Flow-Research/garden`.
-The trigger is attached to `garden-staging`, so both branches' build logs appear
-there. Its deploy command is `cd ../.. && pnpm run deploy:ci`, with root directory
+Cloudflare Workers Builds uses production (`main`) and non-production triggers
+in `Flow-Research/garden`. Both attach to `garden-staging`, so both branches' build logs appear
+there. Their deploy command is `cd ../.. && pnpm run deploy:ci`, with root directory
 `/apps/web`. The dispatcher uses Cloudflare's `WORKERS_CI_BRANCH`:
 
 | Branch | Alchemy target | Worker | Migrations |
@@ -17,7 +17,9 @@ there. Its deploy command is `cd ../.. && pnpm run deploy:ci`, with root directo
 
 Dev and preview share staging's PostgreSQL origin. Their Cloudflare resources
 are independently owned. Preview stays manual through `pnpm run deploy:preview`;
-there is no automatic preview build for pull requests or other branches.
+other branches exit the dispatcher without deploying. Cloudflare may still
+create a build job for those branches. Configure build secrets separately on
+both triggers: enabling non-production builds copies plain variables only.
 
 Staging retains the existing `garden-production` Alchemy stack and `production`
 state stage to preserve resource ownership. The product target is `staging`.

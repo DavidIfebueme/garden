@@ -11,10 +11,12 @@ Garden has three Alchemy deployment targets:
 - `dev` → `garden-dev`, automatically deployed from `dev`.
 - `preview` → `garden-preview`, deployed manually for temporary remote testing.
 
-The Workers Builds trigger attached to `garden-staging` watches exactly `main`
-and `dev` and runs `cd ../.. && pnpm run deploy:ci`. The branch dispatcher selects
-one target; unknown branches fail before deployment. Both branches share the
-existing trigger's build secrets. Preview has no Git trigger.
+Two Workers Builds triggers are attached to `garden-staging`: the production
+trigger watches `main`; the non-production trigger watches other branches.
+Both run `cd ../.. && pnpm run deploy:ci`. The dispatcher deploys only `main`
+and `dev`, skipping other branches before typechecks or migrations. Preview
+remains manual. Build secrets must be configured separately on both triggers;
+Cloudflare copies plain variables when enabling non-production builds, not secrets.
 
 Staging retains Alchemy's existing `garden-production` stack and `production`
 state stage. Those are resource ownership identifiers, not another environment;
