@@ -8,7 +8,7 @@ import {
 } from '@/lib/inbox/mutations'
 import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
@@ -21,9 +21,10 @@ import { InboxListItemV2 } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
-import { Icon as IconifyIcon } from '@iconify/react';
+// import { Icon as IconifyIcon } from '@iconify/react';
 import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
 import { generateInboxTestItems } from './inbox-utils'
+import { EnvelopeOpenIcon } from '@phosphor-icons/react'
 
 
 
@@ -295,7 +296,7 @@ function focusForInboxItem(item: InboxItem): string | null {
 
 export function InboxPage() {
   const { searchParams, replace } = useNavigation()
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const selectedKey = searchParams.get('item') ?? ''
 
   const [search, setSearch] = useState('')
@@ -304,6 +305,8 @@ export function InboxPage() {
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
 
+      // Persist selection in the /inbox URL search params so a reload
+      // re-selects the same notification.
       if (typeof window === 'undefined') return
       const url = new URL(window.location.href)
       if (key) url.searchParams.set('item', key)
@@ -380,13 +383,12 @@ export function InboxPage() {
     (item: InboxItem) => {
       if (!item.issue_id) return
       setSelectedKey(item.id, item)
-      dock?.openPanel({
-        kind: 'issue-detail',
-        title: item.title,
-        entityId: item.issue_id,
-      })
+      openIssue(
+        { id: item.issue_id, title: item.title },
+        { focus: focusForInboxItem(item) },
+      )
     },
-    [dock, setSelectedKey],
+    [openIssue, setSelectedKey],
   )
 
   // -- Shared sub-components --------------------------------------------------
@@ -447,7 +449,8 @@ export function InboxPage() {
         body="Once any new message is sent it'll be documented"
         icon={
           <div className="bg-muted h-20 w-20 flex items-center justify-center rounded-full text-muted-foreground shrink-0">
-            <IconifyIcon color='text-muted-foreground' icon="ph:envelope-open-thin" width={35} height={35} />
+            {/* <IconifyIcon color='text-muted-foreground' icon="ph:envelope-open-thin" width={35} height={35} /> */}
+            <EnvelopeOpenIcon strokeWidth={0.5} size={35} />
           </div>
         }
       />

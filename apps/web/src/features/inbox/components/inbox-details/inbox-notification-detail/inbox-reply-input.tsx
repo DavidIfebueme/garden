@@ -18,8 +18,8 @@ import {
   Underline,
   X,
 } from 'lucide-react';
-import { Icon as IconifyIcon } from '@iconify/react';
 import { cn } from '@garden/ui/lib/utils';
+import { HighlighterIcon } from '@phosphor-icons/react';
 
 type SpeechRecognitionEvent = Event & {
   resultIndex: number;
@@ -48,13 +48,9 @@ type SpeechRecognitionWindow = Window & {
   webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
 };
 
-const HighlighterIcon = ({ className }: { className?: string }) => (
-  <IconifyIcon
-    icon="ph:highlighter-thin"
-    className={className}
-    style={{ width: '1em', height: '1em' }}
-  />
-);
+// const HighlighterIcon = () => (
+//   <></>
+// );
 
 const HarnessyIcon = ({ className }: { className?: string }) => (
   <svg

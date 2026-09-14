@@ -91,6 +91,7 @@ import type {
   IssueRunEvent,
 } from '@garden/core/types'
 import type { StructuredQuestion } from '@garden/app-state/chat'
+import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import {
   ALL_STATUSES,
   STATUS_CONFIG,
@@ -129,7 +130,7 @@ import {
   issueWorkProductsOptions,
 } from '@/lib/issues/queries'
 import { inboxKeys } from '@/lib/inbox/queries'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 
 import { ProgressRing } from './progress-ring'
 
@@ -651,7 +652,7 @@ export function IssueDetail({
     deleteIssueMutation,
   } = useIssueDetailData(id)
   const isMobile = useIsMobile()
-  const dock = useWorkspaceDock()
+  const { openChatSession, navigate } = useSurfaceNavigation()
   const queryClient = useQueryClient()
   const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen)
   const debugMode = useDevSettingsStore((s) => s.debugMode)
@@ -710,10 +711,9 @@ export function IssueDetail({
         ]),
       )
 
-      dock?.openPanel({
-        kind: 'chat',
+      openChatSession({
+        id: optimisticSession.id,
         title: optimisticSession.title,
-        entityId: optimisticSession.id,
       })
 
       return {
@@ -738,10 +738,9 @@ export function IssueDetail({
         )
       }
 
-      dock?.openPanel({
-        kind: 'chat',
+      openChatSession({
+        id: session.id,
         title: session.title,
-        entityId: session.id,
       })
     },
     onError: (err, _input, context) => {
@@ -766,11 +765,11 @@ export function IssueDetail({
       optimisticThreadId: issue.id,
       workspaceId: issue.workspace_id,
     })
-  }, [dock, issue, openChatMutation, queryClient, user?.id])
+  }, [issue, openChatMutation, queryClient, user?.id])
 
   const handleOpenIssues = useCallback(() => {
-    dock?.openPanel({ kind: 'issues', title: 'Tasks' })
-  }, [dock])
+    void navigate({ to: '/tasks' })
+  }, [navigate])
 
   useEffect(() => {
     if (isMobile) {
@@ -898,6 +897,8 @@ export function IssueDetail({
     })
 
     if (deleteResult.isOk()) {
+      // Close its tab — a persisted tab would route to a 404ing detail query.
+      useSurfaceTabsStore.getState().closeTab('tasks', issue!.id)
       toast.success('Issue deleted')
       if (onDelete) onDelete()
       else handleOpenIssues()

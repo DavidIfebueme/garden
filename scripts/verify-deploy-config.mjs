@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { deploymentTargets } from '../deploy-targets.mjs'
+import {
+  deploymentTargets,
+  deploymentTargetFromBranch,
+  deploymentTargetFromEnv,
+} from '../deploy-targets.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const alchemySource = readFileSync(resolve(root, 'alchemy.run.ts'), 'utf8')
@@ -33,10 +37,10 @@ const sandboxVersion = workspaceSource.match(
 )?.[1]
 const sandboxImage = `docker.io/cloudflare/sandbox:${sandboxVersion}-python`
 
-assert.deepEqual(Object.keys(deploymentTargets), ['production', 'preview'])
-assert.equal(deploymentTargets.production.workerName, 'garden-staging')
+assert.deepEqual(Object.keys(deploymentTargets), ['staging', 'dev', 'preview'])
+assert.equal(deploymentTargets.staging.workerName, 'garden-staging')
 assert.equal(deploymentTargets.preview.workerName, 'garden-preview')
-assert.equal(deploymentTargets.production.emptyBucketsOnDestroy, false)
+assert.equal(deploymentTargets.staging.emptyBucketsOnDestroy, false)
 assert.equal(deploymentTargets.preview.emptyBucketsOnDestroy, true)
 assert.equal(deploymentTargets.preview.databaseUrlEnv, 'DATABASE_URL')
 assert.equal(deploymentTargets.preview.bindConfiguredBetterAuthUrl, false)
@@ -115,7 +119,9 @@ assert.match(
 )
 
 const uniqueFields = [
-  'appName',
+  'stackName',
+  'brainFilesId',
+  'brainFilesBucket',
   'workerId',
   'workerName',
   'tailWorkerId',
@@ -129,12 +135,10 @@ const uniqueFields = [
   'executorBlobsId',
   'executorBlobsBucket',
   'agentDoId',
-  'automationTriggerId',
   'workflowId',
   'workflowName',
   'sandboxId',
   'sandboxName',
-  'stateWorkerName',
 ]
 
 for (const field of uniqueFields) {
@@ -150,15 +154,19 @@ for (const field of uniqueFields) {
   }
 }
 
+for (const target of Object.values(deploymentTargets)) {
+  assert.equal(
+    target.automationTriggerId,
+    'AUTOMATION_TRIGGER',
+    `${target.key} must preserve the adopted automation trigger identity`,
+  )
+}
+
 for (const binding of [
-  'AgentDO',
-  'Sandbox',
-  'AUTOMATION_TRIGGER',
   'EXECUTOR_DB',
   'EXECUTOR_BLOBS',
   'EXECUTOR_MCP_SESSION',
   'EXECUTOR_MCP_EXECUTION_OWNER',
-  'RUN_WORKFLOW',
   'BRAIN_FILES',
   'FILES',
   'HYPERDRIVE',
@@ -178,8 +186,59 @@ for (const binding of [
 assert.match(alchemySource, /HELIX_URL:\s*plainEnv\('HELIX_URL'\)/)
 assert.match(
   alchemySource,
-  /HELIX_API_KEY:\s*alchemy\.secret\.env\.HELIX_API_KEY/,
+  /HELIX_API_KEY:\s*Config\.redacted\('HELIX_API_KEY'\)/,
 )
+assert.match(alchemySource, /BROWSER:\s*Cloudflare\.Workers\.Browser\(\)/)
+assert.match(alchemySource, /AI:\s*Cloudflare\.Workers\.AI\(\)/)
+assert.match(alchemySource, /\.bind\(deployTarget\.automationTriggerId,\s*\{/)
+assert.match(
+  alchemySource,
+  /name:\s*'AUTOMATION_TRIGGER',\s*className:\s*'AutomationTriggerDO'/s,
+)
+assert.match(alchemySource, /deployed\.bind\(deployTarget\.agentDoId,\s*\{/)
+assert.match(
+  alchemySource,
+  /const sandbox = Cloudflare\.Container\(deployTarget\.sandboxId,\s*\{/,
+)
+assert.match(alchemySource, /deployed\.bind\(deployTarget\.sandboxId,\s*\{/)
+assert.match(
+  alchemySource,
+  /Cloudflare\.WorkflowResource\(deployTarget\.workflowId,\s*\{/,
+)
+assert.match(
+  alchemySource,
+  /workflowName:\s*deployTarget\.workflowName,\s*className:\s*'RunWorkflow',\s*scriptName:\s*deployTarget\.workerName/s,
+)
+assert.match(alchemySource, /deployed\.bind\(deployTarget\.workflowId,\s*\{/)
+assert.match(alchemySource, /tailConsumers:\s*\[deployTarget\.tailWorkerName\]/)
+assert.match(alchemySource, /yield\* tailConsumer/)
+assert.match(
+  alchemySource,
+  /runWorkflow\.pipe\(\s*Effect\.provide\(Cloudflare\.Workflows\.WorkflowProvider\(\)\),\s*\)/,
+)
+assert.match(
+  alchemySource,
+  /name:\s*'RUN_WORKFLOW',\s*workflowName:\s*deployedRunWorkflow\.workflowName,\s*className:\s*'RunWorkflow'/s,
+)
+assert.match(alchemySource, /name:\s*'AgentDO',\s*className:\s*'AgentDO'/s)
+assert.match(alchemySource, /name:\s*'Sandbox',\s*className:\s*'Sandbox'/s)
+assert.match(
+  alchemySource,
+  /deployed\.bind\(deployTarget\.sandboxId,[\s\S]*?containers:\s*\[\{\s*className:\s*'Sandbox'/,
+)
+assert.match(
+  alchemySource,
+  /sandbox\.Application = sandbox\.Application\.pipe\(Alchemy\.renamedFrom\('Sandbox'\)\)/,
+)
+assert.match(
+  alchemySource,
+  /optionalPlainBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_ID'/s,
+)
+assert.match(
+  alchemySource,
+  /optionalSecretBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_SECRET'/s,
+)
+assert.doesNotMatch(alchemySource, /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/)
 
 for (const field of [
   'workerName',
@@ -190,7 +249,6 @@ for (const field of [
   'executorBlobsBucket',
   'workflowName',
   'sandboxName',
-  'stateWorkerName',
 ]) {
   assert.match(
     alchemySource,
@@ -207,7 +265,14 @@ assert.doesNotMatch(alchemySource, /process\.env\.WORKERS_CI\s*\?/)
 assert.match(alchemySource, /optionalSecretBindings\(\['EXA_API_KEY'\]\)/)
 assert.match(alchemySource, /image:\s*SANDBOX_IMAGE/)
 assert.match(alchemySource, /SANDBOX_TRANSPORT[^\n]+rpc/)
-assert.match(alchemySource, /empty:\s*deployTarget\.emptyBucketsOnDestroy/)
+assert.match(
+  alchemySource,
+  /forceDestroy:\s*deployTarget\.emptyBucketsOnDestroy/,
+)
+assert.match(
+  alchemySource,
+  /!url\.hostname\s*\|\|\s*!url\.username\s*\|\|\s*!url\.password\s*\|\|\s*!database/,
+)
 assert.match(alchemySource, /deploymentTargetFromEnv\(\)/)
 assert.equal(webPackageJson.devDependencies['@posthog/cli'], '0.8.4')
 assert.equal(packageJson.pnpm.overrides['@posthog/cli'], '0.8.4')
@@ -217,8 +282,6 @@ assert.match(
   /import codemode from ['"]@cloudflare\/codemode\/vite['"]/,
 )
 assert.match(viteSource, /\bcodemode\(\),/)
-assert.match(alchemySource, /POSTHOG_CLI_SOURCEMAP_UPLOAD_CONCURRENCY/)
-assert.match(alchemySource, /WORKERS_CI_COMMIT_SHA/)
 assert.match(viteSource, /WORKERS_CI_COMMIT_SHA/)
 assert.match(viteSource, /batchSize:\s*100/)
 assert.match(viteSource, /deleteAfterUpload:\s*true/)
@@ -232,18 +295,56 @@ assert.equal(
 )
 assert.match(
   packageJson.scripts['deploy:alchemy'],
-  /GARDEN_DEPLOY_TARGET=production/,
+  /GARDEN_DEPLOY_TARGET=staging.*alchemy deploy --stage production --yes/,
 )
+assert.doesNotMatch(packageJson.scripts['deploy:alchemy'], /--adopt/)
+assert.doesNotMatch(packageJson.scripts['deploy:alchemy'], /ALCHEMY_STAGE/)
 assert.doesNotMatch(packageJson.scripts['deploy:preview'], /deploy:migrate/)
 assert.match(
   packageJson.scripts['deploy:preview:alchemy'],
-  /GARDEN_DEPLOY_TARGET=preview/,
+  /GARDEN_DEPLOY_TARGET=preview.*alchemy deploy --stage preview --yes/,
+)
+assert.doesNotMatch(packageJson.scripts['deploy:preview:alchemy'], /--adopt/)
+assert.doesNotMatch(
+  packageJson.scripts['deploy:preview:alchemy'],
+  /ALCHEMY_STAGE/,
 )
 assert.match(
   packageJson.scripts['destroy:preview'],
-  /GARDEN_DEPLOY_TARGET=preview/,
+  /GARDEN_DEPLOY_TARGET=preview.*alchemy destroy --stage preview --yes/,
 )
+assert.doesNotMatch(packageJson.scripts['destroy:preview'], /--adopt/)
+assert.doesNotMatch(packageJson.scripts['destroy:preview'], /ALCHEMY_STAGE/)
 
 console.log(
-  'deploy config passed: garden-staging and garden-preview are isolated Alchemy targets',
+  'deploy config passed: garden-staging, garden-dev, and garden-preview are isolated Alchemy targets',
 )
+
+// A branch typo must never deploy staging or silently turn preview automatic.
+assert.equal(deploymentTargetFromBranch('main'), deploymentTargets.staging)
+assert.equal(deploymentTargetFromBranch('dev'), deploymentTargets.dev)
+for (const branch of ['', 'staging', 'preview', 'feature/example']) {
+  assert.throws(
+    () => deploymentTargetFromBranch(branch),
+    /Automatic deploys require/,
+  )
+}
+assert.throws(
+  () => deploymentTargetFromEnv('production'),
+  /Set GARDEN_DEPLOY_TARGET/,
+)
+assert.equal(deploymentTargets.staging.stackName, 'garden-production')
+assert.equal(deploymentTargets.staging.stage, 'production')
+assert.equal(deploymentTargets.dev.workerName, 'garden-dev')
+assert.equal(deploymentTargets.dev.emptyBucketsOnDestroy, false)
+assert.equal(deploymentTargets.preview.branch, null)
+assert.equal(packageJson.scripts['deploy:ci'], 'node scripts/deploy-ci.mjs')
+assert.equal(
+  packageJson.scripts['deploy:dev'],
+  'pnpm typecheck && pnpm run deploy:dev:alchemy',
+)
+assert.match(
+  packageJson.scripts['deploy:dev:alchemy'],
+  /GARDEN_DEPLOY_TARGET=dev.*alchemy deploy --stage dev --yes/,
+)
+assert.match(alchemySource, /Alchemy.Stack\(\s*deployTarget.stackName/)

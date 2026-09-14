@@ -31,6 +31,8 @@ export type AppEnv = {
   GITHUB_APP_SLUG?: string
   GITHUB_APP_PRIVATE_KEY?: string
   GITHUB_WEBHOOK_SECRET?: string
+  GOOGLE_AUTH_CLIENT_ID?: string
+  GOOGLE_AUTH_CLIENT_SECRET?: string
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
   SLACK_CLIENT_ID?: string

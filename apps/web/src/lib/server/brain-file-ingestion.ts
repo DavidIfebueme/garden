@@ -16,7 +16,7 @@ const brainIngestionLogger = createGardenLogger({
   component: 'brain-ingestion',
 })
 
-export class BrainFileIngestionError extends Schema.TaggedErrorClass<BrainFileIngestionError>()(
+export class BrainFileIngestionError extends Schema.TaggedError<BrainFileIngestionError>()(
   'BrainFileIngestionError',
   {
     operation: Schema.String,
@@ -145,6 +145,7 @@ export const makeBrainFileIngestionLayer = (
             kind: Kind.make('file'),
             label: normalizeDownloadFilename(input.file.name),
             r2Key: input.r2Key,
+            sizeBytes: input.file.size,
             canonical: {
               type: 'file',
               value: `brain:${input.workspaceId}:${normalizeDownloadFilename(input.file.name)}`,

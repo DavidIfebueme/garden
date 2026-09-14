@@ -76,17 +76,7 @@ async function activateExistingInvitationMembership(args: {
   await activateWorkspace(args)
 }
 
-/**
- * Sets Better Auth's active organization and forwards the refreshed session
- * cookie. Better Auth's org adapter only updates the session row in Postgres;
- * with `session.cookieCache` (compact strategy) enabled the browser keeps a
- * stale `session_data` cookie whose activeOrganizationId predates acceptance,
- * so later requests without an explicit `workspace_id` would resolve the wrong
- * workspace. The set-active endpoint rewrites that cookie — but `auth.api.*`
- * calls run server-side, so without forwarding, the Set-Cookie never reaches
- * the browser. References: better-auth crud-org.mjs set-active (calls
- * setSessionCookie), @tanstack/start-server-core setResponseHeader.
- */
+/** Sets Better Auth's active org and forwards the refreshed session cookie (server-side auth.api calls don't reach the browser otherwise). */
 async function activateWorkspace(args: {
   auth: GardenAuth
   headers: Headers

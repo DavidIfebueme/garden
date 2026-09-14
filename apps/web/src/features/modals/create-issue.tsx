@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigation } from '../navigation'
-import { useWorkspaceDock } from '@/components/shell/workspace-dock'
+import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import {
   Check,
   ChevronRight,
@@ -87,7 +87,7 @@ export function CreateIssueModal({
 }) {
   const router = useNavigation()
   void router
-  const dock = useWorkspaceDock()
+  const { openIssue } = useSurfaceNavigation()
   const workspaceName = useWorkspaceStore((s) => s.workspace?.name)
 
   const draft = useIssueDraftStore((s) => s.draft)
@@ -209,11 +209,7 @@ export function CreateIssueModal({
                 type="button"
                 className="ml-7 mt-2 text-sm text-primary hover:underline cursor-pointer"
                 onClick={() => {
-                  dock?.openPanel({
-                    kind: 'issue-detail',
-                    title: issue.title,
-                    entityId: issue.id,
-                  })
+                  openIssue({ id: issue.id, title: issue.title })
                   toast.dismiss(t)
                 }}
               >

@@ -8,6 +8,7 @@ import {
 } from '@garden/ui/components/ui/dialog'
 import { Loader2 } from 'lucide-react'
 import { BrainFileTypeIcon } from './file-type-icon'
+import { truncateMiddle } from '../format'
 
 type BrainFileUploadDialogProps = {
   file: File | null
@@ -19,7 +20,8 @@ type BrainFileUploadDialogProps = {
 
 /**
  * Lets the user review a selected file before upload. After confirmation, the
- * same modal shows byte-level upload progress.
+ * same modal shows byte-level upload progress. Width follows the Penpot
+ * "Uploading your file" dialog (479px, radius 12 — the DialogContent default).
  */
 export function BrainFileUploadDialog({
   file,
@@ -39,7 +41,7 @@ export function BrainFileUploadDialog({
     >
       <DialogContent
         showCloseButton={!uploading}
-        className="gap-5 p-5 sm:max-w-[24rem]"
+        className="gap-5 p-5 sm:max-w-[479px]"
       >
         <DialogHeader>
           <DialogTitle>
@@ -57,8 +59,11 @@ export function BrainFileUploadDialog({
           <BrainFileTypeIcon fileName={file.name} />
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
-              {file.name}
+            <p
+              className="truncate text-sm font-medium text-foreground"
+              title={file.name}
+            >
+              {truncateMiddle(file.name, 48)}
             </p>
 
             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

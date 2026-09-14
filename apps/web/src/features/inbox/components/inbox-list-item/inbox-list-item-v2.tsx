@@ -46,8 +46,8 @@ export function InboxListItemV2({
       className={cn(
         'group relative cursor-pointer grid min-h-20.25 w-full grid-cols-[32px_minmax(0,1fr)] gap-x-3 border-b bg-background px-3 py-3 text-left transition-colors last:border-b-0',
         isSelected
-          ? 'border-l-2 border-l-muted'
-          : 'hover:bg-muted',
+          ? 'border-l-2 border-l-muted bg-muted'
+          : 'hover:bg-muted/40',
       )}
     >
       <img

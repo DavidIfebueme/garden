@@ -43,7 +43,8 @@ Garden runs locally in two modes:
 
 Both modes share the same setup through step 2, and both use the dockerized
 local Postgres as the recommended database — a fresh, private instance that
-migrations can own.
+migrations can own — plus a dockerized local HelixDB for the Brain graph and
+vector store.
 
 New contributors can follow the complete
 [developer onboarding guide](docs/development/onboarding.md) for setup, system
@@ -55,7 +56,8 @@ boundaries, an issue-run trace, and change verification.
 - pnpm 10.33.0 — `corepack enable` installs the pinned version for you in
   step 1
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or any
-  Docker engine) — runs the local Postgres, and optionally the local model
+  Docker engine) — runs the local Postgres and HelixDB, and optionally the
+  local model
 - A Cloudflare account — **standard mode only**; skip it for offline mode
 
 ### 1. Clone and install
@@ -102,7 +104,7 @@ First, get a local model running. Pick one of these:
 **Option A — Ollama in Docker** (no extra installs):
 
 ```bash
-pnpm offline:up:ollama                                    # starts Postgres + Ollama
+pnpm offline:up:ollama                                    # starts Postgres + HelixDB + Ollama
 docker compose -f compose.dev.yaml exec ollama ollama pull qwen3:8b
 ```
 
@@ -112,7 +114,7 @@ containers can't use the Mac GPU, so the native app is much faster):
 ```bash
 # install from https://ollama.com, then:
 ollama pull qwen3:8b
-pnpm offline:up                                           # starts Postgres only
+pnpm offline:up                                           # starts Postgres and HelixDB
 ```
 
 Heads up: `qwen3:8b` is a one-time **~5 GB download**, and the Docker images
