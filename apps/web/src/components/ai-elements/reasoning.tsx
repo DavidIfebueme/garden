@@ -9,7 +9,7 @@ import { cjk } from '@streamdown/cjk'
 import { code } from '@streamdown/code'
 import { math } from '@streamdown/math'
 import { mermaid } from '@streamdown/mermaid'
-import { BrainIcon, ChevronDownIcon } from 'lucide-react'
+import { ChevronDownIcon } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
 import {
   createContext,
@@ -134,7 +134,7 @@ export const Reasoning = memo(
     return (
       <ReasoningContext.Provider value={contextValue}>
         <Collapsible
-          className={cn('not-prose mb-4', className)}
+          className={cn('not-prose', className)}
           onOpenChange={handleOpenChange}
           open={isOpen}
           {...props}
@@ -152,6 +152,22 @@ export type ReasoningTriggerProps = ComponentProps<
   getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode
 }
 
+const SECONDS_IN_MINUTE = 60
+
+/**
+ * Reasoning turns routinely run for minutes, and the old copy rendered that as
+ * "Thought for 154 seconds" — a number the reader has to divide in their head.
+ * Anything at or over a minute is now reported in minutes, matching the design's
+ * "Thought for 2mins".
+ */
+function formatThinkingDuration(seconds: number) {
+  if (seconds < SECONDS_IN_MINUTE) {
+    return `${seconds} second${seconds === 1 ? '' : 's'}`
+  }
+  const minutes = Math.round(seconds / SECONDS_IN_MINUTE)
+  return `${minutes} min${minutes === 1 ? '' : 's'}`
+}
+
 const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
   if (isStreaming || duration === 0) {
     return <Shimmer duration={1}>Thinking...</Shimmer>
@@ -159,7 +175,7 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
   if (duration === undefined) {
     return <p>Thought for a few seconds</p>
   }
-  return <p>Thought for {duration} seconds</p>
+  return <p>Thought for {formatThinkingDuration(duration)}</p>
 }
 
 export const ReasoningTrigger = memo(
@@ -181,11 +197,10 @@ export const ReasoningTrigger = memo(
       >
         {children ?? (
           <>
-            <BrainIcon className="size-4" />
             {getThinkingMessage(isStreaming, duration)}
             <ChevronDownIcon
               className={cn(
-                'size-4 transition-transform',
+                'size-4 shrink-0 transition-transform',
                 isOpen ? 'rotate-180' : 'rotate-0',
               )}
             />

@@ -286,30 +286,42 @@ export function ChatTimeline({
       const text = getDisplayText(item.message)
       const isLatestStreaming =
         isStreaming && item.message.id === latestMessage?.id
+      // `MessageContent` is now the user bubble itself, so attachments have to
+      // sit outside it — the design shows the file card above the bubble, and
+      // leaving it inside painted the card on brand green. It becomes a direct
+      // child of `Message`, which already right-aligns user rows.
+      //
+      // That also means an attachment-only user message (a file dropped with no
+      // prompt) must skip the bubble entirely, otherwise it renders as an empty
+      // green sliver. Assistant rows always keep the wrapper: it is transparent
+      // and carries the tool/citation/approval column.
+      const hasBubble = item.message.role !== 'user' || text.length > 0
       return (
         <Message from={item.message.role}>
-          <MessageContent>
-            <MessageFiles message={item.message} />
-            <MessageOrderedParts
-              debugMode={debugMode}
-              isLatestStreaming={isLatestStreaming}
-              message={item.message}
-              onOpenDocument={onOpenDocument}
-            />
-            <MessageSources message={item.message} />
-            <MessageCitations
-              message={item.message}
-              onOpenCitation={onOpenCitation}
-            />
-            <MessageToolApprovals
-              debugMode={debugMode}
-              message={item.message}
-              onResolve={onResolveToolApproval}
-              resolvedApprovalIds={resolvedApprovalIds}
-              resolvedPermissionRequestIds={resolvedPermissionRequestIds}
-              resolvingToolCallIds={resolvingToolCallIds}
-            />
-          </MessageContent>
+          <MessageFiles message={item.message} />
+          {hasBubble ? (
+            <MessageContent>
+              <MessageOrderedParts
+                debugMode={debugMode}
+                isLatestStreaming={isLatestStreaming}
+                message={item.message}
+                onOpenDocument={onOpenDocument}
+              />
+              <MessageSources message={item.message} />
+              <MessageCitations
+                message={item.message}
+                onOpenCitation={onOpenCitation}
+              />
+              <MessageToolApprovals
+                debugMode={debugMode}
+                message={item.message}
+                onResolve={onResolveToolApproval}
+                resolvedApprovalIds={resolvedApprovalIds}
+                resolvedPermissionRequestIds={resolvedPermissionRequestIds}
+                resolvingToolCallIds={resolvingToolCallIds}
+              />
+            </MessageContent>
+          ) : null}
           {text ? (
             <MessageFooter>
               <CopyButton text={text} />

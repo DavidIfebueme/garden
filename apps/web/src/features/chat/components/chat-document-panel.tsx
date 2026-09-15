@@ -163,6 +163,33 @@ export function getFileKindLabel(kind: ReturnType<typeof getFileKind>) {
   }
 }
 
+/**
+ * Tile colours for the attachment card's icon square.
+ *
+ * Before: every attachment rendered the same grey `FileTextIcon`, so a chat
+ * full of files was a wall of identical tiles. The design calls for a filled
+ * red square behind the PDF glyph; extending that to the other kinds we already
+ * classify keeps the row scannable without inventing new colours — each case
+ * reuses an existing semantic token.
+ *
+ * Images fall through to the neutral tile because `AttachmentPreview` paints a
+ * real thumbnail over it.
+ */
+export function getFileKindAccentClassName(kind: FileKind) {
+  switch (kind) {
+    case 'pdf':
+      return 'bg-destructive text-white'
+    case 'word':
+      return 'bg-info text-white'
+    case 'csv':
+      return 'bg-success text-white'
+    case 'json':
+      return 'bg-warning text-white'
+    default:
+      return 'bg-background text-muted-foreground'
+  }
+}
+
 export function FileKindIcon({
   kind,
   className,
