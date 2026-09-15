@@ -616,6 +616,29 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           data-testid="composer-pill"
           className={cn(
             "relative z-10 flex flex-col gap-3 rounded-2xl border border-border-default bg-background-main-default p-4 shadow-5 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-border-brand-secondary focus-within:border-border-brand-secondary",
+            /*
+             * The I-beam advertises `handlePillMouseDown`: the chrome around
+             * the editor is clickable as text, so it should look clickable as
+             * text. Without this the pill showed the arrow everywhere except
+             * over the editor's own line, which read as "only that line is the
+             * field" — the same wrong impression the dead click zones gave.
+             *
+             * The `:is(...)` reset is required, not belt-and-braces. `cursor`
+             * is an inherited property and Tailwind v4's preflight sets no
+             * cursor on `button` (checked the installed `preflight.css`), so
+             * `cursor-text` alone would inherit straight into every control in
+             * the toolbar and footer. `cursor-auto` restores exactly what they
+             * had before, since nothing here declared a cursor of its own.
+             *
+             * The selector list mirrors the skip list in
+             * `handlePillMouseDown` above — same elements, same reason — but
+             * is written out literally because Tailwind scans source
+             * statically and cannot read a shared constant. Keep the two in
+             * step; `a`, `[contenteditable]` and `[data-node-view-wrapper]`
+             * are omitted here only because they live inside `.ProseMirror`,
+             * which sets its own cursor.
+             */
+            "cursor-text [&_:is(button,input,textarea,select,label,[role=button],[role=menuitem],[role=combobox],[data-composer-keep-focus])]:cursor-auto",
             isDragging && "border-dashed border-border-brand-secondary",
           )}
           onMouseDown={handlePillMouseDown}
