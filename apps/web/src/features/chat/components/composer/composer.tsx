@@ -38,6 +38,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -476,6 +477,43 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       .run();
   }, []);
 
+  /**
+   * Click-to-focus for the whole composer pill.
+   *
+   * Before: the pill's handler was `onClick` guarded by
+   * `event.target === event.currentTarget`, so only a click landing on the
+   * pill element itself focused the editor. Every layout box inside it — the
+   * gaps the `flex-col gap-3` opens between toolbar, editor and footer, the
+   * footer's own row wrapper, the blank space beside the agent select — is a
+   * descendant, so the guard rejected it and the click went nowhere. The pill
+   * reads as one input field, so the dead zones felt broken.
+   *
+   * After: any mousedown inside the pill focuses the editor, except on the
+   * editor itself (ProseMirror places the caret at the click position — far
+   * better than our `focus("end")`) and on real controls, whose own focus and
+   * activation must not be stolen.
+   *
+   * `onMouseDown` + `preventDefault`, not `onClick`: by click time the browser
+   * has already moved focus and begun a text selection from the chrome, so
+   * focusing there fights what just happened. Preventing the default on
+   * mousedown stops both before they start. This mirrors
+   * `handleContainerMouseDown` in `@/features/editor/content-editor.tsx`,
+   * which solves the same problem one level down for the editor's own padding.
+   */
+  const handlePillMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest(".ProseMirror")) return;
+    if (
+      target.closest(
+        'a, button, input, textarea, select, label, [role="button"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [data-node-view-wrapper], [data-composer-keep-focus]',
+      )
+    ) {
+      return;
+    }
+    event.preventDefault();
+    editorRef.current?.focus();
+  }, []);
+
   const editorHasContent = editorMarkdown.trim().length > 0;
   const hasContent = editorHasContent || attachments.length > 0 || selectedDocuments.length > 0;
   const isSubmitted = normalizeStatus(status) === "submitted";
@@ -580,11 +618,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             "relative z-10 flex flex-col gap-3 rounded-2xl border border-border-default bg-background-main-default p-4 shadow-5 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-border-brand-secondary focus-within:border-border-brand-secondary",
             isDragging && "border-dashed border-border-brand-secondary",
           )}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              editorRef.current?.focus();
-            }
-          }}
+          onMouseDown={handlePillMouseDown}
           onPointerEnter={onWarmRuntime}
           onPaste={handlePaste}
           onDragEnter={handleDragEnter}
@@ -601,7 +635,16 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             </div>
           ) : null}
           {pendingQuestions && pendingQuestions.length > 0 && onSubmitAnswers ? (
-            <StructuredInputPanel questions={pendingQuestions} onSubmit={onSubmitAnswers} disabled={isStreaming} />
+            /*
+             * `data-composer-keep-focus` opts this subtree out of the pill's
+             * click-to-focus (see `handlePillMouseDown`). While the agent is
+             * asking structured questions the panel — not the editor — is what
+             * the user is answering, so a click on its padding must not yank
+             * the caret down into the composer mid-answer.
+             */
+            <div data-composer-keep-focus>
+              <StructuredInputPanel questions={pendingQuestions} onSubmit={onSubmitAnswers} disabled={isStreaming} />
+            </div>
           ) : null}
           <ComposerToolbar editor={editorInstance} />
           <ComposerEditor

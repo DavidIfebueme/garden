@@ -89,7 +89,18 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       clear: () => {
         contentEditorRef.current?.clearContent();
       },
+      // Caret goes to the end, not to Tiptap's default (start of doc).
+      // The only caller is the pill's click-to-focus handler, where the click
+      // landed on composer chrome rather than on a text position — putting the
+      // caret ahead of everything the user already typed is the wrong guess.
+      // Falls back to `ContentEditorRef.focus()` if the click somehow beats
+      // `onEditorReady`.
       focus: () => {
+        const editor = editorRef.current;
+        if (editor) {
+          editor.commands.focus("end");
+          return;
+        }
         contentEditorRef.current?.focus();
       },
       insertText: (text: string) => {
@@ -110,6 +121,34 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
   );
 
   return (
+    /*
+     * `max-h-[min(40vh,18rem)] overflow-y-auto` lands on the `.ProseMirror`
+     * node itself — `ContentEditor` forwards `className` into
+     * `editorProps.attributes.class` — so the editable area is its own scroll
+     * port.
+     *
+     * Before: the cap was `max-h-[40vh]`. It did clamp, but 40vh is far too
+     * generous for a chat input. Measured in the running app at a 986px
+     * viewport, a ~1.9k-character draft pinned the editor at its full 394px
+     * and grew the whole pill to 516px, which pushed the pill's top above the
+     * viewport — the composer swallowed the thread instead of sitting under
+     * it. So the field read as "grows without limit" long before the limit
+     * bound.
+     *
+     * After: `min(40vh, 18rem)` keeps the viewport-relative behavior that
+     * matters on short windows and adds a 288px ceiling for tall ones, which
+     * holds the pill around 410px at its worst. Beyond that the editor
+     * scrolls, caret-into-view included (ProseMirror scrolls the nearest
+     * scrollable ancestor, which is this element).
+     *
+     * The old `min-h-20` is dropped rather than retuned: it never applied.
+     * `content-editor.css` sets `.rich-text-editor.ProseMirror { min-height:
+     * 100% }` and is imported unlayered, so it beats every Tailwind utility
+     * (unlayered CSS wins over `@layer` regardless of specificity) — the empty
+     * editor measures ~22.75px, not 80px. The compact single-line resting
+     * state is therefore what the composer has always shipped, and reviving an
+     * 80px floor here would be a silent visual change, not a fix.
+     */
     <ContentEditor
       ref={contentEditorRef}
       defaultValue={draft}
@@ -124,7 +163,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       onEditorReady={handleEditorReady}
       skillSuggestion={{ items: skillItems, onSelect: onSkillSelect }}
       placeholder="Make requests with Garden AI..."
-      className="max-h-[40vh] min-h-20 overflow-y-auto"
+      className="max-h-[min(40vh,18rem)] overflow-y-auto"
     />
   );
 });

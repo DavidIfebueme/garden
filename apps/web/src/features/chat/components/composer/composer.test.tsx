@@ -22,6 +22,7 @@ const editorState = vi.hoisted(() => ({
   md: '',
   handleMd: null as string | null,
   clearCalls: 0,
+  focusCalls: 0,
   onSubmit: () => {},
 }))
 vi.mock('./composer-editor', async () => {
@@ -39,7 +40,9 @@ vi.mock('./composer-editor', async () => {
             editorState.handleMd = null
             editorState.clearCalls += 1
           },
-          focus: () => {},
+          focus: () => {
+            editorState.focusCalls += 1
+          },
           insertText: () => {},
           setMarkdown: (markdown: string) => {
             editorState.md = markdown
@@ -118,6 +121,7 @@ describe('Composer', () => {
     editorState.md = ''
     editorState.handleMd = null
     editorState.clearCalls = 0
+    editorState.focusCalls = 0
   })
 
   it('sends the editor markdown', async () => {
@@ -276,5 +280,42 @@ describe('Composer', () => {
     // `editorRef.current.clear()` were never called and the user's text
     // stayed visible in the composer after sending.
     expect(editorState.clearCalls).toBe(1)
+  })
+
+  /**
+   * Click-to-focus on the composer pill.
+   *
+   * The pill reads as a single input field, so a press anywhere in its chrome
+   * — the gaps `flex-col gap-3` opens between toolbar, editor and footer, the
+   * footer's own row — must put the caret in the editor. The previous handler
+   * was an `onClick` guarded by `event.target === event.currentTarget`, which
+   * rejected every one of those spots because they are all descendants.
+   *
+   * Mousedown, not click: focus and text selection both happen on mousedown,
+   * so `handlePillMouseDown` has to run (and `preventDefault`) before them.
+   * `fireEvent.mouseDown` therefore models the real sequence; `userEvent.click`
+   * would too, but this keeps the assertion on the event that matters.
+   */
+  it('focuses the editor when the pill chrome is pressed', () => {
+    render(<Composer {...base} />)
+    const pill = screen.getByTestId('composer-pill')
+    // A DESCENDANT, not the pill itself: the footer's row wrapper is one of
+    // the dead zones the old `target === currentTarget` guard rejected, so
+    // pressing the pill element directly would not have caught the bug.
+    const footerRow = pill.lastElementChild as HTMLElement
+    expect(footerRow.tagName).toBe('DIV')
+    fireEvent.mouseDown(footerRow)
+    expect(editorState.focusCalls).toBe(1)
+  })
+
+  /**
+   * The counterpart guard: real controls keep their own focus and activation.
+   * Without the interactive-element check the handler would yank focus out of
+   * every button in the footer on press, breaking the menus it opens.
+   */
+  it('leaves focus alone when a control inside the pill is pressed', () => {
+    render(<Composer {...base} />)
+    fireEvent.mouseDown(screen.getByRole('button', { name: /add files/i }))
+    expect(editorState.focusCalls).toBe(0)
   })
 })
