@@ -101,10 +101,23 @@ export function isImageAttachment(file: FileMessagePart) {
   return file.mediaType?.startsWith('image/') ?? false
 }
 
+/** File-kind discriminant shared by `getFileKind`, `FileKindIcon`, and any
+ * caller (e.g. `composer-tools-menu.tsx`) that needs to type a value as
+ * "one of the kinds this module knows how to render an icon for" without
+ * importing `getFileKind` just for its return type. */
+export type FileKind =
+  | 'image'
+  | 'pdf'
+  | 'word'
+  | 'csv'
+  | 'json'
+  | 'text'
+  | 'other'
+
 export function getFileKind(file: {
   mediaType?: string | null
   filename?: string | null
-}): 'image' | 'pdf' | 'word' | 'csv' | 'json' | 'text' | 'other' {
+}): FileKind {
   const media = file.mediaType ?? ''
   const name = (file.filename ?? '').toLowerCase()
   if (media.startsWith('image/')) return 'image'
