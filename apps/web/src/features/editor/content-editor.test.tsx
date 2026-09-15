@@ -24,23 +24,15 @@ vi.mock('./bubble-menu', () => ({
 }))
 
 vi.mock('@tiptap/react', () => ({
-  useEditor: () => ({
-    commands: {
-      focus: mockFocus,
-      clearContent: vi.fn(),
-    },
-    getMarkdown: () => '',
-    state: {
-      doc: {
-        content: {
-          size: 0,
-        },
-      },
-      selection: {
-        empty: true,
-      },
-    },
-  }),
+  useEditor: (options: { onCreate?: (props: { editor: unknown }) => void }) => {
+    const editor = {
+      commands: { focus: mockFocus, clearContent: vi.fn() },
+      getMarkdown: () => '',
+      state: { doc: { content: { size: 0 } }, selection: { empty: true } },
+    }
+    options.onCreate?.({ editor })
+    return editor
+  },
   EditorContent: ({ className }: { className?: string }) => (
     <div className={className} data-testid="editor-content">
       <div className="ProseMirror rich-text-editor" data-testid="prosemirror" />
@@ -72,5 +64,12 @@ describe('ContentEditor', () => {
     fireEvent.mouseDown(screen.getByTestId('prosemirror'))
 
     expect(mockFocus).not.toHaveBeenCalled()
+  })
+
+  it('calls onEditorReady once with the editor instance', () => {
+    const onEditorReady = vi.fn()
+    render(<ContentEditor editable onEditorReady={onEditorReady} />)
+    expect(onEditorReady).toHaveBeenCalledTimes(1)
+    expect(onEditorReady.mock.calls[0][0]).toHaveProperty('getMarkdown')
   })
 })
