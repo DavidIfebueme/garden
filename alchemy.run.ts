@@ -20,6 +20,7 @@ import * as Config from 'effect/Config'
 import * as Effect from 'effect/Effect'
 import * as Output from 'alchemy/Output'
 import * as Redacted from 'effect/Redacted'
+import { optionalCredentialPairIsConfigured } from './deploy-env.mjs'
 import { deploymentTargetFromEnv } from './deploy-targets.mjs'
 
 const rootEnvPath = fileURLToPath(new URL('./.env', import.meta.url))
@@ -380,12 +381,11 @@ function optionalCredentialPairBindings(
   clientId: string,
   clientSecret: string,
 ) {
-  const hasClientId = Boolean(process.env[clientId])
-  const hasClientSecret = Boolean(process.env[clientSecret])
-  if (hasClientId !== hasClientSecret) {
-    throw new Error(`${clientId} and ${clientSecret} must be set together`)
-  }
-  return hasClientId
+  return optionalCredentialPairIsConfigured(
+    process.env,
+    clientId,
+    clientSecret,
+  )
     ? {
         [clientId]: plainEnv(clientId),
         [clientSecret]: Config.redacted(clientSecret),

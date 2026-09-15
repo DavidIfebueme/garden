@@ -6,6 +6,7 @@ import {
   deploymentTargetFromBranch,
   deploymentTargetFromEnv,
 } from '../deploy-targets.mjs'
+import { optionalCredentialPairIsConfigured } from '../deploy-env.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const alchemySource = readFileSync(resolve(root, 'alchemy.run.ts'), 'utf8')
@@ -235,6 +236,48 @@ assert.match(
 )
 assert.doesNotMatch(alchemySource, /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/)
 assert.match(alchemySource, /BETTER_AUTH_URL:\s*Cloudflare\.Worker\.URL/)
+
+assert.equal(
+  optionalCredentialPairIsConfigured(
+    {},
+    'GOOGLE_AUTH_CLIENT_ID',
+    'GOOGLE_AUTH_CLIENT_SECRET',
+  ),
+  false,
+)
+assert.equal(
+  optionalCredentialPairIsConfigured(
+    {
+      GOOGLE_AUTH_CLIENT_ID: 'client-id',
+      GOOGLE_AUTH_CLIENT_SECRET: 'client-secret',
+    },
+    'GOOGLE_AUTH_CLIENT_ID',
+    'GOOGLE_AUTH_CLIENT_SECRET',
+  ),
+  true,
+)
+for (const env of [
+  { GOOGLE_AUTH_CLIENT_ID: 'client-id' },
+  { GOOGLE_AUTH_CLIENT_SECRET: 'client-secret' },
+  {
+    GOOGLE_AUTH_CLIENT_ID: '   ',
+    GOOGLE_AUTH_CLIENT_SECRET: 'client-secret',
+  },
+  {
+    GOOGLE_AUTH_CLIENT_ID: 'client-id',
+    GOOGLE_AUTH_CLIENT_SECRET: '',
+  },
+]) {
+  assert.throws(
+    () =>
+      optionalCredentialPairIsConfigured(
+        env,
+        'GOOGLE_AUTH_CLIENT_ID',
+        'GOOGLE_AUTH_CLIENT_SECRET',
+      ),
+    /must both be non-empty when configured/,
+  )
+}
 
 for (const field of [
   'workerName',
