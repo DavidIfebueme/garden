@@ -199,13 +199,17 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
       'VITE_PUBLIC_POSTHOG_PROJECT_TOKEN',
     ),
     VITE_PUBLIC_POSTHOG_HOST: plainEnv('VITE_PUBLIC_POSTHOG_HOST'),
-    ...(deployTarget.bindConfiguredBetterAuthUrl
-      ? { BETTER_AUTH_URL: requiredStagingWebOrigin(deployTarget) }
-      : {}),
+    // Alchemy resolves this self-reference before Vite builds: each remote
+    // target receives its own workers.dev origin and local dev gets its URL.
+    // https://alchemy.run/cloudflare/frontend/vite/#the-sites-own-url
+    BETTER_AUTH_URL: Cloudflare.Worker.URL,
     ENVIRONMENT: deployTarget.environment,
     GOOGLE_CLIENT_ID: plainEnv('GOOGLE_CLIENT_ID'),
-    ...optionalPlainBindings([
+    ...optionalCredentialPairBindings(
       'GOOGLE_AUTH_CLIENT_ID',
+      'GOOGLE_AUTH_CLIENT_SECRET',
+    ),
+    ...optionalPlainBindings([
       'GITHUB_CLIENT_ID',
       'GITHUB_APP_ID',
       'GITHUB_APP_SLUG',
@@ -213,7 +217,6 @@ export const web = Cloudflare.Website.Vite(deployTarget.workerId, {
     ]),
     GOOGLE_CLIENT_SECRET: Config.redacted('GOOGLE_CLIENT_SECRET'),
     ...optionalSecretBindings([
-      'GOOGLE_AUTH_CLIENT_SECRET',
       'GITHUB_CLIENT_SECRET',
       'GITHUB_APP_PRIVATE_KEY',
       'GITHUB_WEBHOOK_SECRET',
@@ -302,28 +305,6 @@ function plainEnv(name: string, fallback?: string) {
   return value
 }
 
-/** Requires the staging origin at deploy time and rejects localhost.
- * Workers Builds variables are build-only, so Alchemy must explicitly carry
- * this value into the uploaded Worker version rather than silently falling back
- * to a localhost host configuration. */
-function requiredStagingWebOrigin(
-  target: ReturnType<typeof deploymentTargetFromEnv>,
-) {
-  const value = plainEnv('BETTER_AUTH_URL')
-  const url = URL.parse(value)
-  if (
-    url === null ||
-    url.protocol !== 'https:' ||
-    url.hostname === 'localhost' ||
-    url.hostname === '127.0.0.1'
-  ) {
-    throw new Error(
-      `BETTER_AUTH_URL must be a deployed HTTPS origin for ${target.workerName}`,
-    )
-  }
-  return value
-}
-
 type PostgresOrigin = {
   scheme: 'postgres'
   host: string
@@ -386,4 +367,28 @@ function optionalSecretBindings(names: string[]) {
       .filter((name) => process.env[name])
       .map((name) => [name, Config.redacted(name)]),
   )
+}
+
+/**
+ * Keeps an optional OAuth provider atomic at the deployment boundary. A
+ * Workers Builds trigger previously omitted the client id while Cloudflare
+ * retained an older secret, producing a Worker version where every agent
+ * WebSocket request failed during auth construction. Reject that version
+ * before upload; provider-specific runtime decoupling is tracked in #122.
+ */
+function optionalCredentialPairBindings(
+  clientId: string,
+  clientSecret: string,
+) {
+  const hasClientId = Boolean(process.env[clientId])
+  const hasClientSecret = Boolean(process.env[clientSecret])
+  if (hasClientId !== hasClientSecret) {
+    throw new Error(`${clientId} and ${clientSecret} must be set together`)
+  }
+  return hasClientId
+    ? {
+        [clientId]: plainEnv(clientId),
+        [clientSecret]: Config.redacted(clientSecret),
+      }
+    : {}
 }

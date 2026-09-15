@@ -43,7 +43,6 @@ assert.equal(deploymentTargets.preview.workerName, 'garden-preview')
 assert.equal(deploymentTargets.staging.emptyBucketsOnDestroy, false)
 assert.equal(deploymentTargets.preview.emptyBucketsOnDestroy, true)
 assert.equal(deploymentTargets.preview.databaseUrlEnv, 'DATABASE_URL')
-assert.equal(deploymentTargets.preview.bindConfiguredBetterAuthUrl, false)
 
 assert.match(publicWranglerSources[0], /"name": "garden-staging"/)
 assert.match(publicWranglerSources[1], /"name": "garden-local"/)
@@ -232,13 +231,10 @@ assert.match(
 )
 assert.match(
   alchemySource,
-  /optionalPlainBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_ID'/s,
-)
-assert.match(
-  alchemySource,
-  /optionalSecretBindings\(\[[^\]]*'GOOGLE_AUTH_CLIENT_SECRET'/s,
+  /optionalCredentialPairBindings\(\s*'GOOGLE_AUTH_CLIENT_ID',\s*'GOOGLE_AUTH_CLIENT_SECRET',/s,
 )
 assert.doesNotMatch(alchemySource, /GOOGLE_AUTH_CLIENT_SECRET:\s*plainEnv/)
+assert.match(alchemySource, /BETTER_AUTH_URL:\s*Cloudflare\.Worker\.URL/)
 
 for (const field of [
   'workerName',
