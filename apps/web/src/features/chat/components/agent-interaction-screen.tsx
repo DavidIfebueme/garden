@@ -57,12 +57,19 @@ export function AgentInteractionScreen({
   className,
   panelTitle = 'Agent',
   onClose,
+  onOpenConnections,
   onSessionChange,
   sessionId = null,
 }: {
   className?: string
   panelTitle?: string
   onClose?: () => void
+  /**
+   * Opens the Connections dock panel from the composer's connected-apps
+   * strip. Passed straight through to the controller — this screen only
+   * forwards it, so the composer never has to know the dock exists.
+   */
+  onOpenConnections?: () => void
   onSessionChange?: (session: { id: string; title: string }) => void
   sessionId?: string | null
 }) {
@@ -132,6 +139,7 @@ export function AgentInteractionScreen({
       activeSession={activeSession}
       className={className}
       onClose={onClose}
+      onOpenConnections={onOpenConnections}
       panelDescription={null}
       panelTitle={panelTitle}
       sidebarState={sidebarState}
@@ -148,6 +156,8 @@ function ChatPanelInteraction({
   activeSession: AgentChatSession
   className?: string
   onClose?: () => void
+  /** Forwarded to the controller via the `{...props}` spread below. */
+  onOpenConnections?: () => void
   panelDescription?: string | null
   panelTitle: string
   sidebarState: 'collapsed' | 'expanded'

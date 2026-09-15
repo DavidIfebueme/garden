@@ -290,6 +290,9 @@ function ChatPanel({ node, panel }: PanelProps) {
         onSessionChange={(session) =>
           dock.updateChatPanelSession(node.getId(), session)
         }
+        onOpenConnections={() =>
+          dock.openPanel({ kind: 'capabilities', title: 'Connections' })
+        }
       />
     </PanelChrome>
   )

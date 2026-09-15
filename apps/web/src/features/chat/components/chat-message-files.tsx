@@ -41,7 +41,7 @@ import {
   COMPOSER_INLINE_CHIP_ICON_CLASS_NAME,
   COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME,
   COMPOSER_INLINE_SKILL_CHIP_CLASS_NAME,
-} from './chat-composer'
+} from './composer'
 
 // ─── Shared types ────────────────────────────────────────────────────────────
 

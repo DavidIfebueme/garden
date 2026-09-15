@@ -42,7 +42,7 @@ import { isToolPartActive } from './chat-tool-state'
 import { useDevSettingsStore } from '@/features/settings/dev-settings-store'
 import type { RealtimeStatus } from '../chat-runtime-provider'
 import { stripGardenInternalDocumentContext } from './chat-message-parts'
-import { normalizeStatus } from './chat-composer'
+import { normalizeStatus } from './composer'
 
 // Local helpers (formerly in agent-interaction-screen.tsx)
 function getText(parts: ChatUiMessage['parts']) {
