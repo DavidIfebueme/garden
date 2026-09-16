@@ -474,6 +474,14 @@ MessageResponse.displayName = 'MessageResponse'
 
 export type MessageFooterProps = HTMLAttributes<HTMLDivElement>
 
+/**
+ * The action row under a message.
+ *
+ * No gap between the children on purpose: each action is a 32px square with its
+ * own 8px padding, so butting them together is what puts the icons on the even
+ * 32px rhythm the design specifies, and lines the first icon up with the
+ * bubble's own left padding. An extra gap here pushed them out of that grid.
+ */
 export const MessageFooter = ({
   className,
   children,
@@ -481,7 +489,7 @@ export const MessageFooter = ({
 }: MessageFooterProps) => (
   <div
     className={cn(
-      'flex items-center gap-1',
+      'flex items-center gap-0',
       'group-[.is-user]:ml-auto',
       className,
     )}

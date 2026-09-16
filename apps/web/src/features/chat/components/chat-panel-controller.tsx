@@ -61,6 +61,7 @@ import {
   buildSelectedDocumentsContext,
   type SelectedThreadDocument,
 } from './document-selection'
+import { ChatMessageQueue, type QueuedChatMessage } from './chat-message-queue'
 import {
   buildMessageHeaderAttachments,
   type ChatHeaderAttachment,
@@ -156,6 +157,33 @@ export function ConnectedChatPanelInteraction({
   const [optimisticPendingTurn, setOptimisticPendingTurn] = useState(false)
   const lastSentTextRef = useRef<string | null>(null)
   const pendingMessageCountRef = useRef<number | null>(null)
+  /**
+   * Messages written while a turn was already running (2026-09-16 queue
+   * design). Held here rather than in the chat store because a queued send can
+   * carry `File` handles, which `zustand/persist` cannot serialise — parking
+   * them in persisted state would write a broken draft to storage and hand
+   * back empty attachments on reload.
+   *
+   * The ref is the source of truth and `queuedMessages` mirrors it for render:
+   * the drain loop below reads and writes the queue between awaits, where a
+   * state value captured at call time would already be stale.
+   */
+  const [queuedMessages, setQueuedMessages] = useState<QueuedChatMessage[]>([])
+  const queuedMessagesRef = useRef<QueuedChatMessage[]>([])
+  /**
+   * True from the moment a turn is dispatched until the queue behind it has
+   * drained. `status`/`isStreaming` alone cannot stand in for this: they still
+   * read idle in the gap between one turn resolving and the next one starting,
+   * which is exactly when a second send would jump the queue.
+   */
+  const isTurnInFlightRef = useRef(false)
+  const updateQueue = useCallback(
+    (update: (current: QueuedChatMessage[]) => QueuedChatMessage[]) => {
+      queuedMessagesRef.current = update(queuedMessagesRef.current)
+      setQueuedMessages(queuedMessagesRef.current)
+    },
+    [],
+  )
   /** Lets the suggestion pills push their starter text into the live editor. */
   const composerRef = useRef<ComposerHandle>(null)
   /**
@@ -208,6 +236,11 @@ export function ConnectedChatPanelInteraction({
     setOptimisticPendingTurn(false)
     lastSentTextRef.current = null
     pendingMessageCountRef.current = null
+    // The queue belongs to the conversation it was typed into, so switching
+    // sessions drops it rather than replaying it at whoever is next.
+    queuedMessagesRef.current = []
+    setQueuedMessages([])
+    isTurnInFlightRef.current = false
   }, [sessionId])
 
   useEffect(() => {
@@ -225,7 +258,16 @@ export function ConnectedChatPanelInteraction({
     }
   }, [messages.length, status])
 
-  const handleSend = async ({
+  /**
+   * Runs one turn end to end: uploads, context assembly, dispatch, and the
+   * await on the reply. Resolves `true` when the turn completed, `false` when
+   * it failed before or during dispatch — the drain loop below stops on
+   * `false` so a broken run does not fire the rest of the queue at it.
+   *
+   * This is the body `handleSend` used to have; the queue wrapper now sits in
+   * front of it.
+   */
+  const submitTurn = async ({
     text,
     files,
     selectedDocuments,
@@ -233,7 +275,7 @@ export function ConnectedChatPanelInteraction({
     text: string
     files: File[]
     selectedDocuments: SelectedThreadDocument[]
-  }) => {
+  }): Promise<boolean> => {
     lastSentTextRef.current = text
     pendingMessageCountRef.current = messages.length
     setOptimisticPendingTurn(true)
@@ -274,7 +316,7 @@ export function ConnectedChatPanelInteraction({
       setOptimisticPendingTurn(false)
       pendingMessageCountRef.current = null
       markTurnError(uploadResult.error)
-      return
+      return false
     }
     if (uploadResult.value.length > 0) {
       void queryClient.invalidateQueries({
@@ -357,8 +399,78 @@ export function ConnectedChatPanelInteraction({
           ? result.error
           : new Error(String(result.error)),
       )
+      return false
     }
+    return true
   }
+
+  /**
+   * What the composer calls on submit. Before the 2026-09-16 queue design a
+   * mid-turn submit stopped the run; now it parks the payload and the drain
+   * loop sends it the moment the running turn resolves, in the order it was
+   * written.
+   *
+   * The drain is a loop here rather than an effect on `status` — `sendMessage`
+   * resolves when its reply finishes, so "send the next one" is just the next
+   * statement, with no render pass to synchronise against (and `useEffect` is
+   * out per the repo's rules).
+   */
+  const handleSend = async (payload: {
+    text: string
+    files: File[]
+    selectedDocuments: SelectedThreadDocument[]
+  }) => {
+    if (isTurnInFlightRef.current) {
+      updateQueue((current) => [
+        ...current,
+        { id: crypto.randomUUID(), ...payload },
+      ])
+      return
+    }
+
+    isTurnInFlightRef.current = true
+    let completed = await submitTurn(payload)
+    while (completed) {
+      const [next, ...rest] = queuedMessagesRef.current
+      if (!next) break
+      updateQueue(() => rest)
+      completed = await submitTurn({
+        text: next.text,
+        files: next.files,
+        selectedDocuments: next.selectedDocuments,
+      })
+    }
+    isTurnInFlightRef.current = false
+  }
+
+  /**
+   * Pulls a queued message back into the composer. Removing it from the queue
+   * first is what makes this an edit rather than a copy — leaving it in place
+   * would send the original alongside whatever the person then rewrote.
+   */
+  const handleEditQueuedMessage = useCallback(
+    (message: QueuedChatMessage) => {
+      updateQueue((current) =>
+        current.filter((queued) => queued.id !== message.id),
+      )
+      setInput(message.text)
+      composerRef.current?.restoreDraft({
+        markdown: message.text,
+        files: message.files,
+        selectedDocumentIds: message.selectedDocuments.map(
+          (document) => document.documentId,
+        ),
+      })
+    },
+    [setInput, updateQueue],
+  )
+
+  const handleRemoveQueuedMessage = useCallback(
+    (id: string) => {
+      updateQueue((current) => current.filter((queued) => queued.id !== id))
+    },
+    [updateQueue],
+  )
 
   const handleRetry = useCallback(async () => {
     const text = lastSentTextRef.current
@@ -545,6 +657,21 @@ export function ConnectedChatPanelInteraction({
                 </motion.div>
               ) : null}
             </AnimatePresence>
+            {/*
+              Queued sends sit directly above the pill and share its gutters
+              and max width, so the rows read as part of the composer block
+              rather than as the last thing in the transcript. Inside the lift
+              `motion.div` on purpose: they move with the composer instead of
+              detaching from it mid-animation.
+            */}
+            <div className="px-4">
+              <ChatMessageQueue
+                className={cn('mx-auto mb-2', COMPOSER_WIDTH_CLASS_NAME)}
+                messages={queuedMessages}
+                onEdit={handleEditQueuedMessage}
+                onRemove={handleRemoveQueuedMessage}
+              />
+            </div>
             <Composer
               key={sessionId}
               ref={composerRef}

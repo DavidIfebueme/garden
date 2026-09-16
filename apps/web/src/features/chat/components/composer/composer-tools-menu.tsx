@@ -61,13 +61,7 @@
  */
 
 import { useState } from 'react'
-import {
-  ChevronDown,
-  Shield,
-  ShieldCheck,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react'
+import { ChevronDown, Shield, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   DropdownMenu,
@@ -87,6 +81,7 @@ import {
   TOOL_PRESETS,
   type ToolPresetId,
 } from './composer-tools'
+import { SlidersHorizontalIcon } from '@garden/ui/components/icons'
 
 /** One chip in the Sources list — a document currently attached/selected in
  * the composer, mirrored from the `+` menu's document picker. */
@@ -129,7 +124,7 @@ export function ComposerToolsMenu(props: {
             aria-label="Tools"
             className="h-8 gap-3 rounded-sm px-2 text-icon-default"
           >
-            <SlidersHorizontal className="size-4" />
+            <SlidersHorizontalIcon className="size-4" />
             <span className="body-small text-text-default">
               {selectedPreset.label}
             </span>

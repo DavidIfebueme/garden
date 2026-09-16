@@ -112,6 +112,18 @@ function noop() {}
 export interface ComposerHandle {
   /** Replace the draft in the live editor and focus it. */
   setDraft: (markdown: string) => void
+  /**
+   * Put a queued send back into the composer so it can be edited before it
+   * goes out (2026-09-16 message-queue design, the pencil action on a queue
+   * row). Restores the whole payload, not just the prose: a queued message can
+   * carry attachments and selected thread documents, and dropping those on the
+   * way back would quietly change what the person is about to send.
+   */
+  restoreDraft: (payload: {
+    markdown: string
+    files: File[]
+    selectedDocumentIds: string[]
+  }) => void
 }
 
 export interface ComposerProps {
@@ -244,6 +256,14 @@ function ComposerFooter(props: {
           </SpeechInput>
         ) : null}
         {agentSelect}
+        {/*
+          Stop and send are no longer mutually exclusive. They were before the
+          2026-09-16 message-queue design, which meant a turn in flight hid the
+          send button and left mid-reply typing with nowhere to go. Now the
+          stop button stays for the whole turn — interrupting is never taken
+          away — and the send button joins it as soon as there is something to
+          send, queueing that payload behind the running reply.
+        */}
         {isStreaming ? (
           <Button
             type="button"
@@ -253,7 +273,8 @@ function ComposerFooter(props: {
           >
             <StopCircle className="size-4" />
           </Button>
-        ) : (
+        ) : null}
+        {isStreaming && !hasContent ? null : (
           <Button
             type="button"
             className={cn(
@@ -264,7 +285,13 @@ function ComposerFooter(props: {
             )}
             onClick={onSend}
             disabled={isSubmitted || hasStaleDocumentSelection || !hasContent}
-            aria-label={isSubmitted ? 'Sending' : 'Send message'}
+            aria-label={
+              isSubmitted
+                ? 'Sending'
+                : isStreaming
+                  ? 'Queue message'
+                  : 'Send message'
+            }
           >
             {isSubmitted ? (
               <Loader2 className="size-4 animate-spin" />
@@ -448,10 +475,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
      * or any mirror of it.
      */
     const handleSubmit = async () => {
-      if (isStreaming) {
-        await onStop()
-        return
-      }
+      // Submitting mid-turn is no longer an implicit "stop". Before the
+      // 2026-09-16 message-queue design, `isStreaming` here aborted the run,
+      // so pressing Enter while the agent was mid-reply killed it and dropped
+      // the text. Now the submit always hands the payload to `onSend`; the
+      // controller parks it in the queue when a turn is in flight and sends it
+      // when that turn ends. Stopping stays an explicit press of the stop
+      // button, which is wired straight to `onStop` in `ComposerFooter`.
       if (normalizeStatus(status) === 'submitted') return
 
       const text = (editorRef.current?.getMarkdown() ?? '').trim()
@@ -476,6 +506,19 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
         setDraft: (markdown: string) => {
           setEditorMarkdown(markdown)
           editorRef.current?.setMarkdown(markdown)
+        },
+        restoreDraft: ({
+          markdown,
+          files,
+          selectedDocumentIds: documentIds,
+        }) => {
+          setEditorMarkdown(markdown)
+          editorRef.current?.setMarkdown(markdown)
+          handleFiles(files)
+          setSelectedDocumentIds((current) => [
+            ...current,
+            ...documentIds.filter((id) => !current.includes(id)),
+          ])
         },
       }),
       [],
