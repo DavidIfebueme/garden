@@ -7,29 +7,44 @@
  * focused on the bare AgentInteractionScreen scaffold + ShellFrame chrome.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Result } from "better-result";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@garden/app-state/auth";
-import { useChatStore } from "@garden/app-state/chat";
-import { useWorkspaceStore } from "@garden/app-state/workspace";
-import { motion, AnimatePresence } from "motion/react";
-import { Alert, AlertDescription, AlertTitle } from "@garden/ui/components/ui/alert";
-import { Button } from "@garden/ui/components/ui/button";
-import { cn } from "@garden/ui/lib/utils";
-import { EnvironmentDebugDrawer } from "@/features/settings/components/environment-debug-drawer";
-import { usePrefetchDebugStream } from "@/features/settings/components/use-debug-stream";
-import { useDevSettingsStore } from "@/features/settings/dev-settings-store";
-import { useAgentSessions, type AgentChatSession, NEW_SESSION_TITLE } from "../use-agent-chat-sessions";
-import { makeSessionTitle, type ChatRuntime } from "../chat-runtime-provider";
-import { useToolApprovals } from "../use-tool-approvals";
-import { useStructuredInput } from "../use-structured-input";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Result } from 'better-result'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@garden/app-state/auth'
+import { useChatStore } from '@garden/app-state/chat'
+import { useWorkspaceStore } from '@garden/app-state/workspace'
+import { motion, AnimatePresence } from 'motion/react'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@garden/ui/components/ui/alert'
+import { Button } from '@garden/ui/components/ui/button'
+import { cn } from '@garden/ui/lib/utils'
+import { EnvironmentDebugDrawer } from '@/features/settings/components/environment-debug-drawer'
+import { usePrefetchDebugStream } from '@/features/settings/components/use-debug-stream'
+import { useDevSettingsStore } from '@/features/settings/dev-settings-store'
+import {
+  useAgentSessions,
+  type AgentChatSession,
+  NEW_SESSION_TITLE,
+} from '../use-agent-chat-sessions'
+import { makeSessionTitle, type ChatRuntime } from '../chat-runtime-provider'
+import { useToolApprovals } from '../use-tool-approvals'
+import { useStructuredInput } from '../use-structured-input'
 import {
   DocumentSidePanel,
   withDocumentVersionUrl,
   type DocumentCitationAnnotation,
   type DocumentPanelView,
-} from "./chat-document-panel";
+} from './chat-document-panel'
 import {
   COMPOSER_WIDTH_CLASS_NAME,
   Composer,
@@ -41,14 +56,20 @@ import {
   uploadAgentDocuments,
   type ComposerHandle,
   type ComposerThreadDocument,
-} from "./composer";
-import { buildSelectedDocumentsContext, type SelectedThreadDocument } from "./document-selection";
-import { buildMessageHeaderAttachments, type ChatHeaderAttachment } from "./chat-message-files";
-import type { GardenArtifactData } from "@/features/artifacts/artifact-renderer";
-import { ChatTimeline } from "./chat-timeline";
-import { X } from "lucide-react";
-import { HeaderAttachmentsMenu } from "./chat-message-files";
-import { IssueMentionCard } from "@/features/issues/components/issue-mention-card";
+} from './composer'
+import {
+  buildSelectedDocumentsContext,
+  type SelectedThreadDocument,
+} from './document-selection'
+import {
+  buildMessageHeaderAttachments,
+  type ChatHeaderAttachment,
+} from './chat-message-files'
+import type { GardenArtifactData } from '@/features/artifacts/artifact-renderer'
+import { ChatTimeline } from './chat-timeline'
+import { X } from 'lucide-react'
+import { HeaderAttachmentsMenu } from './chat-message-files'
+import { IssueMentionCard } from '@/features/issues/components/issue-mention-card'
 
 // `EMPTY_INTRO_EASE` is imported from `./composer` rather than redeclared
 // here: the suggestion pills and this panel's lift animation have to move on
@@ -57,7 +78,9 @@ import { IssueMentionCard } from "@/features/issues/components/issue-mention-car
 // Quiet agent prompt — serif, in repose. The agent's voice greeting the
 // person by first name when we have it, otherwise just a soft open.
 function buildEmptyPrompt(firstName: string | null): string {
-  return firstName ? `What can I help with, ${firstName}?` : "What can I help with?";
+  return firstName
+    ? `What can I help with, ${firstName}?`
+    : 'What can I help with?'
 }
 
 // The four `EMPTY_STATE_TILES` and their `EmptyStateTile` renderer lived here
@@ -77,61 +100,64 @@ export function ConnectedChatPanelInteraction({
   runtime,
   updateSessionPreview,
 }: {
-  activeSession: AgentChatSession;
-  className?: string;
-  documentAttachments: ChatHeaderAttachment[];
-  documentLoadState: "error" | "loading" | "ready";
-  onClose?: () => void;
+  activeSession: AgentChatSession
+  className?: string
+  documentAttachments: ChatHeaderAttachment[]
+  documentLoadState: 'error' | 'loading' | 'ready'
+  onClose?: () => void
   /**
    * Opens the Connections surface from the composer's connected-apps strip.
    * Threaded down from the caller rather than reached for via context, so this
    * component keeps no dependency on the shell.
    */
-  onOpenConnections?: () => void;
-  panelDescription?: string | null;
-  panelTitle: string;
-  runtime: ChatRuntime;
-  updateSessionPreview: ReturnType<typeof useAgentSessions>["updateSessionPreview"];
+  onOpenConnections?: () => void
+  panelDescription?: string | null
+  panelTitle: string
+  runtime: ChatRuntime
+  updateSessionPreview: ReturnType<
+    typeof useAgentSessions
+  >['updateSessionPreview']
 }) {
-  const sessionId = activeSession.id;
-  const queryClient = useQueryClient();
-  const debugModeEnabled = useDevSettingsStore((s) => s.debugMode);
-  const workspaceId = useWorkspaceStore((s) => s.workspace?.id ?? null);
+  const sessionId = activeSession.id
+  const queryClient = useQueryClient()
+  const debugModeEnabled = useDevSettingsStore((s) => s.debugMode)
+  const workspaceId = useWorkspaceStore((s) => s.workspace?.id ?? null)
   const userFirstName = useAuthStore((s) => {
-    const name = s.user?.name?.trim();
-    if (!name) return null;
-    const first = name.split(/\s+/)[0];
-    return first && first.length > 0 ? first : null;
-  });
+    const name = s.user?.name?.trim()
+    if (!name) return null
+    const first = name.split(/\s+/)[0]
+    return first && first.length > 0 ? first : null
+  })
   usePrefetchDebugStream({
     enabled: debugModeEnabled,
     workspaceId,
     sessionId,
-  });
+  })
 
   // Composer text is stored in the chat store (workspace-namespaced, persisted
   // via zustand `persist`) so a typed-but-unsent draft survives reloads, tab
   // switches, and panel close/reopen — keyed per session id.
-  const input = useChatStore((s) => s.inputDrafts[sessionId] ?? "");
-  const setInputDraftFn = useChatStore((s) => s.setInputDraft);
-  const clearInputDraftFn = useChatStore((s) => s.clearInputDraft);
+  const input = useChatStore((s) => s.inputDrafts[sessionId] ?? '')
+  const setInputDraftFn = useChatStore((s) => s.setInputDraft)
+  const clearInputDraftFn = useChatStore((s) => s.clearInputDraft)
   const setInput = useCallback(
     (value: string) => {
-      if (value === "") {
-        clearInputDraftFn(sessionId);
+      if (value === '') {
+        clearInputDraftFn(sessionId)
       } else {
-        setInputDraftFn(sessionId, value);
+        setInputDraftFn(sessionId, value)
       }
     },
     [sessionId, setInputDraftFn, clearInputDraftFn],
-  );
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [documentPanelView, setDocumentPanelView] = useState<DocumentPanelView | null>(null);
-  const [optimisticPendingTurn, setOptimisticPendingTurn] = useState(false);
-  const lastSentTextRef = useRef<string | null>(null);
-  const pendingMessageCountRef = useRef<number | null>(null);
+  )
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [documentPanelView, setDocumentPanelView] =
+    useState<DocumentPanelView | null>(null)
+  const [optimisticPendingTurn, setOptimisticPendingTurn] = useState(false)
+  const lastSentTextRef = useRef<string | null>(null)
+  const pendingMessageCountRef = useRef<number | null>(null)
   /** Lets the suggestion pills push their starter text into the live editor. */
-  const composerRef = useRef<ComposerHandle>(null);
+  const composerRef = useRef<ComposerHandle>(null)
   /**
    * Which session the user dismissed the suggestion pills for. Keyed by
    * session id rather than a boolean because this component is NOT
@@ -139,7 +165,9 @@ export function ConnectedChatPanelInteraction({
    * never reset and the pills would stay gone for every later chat. A new
    * empty chat has a new `sessionId`, so the pills return. No effect needed.
    */
-  const [dismissedForSession, setDismissedForSession] = useState<string | null>(null);
+  const [dismissedForSession, setDismissedForSession] = useState<string | null>(
+    null,
+  )
   const {
     addToolApprovalResponse,
     addToolOutput,
@@ -152,7 +180,7 @@ export function ConnectedChatPanelInteraction({
     warmRuntime,
     isRecovering,
     isStreaming,
-  } = runtime;
+  } = runtime
 
   // Approval + structured-input surfaces own their own state (review #4); the
   // controller just threads the results into the timeline/composer.
@@ -167,64 +195,72 @@ export function ConnectedChatPanelInteraction({
     messages,
     addToolApprovalResponse,
     continueAfterGardenApproval: runtime.continueAfterGardenApproval,
-  });
+  })
   const { pendingStructuredInput, handleSubmitAnswers } = useStructuredInput({
     sessionId,
     messages,
     addToolOutput,
-  });
+  })
 
   useLayoutEffect(() => {
-    setDocumentPanelView(null);
-    setIsRetrying(false);
-    setOptimisticPendingTurn(false);
-    lastSentTextRef.current = null;
-    pendingMessageCountRef.current = null;
-  }, [sessionId]);
+    setDocumentPanelView(null)
+    setIsRetrying(false)
+    setOptimisticPendingTurn(false)
+    lastSentTextRef.current = null
+    pendingMessageCountRef.current = null
+  }, [sessionId])
 
   useEffect(() => {
-    if (normalizeStatus(status) !== "idle") {
-      setOptimisticPendingTurn(false);
-      pendingMessageCountRef.current = null;
-      return;
+    if (normalizeStatus(status) !== 'idle') {
+      setOptimisticPendingTurn(false)
+      pendingMessageCountRef.current = null
+      return
     }
-    if (pendingMessageCountRef.current !== null && messages.length > pendingMessageCountRef.current) {
-      setOptimisticPendingTurn(false);
-      pendingMessageCountRef.current = null;
+    if (
+      pendingMessageCountRef.current !== null &&
+      messages.length > pendingMessageCountRef.current
+    ) {
+      setOptimisticPendingTurn(false)
+      pendingMessageCountRef.current = null
     }
-  }, [messages.length, status]);
+  }, [messages.length, status])
 
   const handleSend = async ({
     text,
     files,
     selectedDocuments,
   }: {
-    text: string;
-    files: File[];
-    selectedDocuments: SelectedThreadDocument[];
+    text: string
+    files: File[]
+    selectedDocuments: SelectedThreadDocument[]
   }) => {
-    lastSentTextRef.current = text;
-    pendingMessageCountRef.current = messages.length;
-    setOptimisticPendingTurn(true);
-    const documentFiles = files.filter(shouldPersistAsDocument);
-    const passthroughFiles = files.filter((file) => !shouldPersistAsDocument(file));
+    lastSentTextRef.current = text
+    pendingMessageCountRef.current = messages.length
+    setOptimisticPendingTurn(true)
+    const documentFiles = files.filter(shouldPersistAsDocument)
+    const passthroughFiles = files.filter(
+      (file) => !shouldPersistAsDocument(file),
+    )
 
     // Stash what the turn would eventually commit so onFinish/onError can
     // apply (or drop) it. We deliberately do NOT rename the sidebar entry
     // here — it'd flash before the reply, and errors would strand a rename
     // we never asked for.
-    const nextTitle = activeSession.title === NEW_SESSION_TITLE && text ? makeSessionTitle(text) : null;
+    const nextTitle =
+      activeSession.title === NEW_SESSION_TITLE && text
+        ? makeSessionTitle(text)
+        : null
     runtime.setPendingTurn({
       title: nextTitle,
       preview: text,
-    });
+    })
 
     updateSessionPreview({
       sessionId: activeSession.id,
-      status: "submitted",
+      status: 'submitted',
       unread: false,
       updatedAt: new Date().toISOString(),
-    });
+    })
 
     const uploadResult =
       documentFiles.length > 0
@@ -232,32 +268,34 @@ export function ConnectedChatPanelInteraction({
             files: documentFiles,
             threadId: sessionId,
           })
-        : Result.ok([]);
+        : Result.ok([])
 
     if (uploadResult.isErr()) {
-      setOptimisticPendingTurn(false);
-      pendingMessageCountRef.current = null;
-      markTurnError(uploadResult.error);
-      return;
+      setOptimisticPendingTurn(false)
+      pendingMessageCountRef.current = null
+      markTurnError(uploadResult.error)
+      return
     }
     if (uploadResult.value.length > 0) {
       void queryClient.invalidateQueries({
-        queryKey: ["chat-thread-documents", sessionId],
-      });
+        queryKey: ['chat-thread-documents', sessionId],
+      })
     }
 
-    const selectedDocsContext = buildSelectedDocumentsContext(selectedDocuments);
+    const selectedDocsContext = buildSelectedDocumentsContext(selectedDocuments)
     const uploadedDocsContext =
       uploadResult.value.length > 0
         ? `The user uploaded these workspace documents for this turn. Internal document handles for this turn follow. Use these handles only in document tool calls. Do not mention handles, ids, or UUIDs to the user; refer to documents by filename:\n${uploadResult.value
             .map(
               (document) =>
                 `- handle: ${document.document_id}; filename: ${document.filename}${
-                  document.version_number ? ` (V${document.version_number})` : ""
+                  document.version_number
+                    ? ` (V${document.version_number})`
+                    : ''
                 }`,
             )
-            .join("\n")}`
-        : "";
+            .join('\n')}`
+        : ''
 
     // What the user has open in the side panel — a document or citation.
     // Both carry the underlying artifact, and the model wants it so
@@ -271,19 +309,25 @@ export function ConnectedChatPanelInteraction({
           versionNumber: documentPanelView.artifact.versionNumber ?? null,
           mode: documentPanelView.kind,
         }
-      : null;
+      : null
 
     const displayedDocContext = displayedDoc
       ? `The user is currently viewing this document in the side panel${
-          displayedDoc.mode === "citation" ? " (looking at a cited passage)" : ""
+          displayedDoc.mode === 'citation'
+            ? ' (looking at a cited passage)'
+            : ''
         }. Prefer it as the implicit subject when the user says "this", "the doc", or otherwise refers to a document without naming one. Refer to it by filename only — never mention the handle, id, or version UUID:\n- handle: ${displayedDoc.handle}; filename: ${displayedDoc.filename}${
-          displayedDoc.versionNumber ? ` (V${displayedDoc.versionNumber})` : ""
+          displayedDoc.versionNumber ? ` (V${displayedDoc.versionNumber})` : ''
         }`
-      : "";
+      : ''
 
-    const documentContext = [selectedDocsContext, uploadedDocsContext, displayedDocContext]
+    const documentContext = [
+      selectedDocsContext,
+      uploadedDocsContext,
+      displayedDocContext,
+    ]
       .filter((part) => part.length > 0)
-      .join("\n\n");
+      .join('\n\n')
 
     const requestOptions = documentContext
       ? {
@@ -292,38 +336,45 @@ export function ConnectedChatPanelInteraction({
             displayed_doc: displayedDoc,
           },
         }
-      : undefined;
+      : undefined
 
     const result = await Result.tryPromise(() =>
       sendMessage(
-        passthroughFiles.length > 0 ? { text, files: createFileList(passthroughFiles) } : { text },
+        passthroughFiles.length > 0
+          ? { text, files: createFileList(passthroughFiles) }
+          : { text },
         requestOptions,
       ),
-    );
+    )
 
     if (Result.isError(result)) {
-      setOptimisticPendingTurn(false);
-      pendingMessageCountRef.current = null;
+      setOptimisticPendingTurn(false)
+      pendingMessageCountRef.current = null
       // If send rejects before streaming begins, surface it through the
       // workspace runtime so the composer does not hang in `submitted`.
-      markTurnError(result.error instanceof Error ? result.error : new Error(String(result.error)));
+      markTurnError(
+        result.error instanceof Error
+          ? result.error
+          : new Error(String(result.error)),
+      )
     }
-  };
+  }
 
   const handleRetry = useCallback(async () => {
-    const text = lastSentTextRef.current;
-    if (!text) return;
-    setIsRetrying(true);
-    await handleSend({ text, files: [], selectedDocuments: [] });
-    setIsRetrying(false);
-  }, []);
+    const text = lastSentTextRef.current
+    if (!text) return
+    setIsRetrying(true)
+    await handleSend({ text, files: [], selectedDocuments: [] })
+    setIsRetrying(false)
+  }, [])
 
-  const sessionIsFresh = isUnusedIdleSession(activeSession) && messages.length === 0;
-  const visibleMessages = sessionIsFresh ? [] : messages;
-  const normalizedStatus = normalizeStatus(status);
-  const showEmptyChatState = sessionIsFresh && normalizedStatus === "idle";
+  const sessionIsFresh =
+    isUnusedIdleSession(activeSession) && messages.length === 0
+  const visibleMessages = sessionIsFresh ? [] : messages
+  const normalizedStatus = normalizeStatus(status)
+  const showEmptyChatState = sessionIsFresh && normalizedStatus === 'idle'
 
-  const currentTitle = sessionIsFresh ? panelTitle : activeSession.title;
+  const currentTitle = sessionIsFresh ? panelTitle : activeSession.title
   const composerDocuments = useMemo<ComposerThreadDocument[]>(
     () =>
       documentAttachments.map((attachment) => ({
@@ -334,64 +385,70 @@ export function ConnectedChatPanelInteraction({
         versionNumber: attachment.versionNumber ?? null,
       })),
     [documentAttachments],
-  );
+  )
   const headerAttachments = useMemo(() => {
-    const seenDocuments = new Set(documentAttachments.map((attachment) => attachment.id));
+    const seenDocuments = new Set(
+      documentAttachments.map((attachment) => attachment.id),
+    )
     const messageFiles = buildMessageHeaderAttachments(visibleMessages).filter(
       (attachment) => !seenDocuments.has(attachment.id),
-    );
-    return [...documentAttachments, ...messageFiles];
-  }, [documentAttachments, visibleMessages]);
+    )
+    return [...documentAttachments, ...messageFiles]
+  }, [documentAttachments, visibleMessages])
 
   const openDocumentArtifact = useCallback((artifact: GardenArtifactData) => {
     setDocumentPanelView({
       artifact,
-      kind: "document",
-    });
-  }, []);
+      kind: 'document',
+    })
+  }, [])
 
   const openDocumentAttachment = useCallback(
     (attachment: ChatHeaderAttachment) => {
-      if (attachment.source === "file") {
-        if (attachment.href) window.open(attachment.href, "_blank", "noreferrer");
-        return;
+      if (attachment.source === 'file') {
+        if (attachment.href)
+          window.open(attachment.href, '_blank', 'noreferrer')
+        return
       }
 
       openDocumentArtifact({
-        kind: "document",
+        kind: 'document',
         id: attachment.id,
         filename: attachment.label,
         title: attachment.label,
         url: attachment.href ?? null,
         versionId: attachment.versionId ?? null,
         versionNumber: attachment.versionNumber ?? null,
-      });
+      })
     },
     [openDocumentArtifact],
-  );
+  )
 
-  const openDocumentCitation = useCallback((citation: DocumentCitationAnnotation) => {
-    setDocumentPanelView({
-      artifact: {
-        kind: "document",
-        id: citation.document_id,
-        filename: citation.filename,
-        title: citation.filename,
-        url: withDocumentVersionUrl(
-          `/api/documents/${citation.document_id}/docx?filename=${encodeURIComponent(citation.filename)}`,
-          citation.version_id ?? null,
-        ),
-        versionId: citation.version_id ?? null,
-        versionNumber: citation.version_number ?? null,
-      },
-      citation,
-      kind: "citation",
-    });
-  }, []);
+  const openDocumentCitation = useCallback(
+    (citation: DocumentCitationAnnotation) => {
+      setDocumentPanelView({
+        artifact: {
+          kind: 'document',
+          id: citation.document_id,
+          filename: citation.filename,
+          title: citation.filename,
+          url: withDocumentVersionUrl(
+            `/api/documents/${citation.document_id}/docx?filename=${encodeURIComponent(citation.filename)}`,
+            citation.version_id ?? null,
+          ),
+          versionId: citation.version_id ?? null,
+          versionNumber: citation.version_number ?? null,
+        },
+        citation,
+        kind: 'citation',
+      })
+    },
+    [],
+  )
 
   const closeDocumentPanel = useCallback(() => {
-    setDocumentPanelView(null);
-  }, []);
+    setDocumentPanelView(null)
+  }, [])
 
   return (
     <ShellFrame
@@ -404,7 +461,12 @@ export function ConnectedChatPanelInteraction({
       onClose={onClose}
       sessionId={sessionId}
       onOpenAttachment={openDocumentAttachment}
-      sidePanel={<DocumentSidePanel onClose={closeDocumentPanel} view={documentPanelView} />}
+      sidePanel={
+        <DocumentSidePanel
+          onClose={closeDocumentPanel}
+          view={documentPanelView}
+        />
+      }
     >
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -446,16 +508,18 @@ export function ConnectedChatPanelInteraction({
             className="relative shrink-0"
             initial={false}
             animate={{
-              y: showEmptyChatState ? "calc(-1 * clamp(7.5rem, 40vh, 22rem))" : 0,
+              y: showEmptyChatState
+                ? 'calc(-1 * clamp(7.5rem, 40vh, 22rem))'
+                : 0,
               scale: showEmptyChatState ? 1.08 : 1,
               filter: showEmptyChatState
-                ? "drop-shadow(0 1px 1px rgba(91, 85, 77, 0.05)) drop-shadow(0 10px 22px rgba(91, 85, 77, 0.05)) drop-shadow(0 36px 64px rgba(91, 85, 77, 0.04))"
-                : "drop-shadow(0 0 0 rgba(91, 85, 77, 0))",
+                ? 'drop-shadow(0 1px 1px rgba(91, 85, 77, 0.05)) drop-shadow(0 10px 22px rgba(91, 85, 77, 0.05)) drop-shadow(0 36px 64px rgba(91, 85, 77, 0.04))'
+                : 'drop-shadow(0 0 0 rgba(91, 85, 77, 0))',
             }}
             transition={{ duration: 0.72, ease: EMPTY_INTRO_EASE }}
             style={{
-              willChange: "transform, filter",
-              transformOrigin: "center bottom",
+              willChange: 'transform, filter',
+              transformOrigin: 'center bottom',
             }}
           >
             <AnimatePresence initial={false}>
@@ -516,9 +580,14 @@ export function ConnectedChatPanelInteraction({
                     ease: EMPTY_INTRO_EASE,
                   }}
                   className="pointer-events-none absolute inset-x-0 top-[calc(100%+0.75rem)] mx-auto flex justify-center px-4"
-                  style={{ willChange: "transform, opacity" }}
+                  style={{ willChange: 'transform, opacity' }}
                 >
-                  <div className={cn("pointer-events-auto w-full", COMPOSER_WIDTH_CLASS_NAME)}>
+                  <div
+                    className={cn(
+                      'pointer-events-auto w-full',
+                      COMPOSER_WIDTH_CLASS_NAME,
+                    )}
+                  >
                     <ComposerSuggestions
                       onSelect={(starter) => {
                         // Both calls are required. `setInput` persists the
@@ -527,8 +596,8 @@ export function ConnectedChatPanelInteraction({
                         // `ContentEditor`'s `defaultValue` is creation-only in
                         // edit mode, so `setInput` alone would update the store
                         // and leave the editor visibly empty.
-                        setInput(starter);
-                        composerRef.current?.setDraft(starter);
+                        setInput(starter)
+                        composerRef.current?.setDraft(starter)
                       }}
                       onDismiss={() => setDismissedForSession(sessionId)}
                     />
@@ -540,17 +609,17 @@ export function ConnectedChatPanelInteraction({
         </div>
       </div>
     </ShellFrame>
-  );
+  )
 }
 
 function isUnusedIdleSession(session: AgentChatSession | null) {
-  if (!session) return false;
+  if (!session) return false
   return (
-    session.title.trim().toLowerCase() === "new chat" &&
+    session.title.trim().toLowerCase() === 'new chat' &&
     session.lastMessage.trim().length === 0 &&
-    session.status === "idle" &&
+    session.status === 'idle' &&
     !session.archivedAt
-  );
+  )
 }
 
 function ShellFrame({
@@ -566,38 +635,52 @@ function ShellFrame({
   sessionId = null,
   sidePanel,
 }: {
-  attachments?: ChatHeaderAttachment[];
-  children: React.ReactNode;
-  className?: string;
-  onClose?: () => void;
-  onOpenAttachment?: (attachment: ChatHeaderAttachment) => void;
-  panelDescription?: string | null;
-  panelTitle: string;
-  primaryIssueId?: string | null;
-  primaryIssue?: AgentChatSession["primaryIssue"];
-  sessionId?: string | null;
-  sidePanel?: React.ReactNode;
+  attachments?: ChatHeaderAttachment[]
+  children: React.ReactNode
+  className?: string
+  onClose?: () => void
+  onOpenAttachment?: (attachment: ChatHeaderAttachment) => void
+  panelDescription?: string | null
+  panelTitle: string
+  primaryIssueId?: string | null
+  primaryIssue?: AgentChatSession['primaryIssue']
+  sessionId?: string | null
+  sidePanel?: React.ReactNode
 }) {
-  const debugMode = useDevSettingsStore((s) => s.debugMode);
+  const debugMode = useDevSettingsStore((s) => s.debugMode)
 
   return (
-    <section className={cn("flex h-full min-h-0 bg-background", className)}>
+    <section className={cn('flex h-full min-h-0 bg-background', className)}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="truncate font-prose text-sm font-semibold">{panelTitle}</div>
-                {primaryIssueId ? <IssueMentionCard issueId={primaryIssueId} issue={primaryIssue} /> : null}
-                <HeaderAttachmentsMenu attachments={attachments} onOpenAttachment={onOpenAttachment} />
+                <div className="truncate font-prose text-sm font-semibold">
+                  {panelTitle}
+                </div>
+                {primaryIssueId ? (
+                  <IssueMentionCard
+                    issueId={primaryIssueId}
+                    issue={primaryIssue}
+                  />
+                ) : null}
+                <HeaderAttachmentsMenu
+                  attachments={attachments}
+                  onOpenAttachment={onOpenAttachment}
+                />
               </div>
               {panelDescription ? (
-                <div className="truncate text-xs text-muted-foreground">{panelDescription}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {panelDescription}
+                </div>
               ) : null}
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {debugMode ? <EnvironmentDebugDrawer sessionId={sessionId} /> : null}
+            {debugMode ? (
+              <EnvironmentDebugDrawer sessionId={sessionId} />
+            ) : null}
             {onClose ? (
               <Button variant="ghost" size="icon-sm" onClick={onClose}>
                 <X className="size-4" />
@@ -609,5 +692,5 @@ function ShellFrame({
       </div>
       {sidePanel}
     </section>
-  );
+  )
 }

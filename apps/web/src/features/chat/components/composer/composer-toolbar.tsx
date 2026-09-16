@@ -23,11 +23,11 @@
  * between clusters. No new visual language is introduced here.
  */
 
-import { Fragment, useRef, useState } from "react";
-import { useEditorState } from "@tiptap/react";
-import type { Editor } from "@tiptap/core";
-import { Toggle } from "@garden/ui/components/ui/toggle";
-import { Separator } from "@garden/ui/components/ui/separator";
+import { Fragment, useRef, useState } from 'react'
+import { useEditorState } from '@tiptap/react'
+import type { Editor } from '@tiptap/core'
+import { Toggle } from '@garden/ui/components/ui/toggle'
+import { Separator } from '@garden/ui/components/ui/separator'
 import {
   Bold,
   Italic,
@@ -39,22 +39,22 @@ import {
   AlignRight,
   AlignJustify,
   Highlighter,
-} from "lucide-react";
+} from 'lucide-react'
 
-type TextAlign = "left" | "center" | "right" | "justify";
+type TextAlign = 'left' | 'center' | 'right' | 'justify'
 
 interface ToolbarButtonConfig {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  pressed: boolean;
-  onToggle: (editor: Editor) => void;
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  pressed: boolean
+  onToggle: (editor: Editor) => void
 }
 
 /** Next heading level in the none -> H1 -> H2 -> H3 -> paragraph cycle. */
 function nextHeadingLevel(level: 1 | 2 | 3 | undefined): 1 | 2 | 3 | undefined {
-  if (level === undefined) return 1;
-  if (level < 3) return (level + 1) as 1 | 2 | 3;
-  return undefined;
+  if (level === undefined) return 1
+  if (level < 3) return (level + 1) as 1 | 2 | 3
+  return undefined
 }
 
 /**
@@ -79,14 +79,18 @@ function nextHeadingLevel(level: 1 | 2 | 3 | undefined): 1 | 2 | 3 | undefined {
  * The outer function deliberately holds NO hooks, so returning early here
  * cannot break hook order.
  */
-export function ComposerToolbar({ editor }: { editor: Editor | null }): JSX.Element | null {
-  if (!editor) return null;
-  return <ToolbarForEditor editor={editor} />;
+export function ComposerToolbar({
+  editor,
+}: {
+  editor: Editor | null
+}): JSX.Element | null {
+  if (!editor) return null
+  return <ToolbarForEditor editor={editor} />
 }
 
 function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
-  const [focusedIndex, setFocusedIndex] = useState(0);
-  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   // Precise subscription to formatting state — see the JSDoc above for why
   // this must go through useEditorState rather than a direct editor.isActive()
@@ -94,114 +98,119 @@ function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
   const state = useEditorState({
     editor,
     selector: ({ editor: ed }) => {
-      if (!ed) return null;
+      if (!ed) return null
       return {
-        bold: ed.isActive("bold"),
-        italic: ed.isActive("italic"),
-        underline: ed.isActive("underline"),
-        code: ed.isActive("code"),
-        heading: ed.isActive("heading"),
-        headingLevel: ed.getAttributes("heading").level as 1 | 2 | 3 | undefined,
-        alignLeft: ed.isActive({ textAlign: "left" }),
-        alignCenter: ed.isActive({ textAlign: "center" }),
-        alignRight: ed.isActive({ textAlign: "right" }),
-        alignJustify: ed.isActive({ textAlign: "justify" }),
-      };
+        bold: ed.isActive('bold'),
+        italic: ed.isActive('italic'),
+        underline: ed.isActive('underline'),
+        code: ed.isActive('code'),
+        heading: ed.isActive('heading'),
+        headingLevel: ed.getAttributes('heading').level as
+          | 1
+          | 2
+          | 3
+          | undefined,
+        alignLeft: ed.isActive({ textAlign: 'left' }),
+        alignCenter: ed.isActive({ textAlign: 'center' }),
+        alignRight: ed.isActive({ textAlign: 'right' }),
+        alignJustify: ed.isActive({ textAlign: 'justify' }),
+      }
     },
-  });
+  })
 
-  if (!editor || !state) return null;
+  if (!editor || !state) return null
 
-  const setAlign = (align: TextAlign) => (ed: Editor) => ed.chain().focus().setTextAlign(align).run();
+  const setAlign = (align: TextAlign) => (ed: Editor) =>
+    ed.chain().focus().setTextAlign(align).run()
 
   const buttons: ToolbarButtonConfig[] = [
     {
-      label: "Clear formatting",
+      label: 'Clear formatting',
       icon: Highlighter,
       pressed: false,
       onToggle: (ed) => ed.chain().focus().unsetAllMarks().clearNodes().run(),
     },
     {
-      label: "Underline",
+      label: 'Underline',
       icon: Underline,
       pressed: state.underline,
       onToggle: (ed) => ed.chain().focus().toggleUnderline().run(),
     },
     {
-      label: "Inline code",
+      label: 'Inline code',
       icon: Code,
       pressed: state.code,
       onToggle: (ed) => ed.chain().focus().toggleCode().run(),
     },
     {
-      label: "Bold",
+      label: 'Bold',
       icon: Bold,
       pressed: state.bold,
       onToggle: (ed) => ed.chain().focus().toggleBold().run(),
     },
     {
-      label: "Italic",
+      label: 'Italic',
       icon: Italic,
       pressed: state.italic,
       onToggle: (ed) => ed.chain().focus().toggleItalic().run(),
     },
     {
-      label: "Heading",
+      label: 'Heading',
       icon: HeadingIcon,
       pressed: state.heading,
       onToggle: (ed) => {
-        const level = ed.getAttributes("heading").level as 1 | 2 | 3 | undefined;
-        const next = nextHeadingLevel(level);
+        const level = ed.getAttributes('heading').level as 1 | 2 | 3 | undefined
+        const next = nextHeadingLevel(level)
         if (next) {
-          ed.chain().focus().toggleHeading({ level: next }).run();
+          ed.chain().focus().toggleHeading({ level: next }).run()
         } else {
-          ed.chain().focus().setParagraph().run();
+          ed.chain().focus().setParagraph().run()
         }
       },
     },
     {
-      label: "Align center",
+      label: 'Align center',
       icon: AlignCenter,
       pressed: state.alignCenter,
-      onToggle: setAlign("center"),
+      onToggle: setAlign('center'),
     },
     {
-      label: "Align left",
+      label: 'Align left',
       icon: AlignLeft,
       pressed: state.alignLeft,
-      onToggle: setAlign("left"),
+      onToggle: setAlign('left'),
     },
     {
-      label: "Align right",
+      label: 'Align right',
       icon: AlignRight,
       pressed: state.alignRight,
-      onToggle: setAlign("right"),
+      onToggle: setAlign('right'),
     },
     {
-      label: "Align justify",
+      label: 'Align justify',
       icon: AlignJustify,
       pressed: state.alignJustify,
-      onToggle: setAlign("justify"),
+      onToggle: setAlign('justify'),
     },
-  ];
+  ]
 
   // Three formatting controls per group, followed by the four alignment controls.
-  const separatorAfter = new Set([2, 5]);
+  const separatorAfter = new Set([2, 5])
 
   const focusButton = (index: number) => {
-    setFocusedIndex(index);
-    buttonRefs.current[index]?.focus();
-  };
+    setFocusedIndex(index)
+    buttonRefs.current[index]?.focus()
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      focusButton((focusedIndex + 1) % buttons.length);
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      focusButton((focusedIndex - 1 + buttons.length) % buttons.length);
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      focusButton((focusedIndex + 1) % buttons.length)
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      focusButton((focusedIndex - 1 + buttons.length) % buttons.length)
     }
-  };
+  }
 
   return (
     <div
@@ -215,7 +224,7 @@ function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
         <Fragment key={button.label}>
           <Toggle
             ref={(el: HTMLButtonElement | null) => {
-              buttonRefs.current[index] = el;
+              buttonRefs.current[index] = el
             }}
             className="size-8 rounded-sm p-0 text-icon-default"
             aria-label={button.label}
@@ -228,10 +237,13 @@ function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
             <button.icon className="size-4" />
           </Toggle>
           {separatorAfter.has(index) && (
-            <Separator orientation="vertical" className="mx-3 h-8 w-px bg-border-default" />
+            <Separator
+              orientation="vertical"
+              className="mx-3 h-8 w-px bg-border-default"
+            />
           )}
         </Fragment>
       ))}
     </div>
-  );
+  )
 }

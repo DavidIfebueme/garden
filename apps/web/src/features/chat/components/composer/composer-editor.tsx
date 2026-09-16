@@ -35,59 +35,75 @@
  * change identity every render and could retrigger extension rebuilds).
  */
 
-import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
-import type { Editor } from "@tiptap/core";
-import { ContentEditor, type ContentEditorRef } from "@/features/editor";
-import type { SkillSuggestionItem } from "@/features/editor/extensions";
-import type { MentionItem } from "@/features/editor/extensions/mention-suggestion";
-import type { UploadResult } from "@garden/app-state/hooks/use-file-upload";
+import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
+import type { Editor } from '@tiptap/core'
+import { ContentEditor, type ContentEditorRef } from '@/features/editor'
+import type { SkillSuggestionItem } from '@/features/editor/extensions'
+import type { MentionItem } from '@/features/editor/extensions/mention-suggestion'
+import type { UploadResult } from '@garden/app-state/hooks/use-file-upload'
 
-const CHAT_MENTION_TYPES = ["member"] as const satisfies readonly MentionItem["type"][];
+const CHAT_MENTION_TYPES = [
+  'member',
+] as const satisfies readonly MentionItem['type'][]
 
 export interface ComposerEditorHandle {
-  getMarkdown: () => string;
-  clear: () => void;
-  focus: () => void;
-  insertText: (text: string) => void;
+  getMarkdown: () => string
+  clear: () => void
+  focus: () => void
+  insertText: (text: string) => void
   /** Replace the whole document. Used by the suggestion pills (Tasks 12, 13). */
-  setMarkdown: (markdown: string) => void;
+  setMarkdown: (markdown: string) => void
 }
 
 export interface ComposerEditorProps {
   /** Seeds the editor on mount. Uncontrolled afterwards — see file JSDoc. */
-  draft: string;
-  onChange: (markdown: string) => void;
-  onSubmit: () => void;
-  onUploadFile: (file: File) => Promise<UploadResult | null>;
-  onEditorReady: (editor: Editor) => void;
-  skillItems: (args: { query: string }) => SkillSuggestionItem[];
-  onSkillSelect: (item: SkillSuggestionItem, range: { from: number; to: number }) => void;
+  draft: string
+  onChange: (markdown: string) => void
+  onSubmit: () => void
+  onUploadFile: (file: File) => Promise<UploadResult | null>
+  onEditorReady: (editor: Editor) => void
+  skillItems: (args: { query: string }) => SkillSuggestionItem[]
+  onSkillSelect: (
+    item: SkillSuggestionItem,
+    range: { from: number; to: number },
+  ) => void
 }
 
-export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorProps>(function ComposerEditor(
-  { draft, onChange, onSubmit, onUploadFile, onEditorReady, skillItems, onSkillSelect },
+export const ComposerEditor = forwardRef<
+  ComposerEditorHandle,
+  ComposerEditorProps
+>(function ComposerEditor(
+  {
+    draft,
+    onChange,
+    onSubmit,
+    onUploadFile,
+    onEditorReady,
+    skillItems,
+    onSkillSelect,
+  },
   ref,
 ) {
-  const contentEditorRef = useRef<ContentEditorRef>(null);
+  const contentEditorRef = useRef<ContentEditorRef>(null)
   // Captures the live Tiptap instance from ContentEditor's onCreate callback.
   // A ref (not state) is correct here: nothing in this component renders off
   // the editor instance, it's only read imperatively by insertText/setMarkdown.
-  const editorRef = useRef<Editor | null>(null);
+  const editorRef = useRef<Editor | null>(null)
 
   const handleEditorReady = useCallback(
     (editor: Editor) => {
-      editorRef.current = editor;
-      onEditorReady(editor);
+      editorRef.current = editor
+      onEditorReady(editor)
     },
     [onEditorReady],
-  );
+  )
 
   useImperativeHandle(
     ref,
     () => ({
-      getMarkdown: () => contentEditorRef.current?.getMarkdown() ?? "",
+      getMarkdown: () => contentEditorRef.current?.getMarkdown() ?? '',
       clear: () => {
-        contentEditorRef.current?.clearContent();
+        contentEditorRef.current?.clearContent()
       },
       // Caret goes to the end, not to Tiptap's default (start of doc).
       // The only caller is the pill's click-to-focus handler, where the click
@@ -96,29 +112,29 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       // Falls back to `ContentEditorRef.focus()` if the click somehow beats
       // `onEditorReady`.
       focus: () => {
-        const editor = editorRef.current;
+        const editor = editorRef.current
         if (editor) {
-          editor.commands.focus("end");
-          return;
+          editor.commands.focus('end')
+          return
         }
-        contentEditorRef.current?.focus();
+        contentEditorRef.current?.focus()
       },
       insertText: (text: string) => {
-        editorRef.current?.chain().focus().insertContent(text).run();
+        editorRef.current?.chain().focus().insertContent(text).run()
       },
       // ContentEditor's `defaultValue` re-sync effect bails when `editable`
       // (`if (!editor || editable) return`), so a parent cannot push text in
       // by changing props in edit mode. setMarkdown is the escape hatch the
       // suggestion pills (Tasks 12, 13) use to prefill the composer.
       setMarkdown: (markdown: string) => {
-        const editor = editorRef.current;
-        if (!editor) return;
-        editor.commands.setContent(markdown, { contentType: "markdown" });
-        editor.commands.focus("end");
+        const editor = editorRef.current
+        if (!editor) return
+        editor.commands.setContent(markdown, { contentType: 'markdown' })
+        editor.commands.focus('end')
       },
     }),
     [],
-  );
+  )
 
   return (
     /*
@@ -165,5 +181,5 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       placeholder="Make requests with Garden AI..."
       className="max-h-[min(40vh,18rem)] overflow-y-auto"
     />
-  );
-});
+  )
+})

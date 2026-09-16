@@ -154,25 +154,23 @@ export function ComposerExtensionRow(props: {
       >
         <span className="body-small">Connect your apps</span>
         <span className="flex items-center gap-1">
-          {shownIntegrations.length > 0 ? (
-            shownIntegrations.map((integration) =>
-              Option.isSome(integration.icon) ? (
-                <img
-                  key={integration.slug}
-                  className="size-4 rounded-sm"
-                  src={integration.icon.value}
-                  alt=""
-                />
-              ) : (
-                <Plug key={integration.slug} className="size-4" />
-              ),
-            )
-          ) : (
-            CONNECT_APPS_STUB.map((app) => {
-              const Icon = app.icon
-              return <Icon key={app.id} className="size-4" />
-            })
-          )}
+          {shownIntegrations.length > 0
+            ? shownIntegrations.map((integration) =>
+                Option.isSome(integration.icon) ? (
+                  <img
+                    key={integration.slug}
+                    className="size-4 rounded-sm"
+                    src={integration.icon.value}
+                    alt=""
+                  />
+                ) : (
+                  <Plug key={integration.slug} className="size-4" />
+                ),
+              )
+            : CONNECT_APPS_STUB.map((app) => {
+                const Icon = app.icon
+                return <Icon key={app.id} className="size-4" />
+              })}
           {overflowCount > 0 ? <span>+{overflowCount}</span> : null}
         </span>
       </button>

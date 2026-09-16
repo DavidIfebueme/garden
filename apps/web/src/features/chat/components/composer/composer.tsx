@@ -40,40 +40,61 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
-} from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Result } from "better-result";
-import type { Editor } from "@tiptap/core";
-import { ArrowUp, FileText, Loader2, Mic, Paperclip, StopCircle, X } from "lucide-react";
-import { Button } from "@garden/ui/components/ui/button";
-import { cn } from "@garden/ui/lib/utils";
-import { SpeechInput } from "@/components/ai-elements/speech-input";
-import { uploadFile } from "@/lib/api";
-import { agentSkillListOptions } from "@/lib/workspace/queries";
-import { useWorkspaceId } from "@garden/app-state/hooks";
-import type { UploadResult } from "@garden/app-state/hooks/use-file-upload";
-import type { SkillSuggestionItem } from "@/features/editor/extensions";
-import type { StructuredQuestion, StructuredQuestionAnswers } from "@garden/app-state/chat";
-import { type ComposerSkill, type RealtimeStatus } from "../../chat-runtime-provider";
-import { formatSkillInvocation } from "../skill-invocation";
-import { searchComposerSkills } from "../skill-search";
-import { StructuredInputPanel } from "../structured-input-panel";
-import type { SelectedThreadDocument } from "../document-selection";
-import { FileKindIcon, getFileKind, getFileKindLabel } from "../chat-document-panel";
+} from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Result } from 'better-result'
+import type { Editor } from '@tiptap/core'
+import {
+  ArrowUp,
+  FileText,
+  Loader2,
+  Mic,
+  Paperclip,
+  StopCircle,
+  X,
+} from 'lucide-react'
+import { Button } from '@garden/ui/components/ui/button'
+import { cn } from '@garden/ui/lib/utils'
+import { SpeechInput } from '@/components/ai-elements/speech-input'
+import { uploadFile } from '@/lib/api'
+import { agentSkillListOptions } from '@/lib/workspace/queries'
+import { useWorkspaceId } from '@garden/app-state/hooks'
+import type { UploadResult } from '@garden/app-state/hooks/use-file-upload'
+import type { SkillSuggestionItem } from '@/features/editor/extensions'
+import type {
+  StructuredQuestion,
+  StructuredQuestionAnswers,
+} from '@garden/app-state/chat'
+import {
+  type ComposerSkill,
+  type RealtimeStatus,
+} from '../../chat-runtime-provider'
+import { formatSkillInvocation } from '../skill-invocation'
+import { searchComposerSkills } from '../skill-search'
+import { StructuredInputPanel } from '../structured-input-panel'
+import type { SelectedThreadDocument } from '../document-selection'
+import {
+  FileKindIcon,
+  getFileKind,
+  getFileKindLabel,
+} from '../chat-document-panel'
 import {
   ACCEPTED_FILE_TYPES,
   COMPOSER_WIDTH_CLASS_NAME,
   normalizeStatus,
   type ComposerThreadDocument,
   type PreviewAttachment,
-} from "./composer-helpers";
-import { ComposerEditor, type ComposerEditorHandle } from "./composer-editor";
-import { ComposerToolbar } from "./composer-toolbar";
-import { ComposerAddMenu } from "./composer-add-menu";
-import { ComposerToolsMenu, type ComposerSourceChip } from "./composer-tools-menu";
-import { ComposerAgentSelect } from "./composer-agent-select";
-import { ComposerExtensionRow } from "./composer-extension-row";
-import { DEFAULT_TOOL_PRESET_ID, type ToolPresetId } from "./composer-tools";
+} from './composer-helpers'
+import { ComposerEditor, type ComposerEditorHandle } from './composer-editor'
+import { ComposerToolbar } from './composer-toolbar'
+import { ComposerAddMenu } from './composer-add-menu'
+import {
+  ComposerToolsMenu,
+  type ComposerSourceChip,
+} from './composer-tools-menu'
+import { ComposerAgentSelect } from './composer-agent-select'
+import { ComposerExtensionRow } from './composer-extension-row'
+import { DEFAULT_TOOL_PRESET_ID, type ToolPresetId } from './composer-tools'
 
 /** Stable no-op so an absent `onOpenConnections` doesn't change identity. */
 function noop() {}
@@ -90,22 +111,26 @@ function noop() {}
  */
 export interface ComposerHandle {
   /** Replace the draft in the live editor and focus it. */
-  setDraft: (markdown: string) => void;
+  setDraft: (markdown: string) => void
 }
 
 export interface ComposerProps {
-  agentId: string;
-  documentLoadState: "error" | "loading" | "ready";
-  documents: ComposerThreadDocument[];
-  isStreaming: boolean;
-  status: RealtimeStatus;
-  input: string;
-  onInputChange: (value: string) => void;
-  onSend: (payload: { text: string; files: File[]; selectedDocuments: SelectedThreadDocument[] }) => Promise<void>;
-  onStop: () => void;
-  onWarmRuntime?: () => void;
-  pendingQuestions?: StructuredQuestion[];
-  onSubmitAnswers?: (answers: StructuredQuestionAnswers) => void;
+  agentId: string
+  documentLoadState: 'error' | 'loading' | 'ready'
+  documents: ComposerThreadDocument[]
+  isStreaming: boolean
+  status: RealtimeStatus
+  input: string
+  onInputChange: (value: string) => void
+  onSend: (payload: {
+    text: string
+    files: File[]
+    selectedDocuments: SelectedThreadDocument[]
+  }) => Promise<void>
+  onStop: () => void
+  onWarmRuntime?: () => void
+  pendingQuestions?: StructuredQuestion[]
+  onSubmitAnswers?: (answers: StructuredQuestionAnswers) => void
   /**
    * Opens the Connections dock panel. Accepted here (optional) so the
    * controller (Task 13) can wire it through without a further prop-shape
@@ -113,9 +138,9 @@ export interface ComposerProps {
    * `ComposerExtensionRow` (the strip that uses it) is Task 13's job, per
    * task-12-rulings.md #6 ("Task 13 owns final assembly").
    */
-  onOpenConnections?: () => void;
+  onOpenConnections?: () => void
   /** Falls back to this agent when the chat store has no selectedAgentId. */
-  fallbackAgentId?: string | null;
+  fallbackAgentId?: string | null
 }
 
 /**
@@ -135,15 +160,16 @@ export interface ComposerProps {
 async function uploadComposerFile(file: File): Promise<UploadResult | null> {
   const result = await Result.tryPromise({
     try: () => uploadFile(file),
-    catch: (error) => (error instanceof Error ? error : new Error(String(error))),
-  });
-  if (result.isErr()) return null;
-  const attachment = result.value;
+    catch: (error) =>
+      error instanceof Error ? error : new Error(String(error)),
+  })
+  if (result.isErr()) return null
+  const attachment = result.value
   return {
     id: attachment.id,
     filename: attachment.filename,
     link: attachment.url,
-  };
+  }
 }
 
 /**
@@ -161,16 +187,16 @@ async function uploadComposerFile(file: File): Promise<UploadResult | null> {
  * behavior, not a redesign.
  */
 function ComposerFooter(props: {
-  addMenu: ReactNode;
-  toolsMenu: ReactNode;
-  agentSelect: ReactNode;
-  onMicTranscription: (value: string) => void;
-  isStreaming: boolean;
-  hasContent: boolean;
-  isSubmitted: boolean;
-  hasStaleDocumentSelection: boolean;
-  onSend: () => void;
-  onStop: () => void;
+  addMenu: ReactNode
+  toolsMenu: ReactNode
+  agentSelect: ReactNode
+  onMicTranscription: (value: string) => void
+  isStreaming: boolean
+  hasContent: boolean
+  isSubmitted: boolean
+  hasStaleDocumentSelection: boolean
+  onSend: () => void
+  onStop: () => void
 }) {
   const {
     addMenu,
@@ -183,7 +209,7 @@ function ComposerFooter(props: {
     hasStaleDocumentSelection,
     onSend,
     onStop,
-  } = props;
+  } = props
 
   return (
     <div className="flex items-center justify-between gap-2">
@@ -233,497 +259,568 @@ function ComposerFooter(props: {
             className="size-8 rounded-xl bg-background-brand-secondary text-icon-brand-default transition-all duration-150 hover:scale-105 hover:bg-background-brand-secondary-hover disabled:opacity-30 disabled:hover:scale-100"
             onClick={onSend}
             disabled={isSubmitted || hasStaleDocumentSelection || !hasContent}
-            aria-label={isSubmitted ? "Sending" : "Send message"}
+            aria-label={isSubmitted ? 'Sending' : 'Send message'}
           >
-            {isSubmitted ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+            {isSubmitted ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ArrowUp className="size-4" />
+            )}
           </Button>
         )}
       </div>
     </div>
-  );
+  )
 }
 
-export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  {
-    agentId,
-    documentLoadState,
-    documents,
-    isStreaming,
-    status,
-    input,
-    onInputChange,
-    onSend,
-    onStop,
-    onWarmRuntime,
-    onOpenConnections,
-    pendingQuestions,
-    onSubmitAnswers,
-    fallbackAgentId,
-  },
-  ref,
-) {
-  const [attachments, setAttachments] = useState<PreviewAttachment[]>([]);
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const editorRef = useRef<ComposerEditorHandle>(null);
-  const workspaceId = useWorkspaceId();
-
-  // Editor instance in STATE, not just a ref (task-12-rulings.md #1):
-  // `onEditorReady` fires inside `useEditor`'s `onCreate`, and a ref
-  // assignment alone triggers no re-render — `<ComposerToolbar editor={...}
-  // />` would render null forever. The ref is kept alongside for the
-  // stable `onSkillSelect` closure below (an imperative read, not a
-  // render read).
-  const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
-  const editorInstanceRef = useRef<Editor | null>(null);
-
-  // Drives the armed/disabled render below only. `handleSubmit` does NOT
-  // read this — it reads the live document through
-  // `editorRef.current.getMarkdown()`, which is an imperative Tiptap read
-  // and therefore never stale, whatever React has or hasn't re-rendered.
-  // Seeded from `input` (not `''`) so a restored draft arms the send button
-  // on mount.
-  const [editorMarkdown, setEditorMarkdown] = useState(input);
-
-  const [toolPreset, setToolPreset] = useState<ToolPresetId>(DEFAULT_TOOL_PRESET_ID);
-  // Carried over verbatim from `chat-composer.tsx:252`. `useToolApprovals`
-  // takes no mode argument (task-12-rulings.md #3) — this control is
-  // inert and stays local, with nothing downstream to lift it to.
-  const [permissionMode, setPermissionMode] = useState<"ask" | "accept-all">("ask");
-
-  const selectedDocuments = useMemo(
-    () =>
-      selectedDocumentIds.flatMap((documentId) => {
-        const document = documents.find((candidate) => candidate.documentId === documentId);
-        return document ? [document] : [];
-      }),
-    [documents, selectedDocumentIds],
-  );
-  const hasStaleDocumentSelection = selectedDocuments.length !== selectedDocumentIds.length;
-
-  // Drag depth counter — dragenter/dragleave fire for child elements too,
-  // so nested entries/exits must be counted to know when the pointer has
-  // actually left the drop zone. Ported as-is from `chat-composer.tsx:256-259`.
-  const dragDepthRef = useRef(0);
-  const [isDragging, setIsDragging] = useState(false);
-
-  // Track latest attachments in a ref so unmount cleanup doesn't fire on
-  // every re-render (a plain per-render effect would revoke URLs still
-  // referenced by rendered <img src=...> nodes). Revocation on
-  // remove/clear happens inline in the event handlers below. This is the
-  // one tolerated `useEffect` (unmount-only cleanup), matching the
-  // ref-mirror pattern already in the original.
-  const attachmentsRef = useRef(attachments);
-  attachmentsRef.current = attachments;
-  useEffect(() => {
-    return () => {
-      attachmentsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-    };
-  }, []);
-
-  const clearAttachments = () => {
-    attachments.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-    setAttachments([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleFiles = (fileList: FileList | File[] | null) => {
-    if (!fileList) return;
-    const array = Array.isArray(fileList) ? fileList : Array.from(fileList);
-    if (array.length === 0) return;
-    const next = array.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-    setAttachments((current) => [...current, ...next]);
-  };
-
-  // Paste now attaches to the editor's pill wrapper (a plain `div`), not a
-  // textarea — the rich-text field owns text paste itself.
-  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    const files = Array.from(event.clipboardData?.files ?? []);
-    if (files.length === 0) return;
-    event.preventDefault();
-    handleFiles(files);
-  };
-
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer?.types?.includes("Files")) return;
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    setIsDragging(true);
-  };
-
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer?.types?.includes("Files")) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer?.types?.includes("Files")) return;
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) setIsDragging(false);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    if (!event.dataTransfer?.types?.includes("Files")) return;
-    event.preventDefault();
-    dragDepthRef.current = 0;
-    setIsDragging(false);
-    handleFiles(event.dataTransfer.files);
-  };
-
-  /**
-   * Feeds one `onChange` from `ComposerEditor` into both the local markdown
-   * state (which drives the render-time `editorHasContent` derivation) and
-   * the parent's chat-store draft.
-   */
-  const handleEditorChange = useCallback(
-    (markdown: string) => {
-      setEditorMarkdown(markdown);
-      onInputChange(markdown);
+export const Composer = forwardRef<ComposerHandle, ComposerProps>(
+  function Composer(
+    {
+      agentId,
+      documentLoadState,
+      documents,
+      isStreaming,
+      status,
+      input,
+      onInputChange,
+      onSend,
+      onStop,
+      onWarmRuntime,
+      onOpenConnections,
+      pendingQuestions,
+      onSubmitAnswers,
+      fallbackAgentId,
     },
-    [onInputChange],
-  );
-
-  /**
-   * Submit the composer. Text now comes straight from the editor as
-   * Markdown — no member-mention serialization step; the shared editor's
-   * mention extension already emits mention tokens in `getMarkdown()`.
-   * Skill `/slug` tokens are literal text, unchanged (2026-09-08 spec
-   * §12).
-   *
-   * Text comes from `editorRef.current.getMarkdown()` — an imperative read
-   * of the live Tiptap document, so it is never stale regardless of React's
-   * render timing. It deliberately does NOT read `editorMarkdown` (state)
-   * or any mirror of it.
-   */
-  const handleSubmit = async () => {
-    if (isStreaming) {
-      await onStop();
-      return;
-    }
-    if (normalizeStatus(status) === "submitted") return;
-
-    const text = (editorRef.current?.getMarkdown() ?? "").trim();
-    if ((!text && attachments.length === 0 && selectedDocuments.length === 0) || hasStaleDocumentSelection) {
-      return;
-    }
-    const files = attachments.map((item) => item.file);
-    editorRef.current?.clear();
-    setEditorMarkdown("");
-    onInputChange("");
-    clearAttachments();
-    setSelectedDocumentIds([]);
-    await onSend({ text, files, selectedDocuments });
-  };
-
-  useImperativeHandle(
     ref,
-    () => ({
-      setDraft: (markdown: string) => {
-        setEditorMarkdown(markdown);
-        editorRef.current?.setMarkdown(markdown);
-      },
-    }),
-    [],
-  );
+  ) {
+    const [attachments, setAttachments] = useState<PreviewAttachment[]>([])
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const editorRef = useRef<ComposerEditorHandle>(null)
+    const workspaceId = useWorkspaceId()
 
-  const skillsQuery = useQuery({
-    ...agentSkillListOptions(workspaceId, agentId),
-    staleTime: 5 * 60_000,
-    gcTime: 30 * 60_000,
-    placeholderData: (previous) => previous,
-  });
-  const skills = useMemo<ComposerSkill[]>(
-    () =>
-      (skillsQuery.data ?? [])
-        .filter((skill) => skill.enabled)
-        .map((skill) => ({
+    // Editor instance in STATE, not just a ref (task-12-rulings.md #1):
+    // `onEditorReady` fires inside `useEditor`'s `onCreate`, and a ref
+    // assignment alone triggers no re-render — `<ComposerToolbar editor={...}
+    // />` would render null forever. The ref is kept alongside for the
+    // stable `onSkillSelect` closure below (an imperative read, not a
+    // render read).
+    const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
+    const editorInstanceRef = useRef<Editor | null>(null)
+
+    // Drives the armed/disabled render below only. `handleSubmit` does NOT
+    // read this — it reads the live document through
+    // `editorRef.current.getMarkdown()`, which is an imperative Tiptap read
+    // and therefore never stale, whatever React has or hasn't re-rendered.
+    // Seeded from `input` (not `''`) so a restored draft arms the send button
+    // on mount.
+    const [editorMarkdown, setEditorMarkdown] = useState(input)
+
+    const [toolPreset, setToolPreset] = useState<ToolPresetId>(
+      DEFAULT_TOOL_PRESET_ID,
+    )
+    // Carried over verbatim from `chat-composer.tsx:252`. `useToolApprovals`
+    // takes no mode argument (task-12-rulings.md #3) — this control is
+    // inert and stays local, with nothing downstream to lift it to.
+    const [permissionMode, setPermissionMode] = useState<'ask' | 'accept-all'>(
+      'ask',
+    )
+
+    const selectedDocuments = useMemo(
+      () =>
+        selectedDocumentIds.flatMap((documentId) => {
+          const document = documents.find(
+            (candidate) => candidate.documentId === documentId,
+          )
+          return document ? [document] : []
+        }),
+      [documents, selectedDocumentIds],
+    )
+    const hasStaleDocumentSelection =
+      selectedDocuments.length !== selectedDocumentIds.length
+
+    // Drag depth counter — dragenter/dragleave fire for child elements too,
+    // so nested entries/exits must be counted to know when the pointer has
+    // actually left the drop zone. Ported as-is from `chat-composer.tsx:256-259`.
+    const dragDepthRef = useRef(0)
+    const [isDragging, setIsDragging] = useState(false)
+
+    // Track latest attachments in a ref so unmount cleanup doesn't fire on
+    // every re-render (a plain per-render effect would revoke URLs still
+    // referenced by rendered <img src=...> nodes). Revocation on
+    // remove/clear happens inline in the event handlers below. This is the
+    // one tolerated `useEffect` (unmount-only cleanup), matching the
+    // ref-mirror pattern already in the original.
+    const attachmentsRef = useRef(attachments)
+    attachmentsRef.current = attachments
+    useEffect(() => {
+      return () => {
+        attachmentsRef.current.forEach((item) =>
+          URL.revokeObjectURL(item.previewUrl),
+        )
+      }
+    }, [])
+
+    const clearAttachments = () => {
+      attachments.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+      setAttachments([])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+
+    const handleFiles = (fileList: FileList | File[] | null) => {
+      if (!fileList) return
+      const array = Array.isArray(fileList) ? fileList : Array.from(fileList)
+      if (array.length === 0) return
+      const next = array.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }))
+      setAttachments((current) => [...current, ...next])
+    }
+
+    // Paste now attaches to the editor's pill wrapper (a plain `div`), not a
+    // textarea — the rich-text field owns text paste itself.
+    const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+      const files = Array.from(event.clipboardData?.files ?? [])
+      if (files.length === 0) return
+      event.preventDefault()
+      handleFiles(files)
+    }
+
+    const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      event.preventDefault()
+      dragDepthRef.current += 1
+      setIsDragging(true)
+    }
+
+    const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+    }
+
+    const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+      if (dragDepthRef.current === 0) setIsDragging(false)
+    }
+
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer?.types?.includes('Files')) return
+      event.preventDefault()
+      dragDepthRef.current = 0
+      setIsDragging(false)
+      handleFiles(event.dataTransfer.files)
+    }
+
+    /**
+     * Feeds one `onChange` from `ComposerEditor` into both the local markdown
+     * state (which drives the render-time `editorHasContent` derivation) and
+     * the parent's chat-store draft.
+     */
+    const handleEditorChange = useCallback(
+      (markdown: string) => {
+        setEditorMarkdown(markdown)
+        onInputChange(markdown)
+      },
+      [onInputChange],
+    )
+
+    /**
+     * Submit the composer. Text now comes straight from the editor as
+     * Markdown — no member-mention serialization step; the shared editor's
+     * mention extension already emits mention tokens in `getMarkdown()`.
+     * Skill `/slug` tokens are literal text, unchanged (2026-09-08 spec
+     * §12).
+     *
+     * Text comes from `editorRef.current.getMarkdown()` — an imperative read
+     * of the live Tiptap document, so it is never stale regardless of React's
+     * render timing. It deliberately does NOT read `editorMarkdown` (state)
+     * or any mirror of it.
+     */
+    const handleSubmit = async () => {
+      if (isStreaming) {
+        await onStop()
+        return
+      }
+      if (normalizeStatus(status) === 'submitted') return
+
+      const text = (editorRef.current?.getMarkdown() ?? '').trim()
+      if (
+        (!text && attachments.length === 0 && selectedDocuments.length === 0) ||
+        hasStaleDocumentSelection
+      ) {
+        return
+      }
+      const files = attachments.map((item) => item.file)
+      editorRef.current?.clear()
+      setEditorMarkdown('')
+      onInputChange('')
+      clearAttachments()
+      setSelectedDocumentIds([])
+      await onSend({ text, files, selectedDocuments })
+    }
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        setDraft: (markdown: string) => {
+          setEditorMarkdown(markdown)
+          editorRef.current?.setMarkdown(markdown)
+        },
+      }),
+      [],
+    )
+
+    const skillsQuery = useQuery({
+      ...agentSkillListOptions(workspaceId, agentId),
+      staleTime: 5 * 60_000,
+      gcTime: 30 * 60_000,
+      placeholderData: (previous) => previous,
+    })
+    const skills = useMemo<ComposerSkill[]>(
+      () =>
+        (skillsQuery.data ?? [])
+          .filter((skill) => skill.enabled)
+          .map((skill) => ({
+            id: skill.id,
+            slug: skill.slug ?? skill.name,
+            name: skill.name,
+            description: skill.description,
+          })),
+      [skillsQuery.data],
+    )
+    const skillItems = useCallback(
+      ({ query }: { query: string }) =>
+        searchComposerSkills(skills, query).map((skill) => ({
           id: skill.id,
           slug: skill.slug ?? skill.name,
           name: skill.name,
           description: skill.description,
         })),
-    [skillsQuery.data],
-  );
-  const skillItems = useCallback(
-    ({ query }: { query: string }) =>
-      searchComposerSkills(skills, query).map((skill) => ({
-        id: skill.id,
-        slug: skill.slug ?? skill.name,
-        name: skill.name,
-        description: skill.description,
-      })),
-    [skills],
-  );
-  /**
-   * Commits a `/` skill selection from the editor's suggestion popup by
-   * inserting the literal `/slug ` token at the trigger range — the same
-   * committed format `extractExplicitSkillSlugs` (skill-invocation.ts)
-   * already parses server-side, so nothing downstream needs to change.
-   */
-  const onSkillSelect = useCallback((item: SkillSuggestionItem, range: { from: number; to: number }) => {
-    const editor = editorInstanceRef.current;
-    if (!editor) return;
-    editor
-      .chain()
-      .focus()
-      .insertContentAt(range, `${formatSkillInvocation(item.slug)} `)
-      .run();
-  }, []);
+      [skills],
+    )
+    /**
+     * Commits a `/` skill selection from the editor's suggestion popup by
+     * inserting the literal `/slug ` token at the trigger range — the same
+     * committed format `extractExplicitSkillSlugs` (skill-invocation.ts)
+     * already parses server-side, so nothing downstream needs to change.
+     */
+    const onSkillSelect = useCallback(
+      (item: SkillSuggestionItem, range: { from: number; to: number }) => {
+        const editor = editorInstanceRef.current
+        if (!editor) return
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(range, `${formatSkillInvocation(item.slug)} `)
+          .run()
+      },
+      [],
+    )
 
-  /**
-   * Click-to-focus for the whole composer pill.
-   *
-   * Before: the pill's handler was `onClick` guarded by
-   * `event.target === event.currentTarget`, so only a click landing on the
-   * pill element itself focused the editor. Every layout box inside it — the
-   * gaps the `flex-col gap-3` opens between toolbar, editor and footer, the
-   * footer's own row wrapper, the blank space beside the agent select — is a
-   * descendant, so the guard rejected it and the click went nowhere. The pill
-   * reads as one input field, so the dead zones felt broken.
-   *
-   * After: any mousedown inside the pill focuses the editor, except on the
-   * editor itself (ProseMirror places the caret at the click position — far
-   * better than our `focus("end")`) and on real controls, whose own focus and
-   * activation must not be stolen.
-   *
-   * `onMouseDown` + `preventDefault`, not `onClick`: by click time the browser
-   * has already moved focus and begun a text selection from the chrome, so
-   * focusing there fights what just happened. Preventing the default on
-   * mousedown stops both before they start. This mirrors
-   * `handleContainerMouseDown` in `@/features/editor/content-editor.tsx`,
-   * which solves the same problem one level down for the editor's own padding.
-   */
-  const handlePillMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest(".ProseMirror")) return;
-    if (
-      target.closest(
-        'a, button, input, textarea, select, label, [role="button"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [data-node-view-wrapper], [data-composer-keep-focus]',
-      )
-    ) {
-      return;
-    }
-    event.preventDefault();
-    editorRef.current?.focus();
-  }, []);
+    /**
+     * Click-to-focus for the whole composer pill.
+     *
+     * Before: the pill's handler was `onClick` guarded by
+     * `event.target === event.currentTarget`, so only a click landing on the
+     * pill element itself focused the editor. Every layout box inside it — the
+     * gaps the `flex-col gap-3` opens between toolbar, editor and footer, the
+     * footer's own row wrapper, the blank space beside the agent select — is a
+     * descendant, so the guard rejected it and the click went nowhere. The pill
+     * reads as one input field, so the dead zones felt broken.
+     *
+     * After: any mousedown inside the pill focuses the editor, except on the
+     * editor itself (ProseMirror places the caret at the click position — far
+     * better than our `focus("end")`) and on real controls, whose own focus and
+     * activation must not be stolen.
+     *
+     * `onMouseDown` + `preventDefault`, not `onClick`: by click time the browser
+     * has already moved focus and begun a text selection from the chrome, so
+     * focusing there fights what just happened. Preventing the default on
+     * mousedown stops both before they start. This mirrors
+     * `handleContainerMouseDown` in `@/features/editor/content-editor.tsx`,
+     * which solves the same problem one level down for the editor's own padding.
+     */
+    const handlePillMouseDown = useCallback(
+      (event: ReactMouseEvent<HTMLDivElement>) => {
+        const target = event.target as HTMLElement
+        if (target.closest('.ProseMirror')) return
+        if (
+          target.closest(
+            'a, button, input, textarea, select, label, [role="button"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [data-node-view-wrapper], [data-composer-keep-focus]',
+          )
+        ) {
+          return
+        }
+        event.preventDefault()
+        editorRef.current?.focus()
+      },
+      [],
+    )
 
-  const editorHasContent = editorMarkdown.trim().length > 0;
-  const hasContent = editorHasContent || attachments.length > 0 || selectedDocuments.length > 0;
-  const isSubmitted = normalizeStatus(status) === "submitted";
+    const editorHasContent = editorMarkdown.trim().length > 0
+    const hasContent =
+      editorHasContent || attachments.length > 0 || selectedDocuments.length > 0
+    const isSubmitted = normalizeStatus(status) === 'submitted'
 
-  const sourceChips: ComposerSourceChip[] = selectedDocuments.map((document) => ({
-    id: document.documentId,
-    label: document.filename,
-    kind: getFileKind({ mediaType: "", filename: document.filename }),
-  }));
+    const sourceChips: ComposerSourceChip[] = selectedDocuments.map(
+      (document) => ({
+        id: document.documentId,
+        label: document.filename,
+        kind: getFileKind({ mediaType: '', filename: document.filename }),
+      }),
+    )
 
-  return (
-    <div className="shrink-0 px-4 pb-3">
-      {selectedDocumentIds.length > 0 ? (
-        <div className={cn("mx-auto mb-2 flex gap-2 overflow-x-auto pb-1", COMPOSER_WIDTH_CLASS_NAME)}>
-          {selectedDocumentIds.map((documentId) => {
-            const document = documents.find((candidate) => candidate.documentId === documentId);
-            return (
-              <div
-                key={documentId}
-                className={cn(
-                  "group relative flex h-14 w-52 shrink-0 items-center gap-2.5 rounded-lg border bg-muted/40 px-3",
-                  !document && "border-destructive/40",
-                )}
-              >
-                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-xs font-medium">{document?.filename ?? "Document unavailable"}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {document?.meta ?? "Remove and select it again"}
-                  </span>
+    return (
+      <div className="shrink-0 px-4 pb-3">
+        {selectedDocumentIds.length > 0 ? (
+          <div
+            className={cn(
+              'mx-auto mb-2 flex gap-2 overflow-x-auto pb-1',
+              COMPOSER_WIDTH_CLASS_NAME,
+            )}
+          >
+            {selectedDocumentIds.map((documentId) => {
+              const document = documents.find(
+                (candidate) => candidate.documentId === documentId,
+              )
+              return (
+                <div
+                  key={documentId}
+                  className={cn(
+                    'group relative flex h-14 w-52 shrink-0 items-center gap-2.5 rounded-lg border bg-muted/40 px-3',
+                    !document && 'border-destructive/40',
+                  )}
+                >
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-xs font-medium">
+                      {document?.filename ?? 'Document unavailable'}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {document?.meta ?? 'Remove and select it again'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedDocumentIds((current) =>
+                        current.filter((id) => id !== documentId),
+                      )
+                    }
+                    className="absolute right-1 top-1 rounded-full bg-background/85 p-1 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`Remove ${document?.filename ?? 'unavailable document'}`}
+                  >
+                    <X className="size-3" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDocumentIds((current) => current.filter((id) => id !== documentId))}
-                  className="absolute right-1 top-1 rounded-full bg-background/85 p-1 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                  aria-label={`Remove ${document?.filename ?? "unavailable document"}`}
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
+              )
+            })}
+          </div>
+        ) : null}
 
-      {attachments.length > 0 ? (
-        <div className={cn("mx-auto mb-2 flex gap-2 overflow-x-auto pb-1", COMPOSER_WIDTH_CLASS_NAME)}>
-          {attachments.map((item) => {
-            const kind = getFileKind({
-              mediaType: item.file.type,
-              filename: item.file.name,
-            });
-            const isImage = kind === "image";
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  "group relative shrink-0 overflow-hidden rounded-lg border bg-muted/40",
-                  isImage ? "h-20 w-24" : "flex h-20 w-44 items-center gap-2.5 px-3",
-                )}
-                title={item.file.name}
-              >
-                {isImage ? (
-                  <img src={item.previewUrl} alt={item.file.name} className="size-full object-cover" />
-                ) : (
-                  <>
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background/70">
-                      <FileKindIcon kind={kind} className="text-foreground/70" />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-xs font-medium leading-tight">{item.file.name}</span>
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground/70">
-                        {getFileKindLabel(kind)}
-                      </span>
-                    </div>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAttachments((current) => {
-                      const next = current.filter((entry) => entry.id !== item.id);
-                      URL.revokeObjectURL(item.previewUrl);
-                      return next;
-                    })
+        {attachments.length > 0 ? (
+          <div
+            className={cn(
+              'mx-auto mb-2 flex gap-2 overflow-x-auto pb-1',
+              COMPOSER_WIDTH_CLASS_NAME,
+            )}
+          >
+            {attachments.map((item) => {
+              const kind = getFileKind({
+                mediaType: item.file.type,
+                filename: item.file.name,
+              })
+              const isImage = kind === 'image'
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    'group relative shrink-0 overflow-hidden rounded-lg border bg-muted/40',
+                    isImage
+                      ? 'h-20 w-24'
+                      : 'flex h-20 w-44 items-center gap-2.5 px-3',
+                  )}
+                  title={item.file.name}
+                >
+                  {isImage ? (
+                    <img
+                      src={item.previewUrl}
+                      alt={item.file.name}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background/70">
+                        <FileKindIcon
+                          kind={kind}
+                          className="text-foreground/70"
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-xs font-medium leading-tight">
+                          {item.file.name}
+                        </span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground/70">
+                          {getFileKindLabel(kind)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAttachments((current) => {
+                        const next = current.filter(
+                          (entry) => entry.id !== item.id,
+                        )
+                        URL.revokeObjectURL(item.previewUrl)
+                        return next
+                      })
+                    }
+                    className="absolute right-1 top-1 rounded-full bg-background/85 p-1 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={`Remove ${item.file.name}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
+
+        <div className={cn('mx-auto', COMPOSER_WIDTH_CLASS_NAME)}>
+          <div
+            data-testid="composer-pill"
+            className={cn(
+              'relative z-10 flex flex-col gap-3 rounded-2xl border border-border-default bg-background-main-default p-4 shadow-5 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-border-brand-secondary focus-within:border-border-brand-secondary',
+              /*
+               * The I-beam advertises `handlePillMouseDown`: the chrome around
+               * the editor is clickable as text, so it should look clickable as
+               * text. Without this the pill showed the arrow everywhere except
+               * over the editor's own line, which read as "only that line is the
+               * field" — the same wrong impression the dead click zones gave.
+               *
+               * The `:is(...)` reset is required, not belt-and-braces. `cursor`
+               * is an inherited property and Tailwind v4's preflight sets no
+               * cursor on `button` (checked the installed `preflight.css`), so
+               * `cursor-text` alone would inherit straight into every control in
+               * the toolbar and footer. `cursor-auto` restores exactly what they
+               * had before, since nothing here declared a cursor of its own.
+               *
+               * The selector list mirrors the skip list in
+               * `handlePillMouseDown` above — same elements, same reason — but
+               * is written out literally because Tailwind scans source
+               * statically and cannot read a shared constant. Keep the two in
+               * step; `a`, `[contenteditable]` and `[data-node-view-wrapper]`
+               * are omitted here only because they live inside `.ProseMirror`,
+               * which sets its own cursor.
+               */
+              'cursor-text [&_:is(button,input,textarea,select,label,[role=button],[role=menuitem],[role=combobox],[data-composer-keep-focus])]:cursor-auto',
+              isDragging && 'border-dashed border-border-brand-secondary',
+            )}
+            onMouseDown={handlePillMouseDown}
+            onPointerEnter={onWarmRuntime}
+            onPaste={handlePaste}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {isDragging ? (
+              <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl border border-dashed border-border-brand-secondary bg-background-brand-tertiary/70 backdrop-blur-[1px]">
+                <div className="flex items-center gap-2 rounded-pill bg-background-main-default/90 px-3 py-1.5 text-xs font-medium text-text-default shadow-2">
+                  <Paperclip className="size-3.5 text-icon-brand-secondary" />
+                  Drop to attach
+                </div>
+              </div>
+            ) : null}
+            {pendingQuestions &&
+            pendingQuestions.length > 0 &&
+            onSubmitAnswers ? (
+              /*
+               * `data-composer-keep-focus` opts this subtree out of the pill's
+               * click-to-focus (see `handlePillMouseDown`). While the agent is
+               * asking structured questions the panel — not the editor — is what
+               * the user is answering, so a click on its padding must not yank
+               * the caret down into the composer mid-answer.
+               */
+              <div data-composer-keep-focus>
+                <StructuredInputPanel
+                  questions={pendingQuestions}
+                  onSubmit={onSubmitAnswers}
+                  disabled={isStreaming}
+                />
+              </div>
+            ) : null}
+            <ComposerToolbar editor={editorInstance} />
+            <ComposerEditor
+              ref={editorRef}
+              draft={input}
+              onChange={handleEditorChange}
+              onSubmit={() => void handleSubmit()}
+              onUploadFile={uploadComposerFile}
+              onEditorReady={(editor) => {
+                editorInstanceRef.current = editor
+                setEditorInstance(editor)
+              }}
+              skillItems={skillItems}
+              onSkillSelect={onSkillSelect}
+            />
+            <ComposerFooter
+              addMenu={
+                <ComposerAddMenu
+                  documents={documents}
+                  documentLoadState={documentLoadState}
+                  selectedDocumentIds={selectedDocumentIds}
+                  onToggleDocument={(documentId, checked) =>
+                    setSelectedDocumentIds((current) =>
+                      checked
+                        ? current.includes(documentId)
+                          ? current
+                          : [...current, documentId]
+                        : current.filter((id) => id !== documentId),
+                    )
                   }
-                  className="absolute right-1 top-1 rounded-full bg-background/85 p-1 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                  aria-label={`Remove ${item.file.name}`}
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className={cn("mx-auto", COMPOSER_WIDTH_CLASS_NAME)}>
-        <div
-          data-testid="composer-pill"
-          className={cn(
-            "relative z-10 flex flex-col gap-3 rounded-2xl border border-border-default bg-background-main-default p-4 shadow-5 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-border-brand-secondary focus-within:border-border-brand-secondary",
-            /*
-             * The I-beam advertises `handlePillMouseDown`: the chrome around
-             * the editor is clickable as text, so it should look clickable as
-             * text. Without this the pill showed the arrow everywhere except
-             * over the editor's own line, which read as "only that line is the
-             * field" — the same wrong impression the dead click zones gave.
-             *
-             * The `:is(...)` reset is required, not belt-and-braces. `cursor`
-             * is an inherited property and Tailwind v4's preflight sets no
-             * cursor on `button` (checked the installed `preflight.css`), so
-             * `cursor-text` alone would inherit straight into every control in
-             * the toolbar and footer. `cursor-auto` restores exactly what they
-             * had before, since nothing here declared a cursor of its own.
-             *
-             * The selector list mirrors the skip list in
-             * `handlePillMouseDown` above — same elements, same reason — but
-             * is written out literally because Tailwind scans source
-             * statically and cannot read a shared constant. Keep the two in
-             * step; `a`, `[contenteditable]` and `[data-node-view-wrapper]`
-             * are omitted here only because they live inside `.ProseMirror`,
-             * which sets its own cursor.
-             */
-            "cursor-text [&_:is(button,input,textarea,select,label,[role=button],[role=menuitem],[role=combobox],[data-composer-keep-focus])]:cursor-auto",
-            isDragging && "border-dashed border-border-brand-secondary",
-          )}
-          onMouseDown={handlePillMouseDown}
-          onPointerEnter={onWarmRuntime}
-          onPaste={handlePaste}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {isDragging ? (
-            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl border border-dashed border-border-brand-secondary bg-background-brand-tertiary/70 backdrop-blur-[1px]">
-              <div className="flex items-center gap-2 rounded-pill bg-background-main-default/90 px-3 py-1.5 text-xs font-medium text-text-default shadow-2">
-                <Paperclip className="size-3.5 text-icon-brand-secondary" />
-                Drop to attach
-              </div>
-            </div>
-          ) : null}
-          {pendingQuestions && pendingQuestions.length > 0 && onSubmitAnswers ? (
-            /*
-             * `data-composer-keep-focus` opts this subtree out of the pill's
-             * click-to-focus (see `handlePillMouseDown`). While the agent is
-             * asking structured questions the panel — not the editor — is what
-             * the user is answering, so a click on its padding must not yank
-             * the caret down into the composer mid-answer.
-             */
-            <div data-composer-keep-focus>
-              <StructuredInputPanel questions={pendingQuestions} onSubmit={onSubmitAnswers} disabled={isStreaming} />
-            </div>
-          ) : null}
-          <ComposerToolbar editor={editorInstance} />
-          <ComposerEditor
-            ref={editorRef}
-            draft={input}
-            onChange={handleEditorChange}
-            onSubmit={() => void handleSubmit()}
-            onUploadFile={uploadComposerFile}
-            onEditorReady={(editor) => {
-              editorInstanceRef.current = editor;
-              setEditorInstance(editor);
-            }}
-            skillItems={skillItems}
-            onSkillSelect={onSkillSelect}
-          />
-          <ComposerFooter
-            addMenu={
-              <ComposerAddMenu
-                documents={documents}
-                documentLoadState={documentLoadState}
-                selectedDocumentIds={selectedDocumentIds}
-                onToggleDocument={(documentId, checked) =>
-                  setSelectedDocumentIds((current) =>
-                    checked
-                      ? current.includes(documentId)
-                        ? current
-                        : [...current, documentId]
-                      : current.filter((id) => id !== documentId),
-                  )
-                }
-                onUploadClick={() => fileInputRef.current?.click()}
-              />
-            }
-            toolsMenu={
-              <ComposerToolsMenu
-                presetId={toolPreset}
-                onPresetChange={setToolPreset}
-                permissionMode={permissionMode}
-                onPermissionModeChange={setPermissionMode}
-                sources={sourceChips}
-                onRemoveSource={(id) =>
-                  setSelectedDocumentIds((current) => current.filter((documentId) => documentId !== id))
-                }
-              />
-            }
-            agentSelect={<ComposerAgentSelect fallbackAgentId={fallbackAgentId ?? agentId} />}
-            onMicTranscription={(value) => editorRef.current?.insertText(value)}
-            isStreaming={isStreaming}
-            hasContent={hasContent}
-            isSubmitted={isSubmitted}
-            hasStaleDocumentSelection={hasStaleDocumentSelection}
-            onSend={() => void handleSubmit()}
-            onStop={() => void onStop()}
-          />
-        </div>
-        {/*
+                  onUploadClick={() => fileInputRef.current?.click()}
+                />
+              }
+              toolsMenu={
+                <ComposerToolsMenu
+                  presetId={toolPreset}
+                  onPresetChange={setToolPreset}
+                  permissionMode={permissionMode}
+                  onPermissionModeChange={setPermissionMode}
+                  sources={sourceChips}
+                  onRemoveSource={(id) =>
+                    setSelectedDocumentIds((current) =>
+                      current.filter((documentId) => documentId !== id),
+                    )
+                  }
+                />
+              }
+              agentSelect={
+                <ComposerAgentSelect
+                  fallbackAgentId={fallbackAgentId ?? agentId}
+                />
+              }
+              onMicTranscription={(value) =>
+                editorRef.current?.insertText(value)
+              }
+              isStreaming={isStreaming}
+              hasContent={hasContent}
+              isSubmitted={isSubmitted}
+              hasStaleDocumentSelection={hasStaleDocumentSelection}
+              onSend={() => void handleSubmit()}
+              onStop={() => void onStop()}
+            />
+          </div>
+          {/*
             The extension row sits BENEATH the pill as its own slab — the pill
             above keeps its full rounded border and focus ring, per
             task-12-rulings.md #6 and the reference screenshot. Rendering it
@@ -732,22 +829,23 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             lift `motion.div`, it animates with the composer rather than
             jumping independently (spec §9).
           */}
-        <ComposerExtensionRow onOpenConnections={onOpenConnections ?? noop} />
-      </div>
+          <ComposerExtensionRow onOpenConnections={onOpenConnections ?? noop} />
+        </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        hidden
-        data-testid="composer-file-input"
-        accept={ACCEPTED_FILE_TYPES}
-        multiple
-        onChange={(event) => {
-          handleFiles(event.target.files);
-          // Reset so re-selecting the same file re-triggers change.
-          event.target.value = "";
-        }}
-      />
-    </div>
-  );
-});
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          data-testid="composer-file-input"
+          accept={ACCEPTED_FILE_TYPES}
+          multiple
+          onChange={(event) => {
+            handleFiles(event.target.files)
+            // Reset so re-selecting the same file re-triggers change.
+            event.target.value = ''
+          }}
+        />
+      </div>
+    )
+  },
+)
