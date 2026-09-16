@@ -449,7 +449,6 @@ export function InboxPage() {
         body="Once any new message is sent it'll be documented"
         icon={
           <div className="bg-muted h-20 w-20 flex items-center justify-center rounded-full text-muted-foreground shrink-0">
-            {/* <IconifyIcon color='text-muted-foreground' icon="ph:envelope-open-thin" width={35} height={35} /> */}
             <EnvelopeOpenIcon strokeWidth={0.5} size={35} />
           </div>
         }
