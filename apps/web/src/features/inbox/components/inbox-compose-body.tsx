@@ -63,7 +63,8 @@ export const ComposeMessageBody = forwardRef<
       root.contains(selection.anchorNode)
 
     if (!inRoot || !selection) {
-      root.append(node, document.createTextNode('\u00a0'))
+      root.appendChild(node)
+      root.appendChild(document.createTextNode('\u00a0'))
       syncBody()
       return
     }
@@ -72,7 +73,7 @@ export const ComposeMessageBody = forwardRef<
     range.deleteContents()
     range.insertNode(node)
     const spacer = document.createTextNode('\u00a0')
-    node.after(spacer)
+    node.parentNode?.insertBefore(spacer, node.nextSibling)
     range.setStartAfter(spacer)
     range.collapse(true)
     selection.removeAllRanges()
@@ -178,22 +179,22 @@ export const ComposeMessageBody = forwardRef<
       />
       {inspector
         ? createPortal(
-            <LinkInspectorCard
-              inspector={inspector}
-              editingHref={editingHref}
-              hrefDraft={hrefDraft}
-              onHrefDraftChange={setHrefDraft}
-              onStartEdit={() => setEditingHref(true)}
-              onSaveHref={applyHrefChange}
-              onCancelEdit={() => {
-                setEditingHref(false)
-                setHrefDraft(inspector.href)
-              }}
-              onRemove={removeLink}
-              onClose={closeInspector}
-            />,
-            document.body,
-          )
+          <LinkInspectorCard
+            inspector={inspector}
+            editingHref={editingHref}
+            hrefDraft={hrefDraft}
+            onHrefDraftChange={setHrefDraft}
+            onStartEdit={() => setEditingHref(true)}
+            onSaveHref={applyHrefChange}
+            onCancelEdit={() => {
+              setEditingHref(false)
+              setHrefDraft(inspector.href)
+            }}
+            onRemove={removeLink}
+            onClose={closeInspector}
+          />,
+          document.body,
+        )
         : null}
     </div>
   )

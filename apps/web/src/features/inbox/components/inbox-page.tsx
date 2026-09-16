@@ -21,7 +21,6 @@ import { InboxListItemV2 } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
-// import { Icon as IconifyIcon } from '@iconify/react';
 import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
 import { generateInboxTestItems } from './inbox-utils'
 import { EnvelopeOpenIcon } from '@phosphor-icons/react'
