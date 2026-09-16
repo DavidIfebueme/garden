@@ -31,17 +31,25 @@ function formatThreadTime(dateStr: string): string {
 
 function ThreadActions() {
   return (
-    <div className="flex items-center gap-5 text-foreground">
-      <button type="button" className="text-background-warning-default">
+    <div className="flex shrink-0 items-center gap-3 text-foreground sm:gap-5">
+      <button
+        type="button"
+        aria-label="Star thread"
+        className="text-background-warning-default"
+      >
         <Star className="size-4 fill-current" />
       </button>
-      <button type="button" className="text-foreground">
+      <button type="button" aria-label="Reply" className="text-foreground">
         <CornerUpLeft className="size-4" />
       </button>
-      <button type="button" className="text-foreground">
+      <button type="button" aria-label="Forward" className="text-foreground">
         <CornerUpRight className="size-4" />
       </button>
-      <button type="button" className="text-foreground">
+      <button
+        type="button"
+        aria-label="More actions"
+        className="text-foreground"
+      >
         <Ellipsis className="size-4" />
       </button>
     </div>
@@ -58,19 +66,23 @@ function MailHeader({
   time: string
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 gap-3">
+    <div className="flex items-start gap-3 sm:justify-between sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <img
           src={TEST_AVATAR_URL}
           alt=""
-          className="size-10 rounded-full object-cover"
+          className="size-9 shrink-0 rounded-full object-cover sm:size-10"
         />
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs leading-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs leading-5">
             <span className="font-semibold text-foreground">{actorName}</span>
-            <span className="truncate text-muted-foreground">&lt;{email}&gt;</span>
-            <span className="text-foreground">CC: 2 others</span>
-            <span className="text-muted-foreground">⌄</span>
+            <span className="truncate text-muted-foreground">
+              &lt;{email}&gt;
+            </span>
+            <span className="hidden text-foreground sm:inline">
+              CC: 2 others
+            </span>
+            <span className="hidden text-muted-foreground sm:inline">⌄</span>
           </div>
           <div className="text-xs leading-5 text-muted-foreground">{time}</div>
         </div>
@@ -84,17 +96,17 @@ function AttachmentPill() {
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <Lock className="size-3.5 text-background-success-default" />
+        <Lock className="size-3.5 shrink-0 text-background-success-default" />
         <span>Attachment secure</span>
       </div>
       <button
         type="button"
-        className="flex w-47.5 items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-left transition-colors hover:bg-accent"
+        className="flex w-full max-w-47.5 items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-left transition-colors hover:bg-accent"
       >
-        <span className="inline-flex size-8 items-center justify-center rounded-md bg-background-danger-tertiary text-background-danger-default">
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-background-danger-tertiary text-background-danger-default">
           <FileText className="size-4" />
         </span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-foreground">
             Onboarding_copy.pdf
           </span>
@@ -104,7 +116,6 @@ function AttachmentPill() {
     </div>
   )
 }
-
 
 export function InboxNotificationDetailV2({
   item,
@@ -127,23 +138,24 @@ export function InboxNotificationDetailV2({
     'After reviewing the onboarding analytics from last week, I noticed that most users drop off during the workspace setup step. Here are a few things we should prioritise this week:'
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-background p-7">
-      <div className="min-h-full rounded-lg bg-muted px-7 py-6 text-foreground">
-        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
-          <h2 className="min-w-0 truncate text-xl font-semibold tracking-normal text-foreground">
+    <div className="h-full min-h-0 overflow-y-auto bg-background p-3 sm:p-5 lg:p-7">
+      <div className="min-h-full rounded-lg bg-muted px-4 py-5 text-foreground sm:px-5 sm:py-6 lg:px-7">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
+          <h2 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-normal text-foreground sm:text-xl">
             {item.title}
           </h2>
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <button
               type="button"
               onClick={onArchive}
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-background px-3 text-xs text-background-danger-default-hover transition-colors hover:bg-accent"
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-xs text-background-danger-default-hover transition-colors hover:bg-accent sm:px-3"
             >
-              <Trash2 className="size-3.5" />
+              <Trash2 className="size-3.5 shrink-0" />
               Delete
             </button>
             <button
               type="button"
+              aria-label="Expand"
               className="inline-flex size-7 items-center justify-center text-foreground transition-colors hover:text-muted-foreground"
             >
               <Maximize2 className="size-4" />
@@ -163,8 +175,13 @@ export function InboxNotificationDetailV2({
               <p>{body}</p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Getting the prior list of steps</li>
-                <li>Managing the entire lifecycle for potential on/off relationships</li>
-                <li>Correcting anomalies against the required payment schemes</li>
+                <li>
+                  Managing the entire lifecycle for potential on/off
+                  relationships
+                </li>
+                <li>
+                  Correcting anomalies against the required payment schemes
+                </li>
                 <li>Lifting the set pace for Nike and Puma ads</li>
               </ol>
               <p>
