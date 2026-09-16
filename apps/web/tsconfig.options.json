@@ -55,9 +55,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    // "disableReferencedProjectLoad": true,
-    // "disableSolutionSearching": true,
-    // "disableSourceOfProjectReferenceRedirect": true
+    "disableReferencedProjectLoad": true,
+    "disableSolutionSearching": true,
+    "disableSourceOfProjectReferenceRedirect": true
   },
   "watchOptions": {
     "excludeDirectories": [
