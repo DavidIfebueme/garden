@@ -479,6 +479,9 @@ export function InboxPage() {
       <div className="flex flex-1 flex-col min-h-0">
         {listHeader}
         <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
+        <div className="bg-background/30 px-3 py-2">
+          <InboxFooter />
+        </div>
       </div>
     )
   }
