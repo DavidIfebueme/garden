@@ -10,9 +10,7 @@ import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 import { toast } from 'sonner'
-import {
-  ArrowLeft,
-} from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import type { InboxItem } from '@garden/core/types'
 import { Button } from '@garden/ui/components/ui/button'
 
@@ -25,8 +23,21 @@ import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-de
 import { generateInboxTestItems } from './inbox-utils'
 import { EnvelopeOpenIcon } from '@phosphor-icons/react'
 
-
-
+function useIsDesktop(): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window === 'undefined'
+      ? false
+      : window.matchMedia('(min-width: 1024px)').matches,
+  )
+  useMemo(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+  return matches
+}
 
 // ---------------------------------------------------------------------------
 // Empty state — centered full-pane
@@ -223,20 +234,20 @@ function InboxEmptyState({
   body,
   icon,
 }: {
-  title: string;
-  body: string;
-  icon?: React.ReactNode;
+  title: string
+  body: string
+  icon?: React.ReactNode
 }) {
   return (
     <div className="flex h-full w-full items-center justify-center px-6">
       <div className="flex max-w-sm flex-col items-center text-center">
-        {
-          icon ? (
-            <div className="flex h-14 w-14 items-center justify-center">
-              {icon}
-            </div>
-          ) : <InboxEmptyIcon />
-        }
+        {icon ? (
+          <div className="flex h-14 w-14 items-center justify-center">
+            {icon}
+          </div>
+        ) : (
+          <InboxEmptyIcon />
+        )}
 
         <h2 className="mt-4 text-base font-semibold tracking-tight text-foreground">
           {title}
@@ -246,7 +257,7 @@ function InboxEmptyState({
         </p>
       </div>
     </div>
-  );
+  )
 }
 
 function focusForInboxItem(item: InboxItem): string | null {
@@ -260,34 +271,26 @@ function focusForInboxItem(item: InboxItem): string | null {
   ) {
     return `comment:${details.comment_id}`
   }
-
   if (item.type === 'waiting_for_input') {
     return `question:${details.run_id ?? item.issue_id ?? item.id}`
   }
-
   if (item.type === 'wp_review') {
     return `wp_review:${details.work_product_id ?? item.id}`
   }
-
   if (item.type === 'review_requested') {
     return `approval:${details.approval_id ?? details.request_id ?? details.run_id ?? item.issue_id ?? item.id}`
   }
-
   if (item.type === 'task_failed') {
     return `failed_run:${details.run_id ?? item.issue_id ?? item.id}`
   }
-
   if (item.type === 'agent_blocked') {
     return `blocked:${details.run_id ?? item.issue_id ?? item.id}`
   }
-
   if (item.type === 'task_completed' && details.run_id) {
     return `run:${details.run_id}`
   }
-
   return null
 }
-
 
 // -------------------------
 // Page
@@ -303,9 +306,6 @@ export function InboxPage() {
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
-
-      // Persist selection in the /inbox URL search params so a reload
-      // re-selects the same notification.
       if (typeof window === 'undefined') return
       const url = new URL(window.location.href)
       if (key) url.searchParams.set('item', key)
@@ -352,6 +352,10 @@ export function InboxPage() {
   }, [allItems, search, unreadsOnly, getActorName])
 
   const isMobile = useIsMobile()
+  const isDesktop = useIsDesktop()
+
+  const showDetailAsOverlay = !isDesktop
+
   const selected =
     items.find((i) => i.id === selectedKey) ??
     allItems.find((i) => i.id === selectedKey) ??
@@ -420,7 +424,7 @@ export function InboxPage() {
         />
       )
     ) : (
-      <div>
+      <div className="divide-y divide-border">
         {items.map((item) => (
           <InboxListItemV2
             key={item.id}
@@ -434,13 +438,11 @@ export function InboxPage() {
     )
 
   const detailContent = selected ? (
-    <>
-      <InboxNotificationDetailV2
-        item={selected}
-        onArchive={() => handleArchive(selected.id)}
-        onOpenIssue={() => handleOpenIssue(selected)}
-      />
-    </>
+    <InboxNotificationDetailV2
+      item={selected}
+      onArchive={() => handleArchive(selected.id)}
+      onOpenIssue={() => handleOpenIssue(selected)}
+    />
   ) : (
     <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
       <InboxEmptyState
@@ -455,7 +457,7 @@ export function InboxPage() {
     </div>
   )
 
-  // -- Mobile layout: list / detail toggle -----------------------------------
+  // -- Mobile
 
   if (isMobile) {
     return selected ? (
@@ -481,16 +483,64 @@ export function InboxPage() {
     )
   }
 
-  // -- Desktop layout: list (collapsible, animated) + detail -----------------
+  // -- Medium 
+
+  if (showDetailAsOverlay) {
+    return (
+      <div className="relative flex flex-1 min-h-0">
+        <div className="flex min-w-0 flex-1 flex-col">
+          {listHeader}
+          <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
+          <div className="bg-background/30 px-3 py-2">
+            <InboxFooter />
+          </div>
+        </div>
+
+        {selected && (
+          <>
+            <button
+              type="button"
+              aria-label="Close detail"
+              onClick={() => setSelectedKey('')}
+              className="fixed inset-0 z-40 bg-black/30 animate-in fade-in-0"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Notification detail"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l bg-background shadow-xl animate-in slide-in-from-right duration-200"
+            >
+              <div className="flex h-12 shrink-0 items-center justify-end border-b px-2">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setSelectedKey('')}
+                  aria-label="Close"
+                  className="text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {detailContent}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // -- Desktop 
+
+  const listWidth = selected ? 'w-[320px]' : 'w-[280px]'
 
   return (
     <div className="flex flex-1 min-h-0">
-      {/* Same mechanism the explore menu uses: animate width with a CSS
-          transition. `minWidth: 0` overrides the flex default that would stop
-          the panel at its content's intrinsic width; `overflow-hidden` clips
-          the fixed-width inner content as the outer width animates to 0. */}
-      <div className="w-[320px] shrink-0 overflow-hidden border-r">
-        <div className="flex h-full w-[320px] flex-col">
+      <div
+        className={`${listWidth} shrink-0 overflow-hidden border-r transition-[width] duration-200 ease-out`}
+      >
+        <div className="flex h-full w-full flex-col">
           {listHeader}
           <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
           <div className="bg-background/30 px-3 py-2">
