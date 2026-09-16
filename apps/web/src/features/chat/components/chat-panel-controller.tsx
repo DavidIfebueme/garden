@@ -657,21 +657,6 @@ export function ConnectedChatPanelInteraction({
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            {/*
-              Queued sends sit directly above the pill and share its gutters
-              and max width, so the rows read as part of the composer block
-              rather than as the last thing in the transcript. Inside the lift
-              `motion.div` on purpose: they move with the composer instead of
-              detaching from it mid-animation.
-            */}
-            <div className="px-4">
-              <ChatMessageQueue
-                className={cn('mx-auto mb-2', COMPOSER_WIDTH_CLASS_NAME)}
-                messages={queuedMessages}
-                onEdit={handleEditQueuedMessage}
-                onRemove={handleRemoveQueuedMessage}
-              />
-            </div>
             <Composer
               key={sessionId}
               ref={composerRef}
@@ -689,6 +674,13 @@ export function ConnectedChatPanelInteraction({
               onOpenConnections={onOpenConnections}
               pendingQuestions={pendingStructuredInput?.questions}
               onSubmitAnswers={handleSubmitAnswers}
+              queue={
+                <ChatMessageQueue
+                  messages={queuedMessages}
+                  onEdit={handleEditQueuedMessage}
+                  onRemove={handleRemoveQueuedMessage}
+                />
+              }
             />
             <AnimatePresence initial={false}>
               {showEmptyChatState && dismissedForSession !== sessionId ? (

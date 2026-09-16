@@ -153,6 +153,18 @@ export interface ComposerProps {
   onOpenConnections?: () => void
   /** Falls back to this agent when the chat store has no selectedAgentId. */
   fallbackAgentId?: string | null
+  /**
+   * Slot rendered directly above the pill, inside its width wrapper — the
+   * queued-message slab (`../chat-message-queue.tsx`, 2026-09-16 design).
+   *
+   * A slot rather than a `queuedMessages` prop: the queue's contents, ordering
+   * and actions belong to the controller that owns the send pipeline, and the
+   * composer only needs to know where the thing goes. It has to be here and
+   * not in the controller's own markup because the slab tucks behind the pill
+   * the way `ComposerExtensionRow` does, which needs the two to be siblings
+   * under the same `COMPOSER_WIDTH_CLASS_NAME` wrapper.
+   */
+  queue?: ReactNode
 }
 
 /**
@@ -322,6 +334,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
       pendingQuestions,
       onSubmitAnswers,
       fallbackAgentId,
+      queue,
     },
     ref,
   ) {
@@ -743,6 +756,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
         ) : null}
 
         <div className={cn('mx-auto', COMPOSER_WIDTH_CLASS_NAME)}>
+          {/*
+            Queued messages slab — the mirror of `ComposerExtensionRow` below:
+            it renders here, as a sibling of the pill inside this wrapper, so
+            it can tuck behind the pill's rounded top edge and read as one
+            shape. It disappears on its own when the queue is empty.
+          */}
+          {queue}
           <div
             data-testid="composer-pill"
             className={cn(

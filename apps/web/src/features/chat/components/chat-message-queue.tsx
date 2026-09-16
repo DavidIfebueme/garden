@@ -14,6 +14,9 @@
  *
  * Presentation only. The queue itself lives in `chat-panel-controller.tsx`,
  * which owns enqueue/drain ordering; this file just renders what it is given.
+ * It mounts through `Composer`'s `queue` slot so it sits inside the pill's own
+ * width wrapper — the slab below reads as the composer growing upward, and
+ * that only works as a sibling of the pill.
  *
  * Reference: Penpot "App-Connections" queue frame (CSS export supplied
  * 2026-09-16) — row `background-main-tertiary`, 12px radius, 16px/8px padding,
@@ -95,10 +98,25 @@ export function ChatMessageQueue({
 }) {
   if (messages.length === 0) return null
 
+  /*
+    The slab is the composer's pill extended upward, mirroring
+    `composer/composer-extension-row.tsx` at the other end: `-mb-8` slides it
+    down behind the pill far enough that its square bottom corners never show,
+    and `pb-10` pushes the rows back above the pill's edge, leaving the same
+    8px breathing room the extension row leaves below. The two paddings are
+    coupled — shrinking the negative margin without shrinking the padding drops
+    the rows down under the pill.
+
+    Like the extension row, this depends on the pill painting above it, which
+    is what `composer.tsx`'s `z-10` on the pill is for.
+  */
   return (
     <ul
       aria-label="Queued messages"
-      className={cn('flex flex-col gap-2', className)}
+      className={cn(
+        '-mb-8 flex flex-col gap-2 rounded-t-2xl bg-background-main-secondary px-4 pt-4 pb-10',
+        className,
+      )}
     >
       {messages.map((message, index) => (
         <li
