@@ -64,7 +64,7 @@
 .arch-card {
   background-color: color-mix(in srgb, var(--bone) 45%, transparent);
   border: 1px solid var(--hairline);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-lg);
 }
 
 /* A single node box inside a diagram. */

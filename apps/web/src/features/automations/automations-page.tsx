@@ -295,7 +295,7 @@ function CreateAutomationDialog({
 }) {
   const wsId = useWorkspaceId()
   const createAutomation = useCreateAutomation()
-  // Pure consumers: workspace-layout warms these caches upstream at mount,
+  // Pure consumers: the app shell warms these caches upstream at mount,
   // so by the time the dialog opens the data is already there and these
   // hooks just subscribe — the dialog is not a caller.
   const { data: skills = [] } = useQuery({

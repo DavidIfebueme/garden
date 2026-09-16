@@ -9,6 +9,7 @@ export type AppEnv = {
   BETTER_AUTH_URL?: string
   AI: RequiredEnvBinding<'AI'>
   AI_GATEWAY_ID?: string
+  BRAIN_FILES: RequiredEnvBinding<'BRAIN_FILES'>
   FILES: RequiredEnvBinding<'FILES'>
   LOADER: RequiredEnvBinding<'LOADER'>
   BROWSER: RequiredEnvBinding<'BROWSER'>
@@ -30,6 +31,8 @@ export type AppEnv = {
   GITHUB_APP_SLUG?: string
   GITHUB_APP_PRIVATE_KEY?: string
   GITHUB_WEBHOOK_SECRET?: string
+  GOOGLE_AUTH_CLIENT_ID?: string
+  GOOGLE_AUTH_CLIENT_SECRET?: string
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
   SLACK_CLIENT_ID?: string

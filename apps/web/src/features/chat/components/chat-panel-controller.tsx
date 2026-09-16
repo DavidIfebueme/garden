@@ -47,7 +47,6 @@ import { buildMessageHeaderAttachments, type ChatHeaderAttachment } from "./chat
 import type { GardenArtifactData } from "@/features/artifacts/artifact-renderer";
 import { ChatTimeline } from "./chat-timeline";
 import { X } from "lucide-react";
-import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
 import { HeaderAttachmentsMenu } from "./chat-message-files";
 import { IssueMentionCard } from "@/features/issues/components/issue-mention-card";
 
@@ -76,8 +75,6 @@ export function ConnectedChatPanelInteraction({
   panelDescription,
   panelTitle,
   runtime,
-  sidebarState,
-  toggleSidebar,
   updateSessionPreview,
 }: {
   activeSession: AgentChatSession;
@@ -86,16 +83,14 @@ export function ConnectedChatPanelInteraction({
   documentLoadState: "error" | "loading" | "ready";
   onClose?: () => void;
   /**
-   * Opens the Connections dock panel from the composer's connected-apps strip.
-   * Threaded down from `panels.tsx` (Task 14) rather than reached for via
-   * context, so this component keeps no dependency on the dock.
+   * Opens the Connections surface from the composer's connected-apps strip.
+   * Threaded down from the caller rather than reached for via context, so this
+   * component keeps no dependency on the shell.
    */
   onOpenConnections?: () => void;
   panelDescription?: string | null;
   panelTitle: string;
   runtime: ChatRuntime;
-  sidebarState: "collapsed" | "expanded";
-  toggleSidebar: () => void;
   updateSessionPreview: ReturnType<typeof useAgentSessions>["updateSessionPreview"];
 }) {
   const sessionId = activeSession.id;
@@ -408,8 +403,6 @@ export function ConnectedChatPanelInteraction({
       primaryIssue={activeSession.primaryIssue}
       onClose={onClose}
       sessionId={sessionId}
-      sidebarState={sidebarState}
-      onToggleSidebar={toggleSidebar}
       onOpenAttachment={openDocumentAttachment}
       sidePanel={<DocumentSidePanel onClose={closeDocumentPanel} view={documentPanelView} />}
     >
@@ -566,28 +559,24 @@ function ShellFrame({
   className,
   onClose,
   onOpenAttachment,
-  onToggleSidebar,
   panelDescription,
   panelTitle,
   primaryIssueId = null,
   primaryIssue = null,
   sessionId = null,
   sidePanel,
-  sidebarState,
 }: {
   attachments?: ChatHeaderAttachment[];
   children: React.ReactNode;
   className?: string;
   onClose?: () => void;
   onOpenAttachment?: (attachment: ChatHeaderAttachment) => void;
-  onToggleSidebar: () => void;
   panelDescription?: string | null;
   panelTitle: string;
   primaryIssueId?: string | null;
   primaryIssue?: AgentChatSession["primaryIssue"];
   sessionId?: string | null;
   sidePanel?: React.ReactNode;
-  sidebarState: "collapsed" | "expanded";
 }) {
   const debugMode = useDevSettingsStore((s) => s.debugMode);
 
@@ -596,19 +585,6 @@ function ShellFrame({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggleSidebar}
-              aria-label={sidebarState === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
-              title={sidebarState === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {sidebarState === "expanded" ? (
-                <IconLayoutSidebarLeftCollapse className="size-4" />
-              ) : (
-                <IconLayoutSidebarLeftExpand className="size-4" />
-              )}
-            </Button>
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 <div className="truncate font-prose text-sm font-semibold">{panelTitle}</div>

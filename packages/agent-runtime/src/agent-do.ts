@@ -5,9 +5,11 @@
 // name; migrated chat agents can keep their saved `agent.host_name` so their
 // Durable Object storage remains addressable. Inside, `ChatSubAgent` facets
 // are keyed by threadId, `IssueRunSubAgent` facets by issueId, and
-// `AutomationRunSubAgent` facets by automation run id. Per-agent
-// personality (name, role, skills, instructions, runtimeConfig, permissions)
-// comes from `agent` rows in Postgres.
+// `AutomationRunSubAgent` facets by automation run id. Ephemeral
+// `BrainAuditSubAgent` facets are keyed by indexed item id and reclaimed after
+// one programmatic turn. Per-agent personality (name, role, skills,
+// instructions, runtimeConfig, permissions) comes from `agent` rows in
+// Postgres.
 //
 // Future moves still to land:
 //   - Workspace-level WS hoist: open one WS per host at WorkspaceLayout mount,
@@ -43,9 +45,13 @@ import { Workspace } from '@cloudflare/shell'
 import { getSandbox, type Sandbox as SandboxDO } from '@cloudflare/sandbox'
 import { getPooledDb } from '@garden/db/runtime'
 import { and, asc, eq, or, type SQL } from 'drizzle-orm'
-import { Result } from 'better-result'
+import { Result, TaggedError } from 'better-result'
 import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from 'effect'
 import { connectorRegistry } from '@garden/connectors'
+import {
+  derivePermissions,
+  type AgentPermissions,
+} from '@garden/core/agents/permissions'
 import { createGardenLogger } from '@garden/observability/logger'
 import * as schema from '@garden/db/schema'
 import {
@@ -70,6 +76,7 @@ import {
   createPromptContextProviders,
 } from './prompt'
 import {
+  EXECUTOR_TOOL_KEY_PREFIX,
   RuntimeMcpConnectionPreparer,
   RuntimeMcpController,
   type McpHost,
@@ -77,6 +84,7 @@ import {
 } from './runtime-mcp-controller'
 import { mcpRuntimeConfig } from './mcp-runtime-config'
 import { createChatSubAgentTools } from './chat-sub-agent-tools'
+import { isChatToolAllowed } from './chat-permissions'
 import {
   getDocumentBytes,
   getDocumentVersionBytes,
@@ -107,6 +115,12 @@ import {
 import { makeDocumentArtifactDurableRepositoryLayer } from './documents/document-artifact-repository'
 import { IssueRunSubAgent } from './issue-run-sub-agent'
 import { AutomationRunSubAgent } from './automation-run-sub-agent'
+import { BrainAuditSubAgent } from './brain-audit-sub-agent'
+import type { BrainAuditRunInput } from './brain-audit'
+import {
+  BrainAuditRunner,
+  makeBrainAuditRunnerLayer,
+} from './brain-audit-runner'
 import {
   RunWorkflowCreateError,
   type RunWorkflowBinding,
@@ -126,11 +140,14 @@ type AgentRuntimeEnv = Cloudflare.Env &
   ENVIRONMENT?: string
   VITE_PUBLIC_POSTHOG_HOST?: string
   VITE_PUBLIC_POSTHOG_PROJECT_TOKEN?: string
+  BRAIN_FILES: R2Bucket
   FILES: R2Bucket
   LOADER: WorkerLoader
   Sandbox: DurableObjectNamespace<SandboxDO>
   EXECUTOR_MCP_SESSION: DurableObjectNamespace<McpAgent>
   RUN_WORKFLOW: RunWorkflowBinding
+  HELIX_URL?: string
+  HELIX_API_KEY?: string
 }
 
 type AgentSessionStateItem = {
@@ -718,6 +735,67 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     })
   }
 
+  /**
+   * Runs one static-ingestion audit through an item-keyed ephemeral Think
+   * facet. Before the upload route could only ask this DO to start workflow
+   * backed issue/automation runs; after this RPC it can use the established
+   * `subAgent` + `Think.saveMessages` pattern for a bounded best-effort audit.
+   * The facet is reclaimed after either terminal outcome because no chat or
+   * product ledger needs to survive this one-shot structuring pass.
+   */
+  @callable()
+  async startBrainAudit(
+    input: Omit<BrainAuditRunInput, 'agentId'>,
+  ): Promise<{ ok: true; status: 'completed' }> {
+    const layer = makeBrainAuditRunnerLayer({
+      authorize: (workspaceId) => this.requireWorkspaceAccess(workspaceId),
+      resolveAgentId: () => this.resolveRuntimeAgentId(),
+      acquire: (itemId) => this.subAgent(BrainAuditSubAgent, itemId),
+      release: (itemId) => this.deleteSubAgent(BrainAuditSubAgent, itemId),
+      onStarted: ({ agentId, itemId, workspaceId }) => {
+        agentRuntimeLogger.info('agent_do.brain_audit.start_requested', {
+          agentId,
+          itemId,
+          workspaceId,
+        })
+      },
+      onCleanupFailure: ({ agentId, itemId, workspaceId, cause }) => {
+        agentRuntimeLogger.warn('agent_do.brain_audit.cleanup_failed', {
+          agentId,
+          itemId,
+          message: messageFromUnknown(cause),
+          workspaceId,
+        })
+      },
+    })
+    return Effect.runPromise(
+      Effect.flatMap(BrainAuditRunner, (runner) => runner.run(input)).pipe(
+        Effect.tap(({ agentId }) =>
+          Effect.sync(() => {
+            agentRuntimeLogger.info('agent_do.brain_audit.completed', {
+              agentId,
+              itemId: input.itemId,
+              workspaceId: input.workspaceId,
+            })
+          }),
+        ),
+        Effect.tapError((failure) =>
+          Effect.sync(() => {
+            agentRuntimeLogger.error('agent_do.brain_audit.failed', {
+              agentId: failure.agentId,
+              itemId: input.itemId,
+              message: messageFromUnknown(failure.cause),
+              operation: failure.operation,
+              workspaceId: input.workspaceId,
+            })
+          }),
+        ),
+        Effect.map(({ status }) => ({ ok: true as const, status })),
+        Effect.provide(layer),
+      ),
+    )
+  }
+
   async cancelIssueRun(input: {
     runId: string
     issueId: string
@@ -1085,7 +1163,29 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     if (await this.checkAutomationRunAccess(runId)) return
     throw new Error('Automation run not found')
   }
+
+  /**
+   * Confirms the route-selected workspace belongs to this AgentDO identity.
+   * Before brain-audit RPC accepted no workspace-scoped input; after this guard
+   * a caller cannot bind the facet's Brain tools to another tenant simply by
+   * supplying a different workspace id.
+   */
+  private async requireWorkspaceAccess(workspaceId: string) {
+    await this.syncAgentIdentityState()
+    const [row] = await this.getDb()
+      .select({ workspaceId: schema.agent.workspaceId })
+      .from(schema.agent)
+      .where(this.agentRuntimeWhere())
+      .limit(1)
+
+    if (row?.workspaceId === workspaceId) return
+    throw new Error('Workspace agent not found')
+  }
 }
+
+export class ChatToolDeniedError extends TaggedError('ChatToolDeniedError')<{
+  message: string
+}>() {}
 
 export class ChatSubAgent extends Think<AgentRuntimeEnv> {
   /**
@@ -1140,6 +1240,7 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
   )
   override classifyChatError = classifyGardenContextOverflow
   private readonly aiObservation = new AiObservation(this.ctx, this.env)
+  private currentPermissions: AgentPermissions | null = null
   private mcpController: RuntimeMcpController | null = null
   private readonly mcpConnectionPreparer = new RuntimeMcpConnectionPreparer({
     getController: () => this.getMcpController(),
@@ -1215,6 +1316,16 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
       loader: this.env.LOADER,
       getSandbox: () => this.getAgentSandbox(),
       issueRunEnv: this.env,
+      brain: {
+        ...(this.env.HELIX_URL === undefined
+          ? {}
+          : { helixUrl: this.env.HELIX_URL }),
+        ...(this.env.HELIX_API_KEY === undefined
+          ? {}
+          : { helixApiKey: this.env.HELIX_API_KEY }),
+        ai: this.env.AI,
+        files: this.env.BRAIN_FILES,
+      },
       cancelIssueRun: async (input) => {
         const instance = await this.env.RUN_WORKFLOW.get(input.runId)
         await instance.sendEvent({
@@ -1536,6 +1647,15 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
     return activated.join('\n\n')
   }
 
+  private shouldAutoApproveRiskClass(riskClass: string) {
+    const permissions = this.currentPermissions
+    if (!permissions) return false
+    if (riskClass !== 'send_external' && riskClass !== 'destructive') {
+      return false
+    }
+    return permissions.approval_overrides[riskClass] === 'auto'
+  }
+
   override async beforeTurn(ctx: TurnContext) {
     const [identity] = await this.getDb()
       .select({
@@ -1543,8 +1663,13 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
         workspaceId: schema.chatThread.workspaceId,
         ownerUserId: schema.chatThread.ownerUserId,
         agentId: schema.chatThread.agentId,
+        agentPermissions: schema.agent.permissions,
       })
       .from(schema.chatThread)
+      .innerJoin(
+        schema.agent,
+        eq(schema.agent.id, schema.chatThread.agentId),
+      )
       .where(
         or(
           eq(schema.chatThread.id, this.name),
@@ -1552,6 +1677,9 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
         ),
       )
       .limit(1)
+    this.currentPermissions = identity
+      ? derivePermissions({ agent: { permissions: identity.agentPermissions } })
+      : null
     if (identity) {
       this.aiObservation.startTurn(
         {
@@ -1606,11 +1734,23 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
 
     const stableMcpTools = mcpController.wrapGetAITools(
       this.mcp.getAITools.bind(this.mcp),
+      undefined,
+      {
+        shouldAutoApprove: ({ riskClass }) =>
+          this.shouldAutoApproveRiskClass(riskClass),
+      },
     )
     const activeTools = mcpController.activeToolKeysWithoutRawMcp({
       assembledTools: ctx.tools,
       stableMcpTools,
     })
+    const isToolVisible = (key: string) =>
+      key.startsWith(EXECUTOR_TOOL_KEY_PREFIX) ||
+      isChatToolAllowed(this.currentPermissions, key)
+    const visibleTools = Object.fromEntries(
+      Object.entries(stableMcpTools).filter(([key]) => isToolVisible(key)),
+    ) as ToolSet
+    const visibleActiveTools = activeTools.filter((key) => isToolVisible(key))
 
     return {
       model: createAgentModel({
@@ -1634,12 +1774,17 @@ export class ChatSubAgent extends Think<AgentRuntimeEnv> {
       ...(systemAdditions
         ? { system: `${ctx.system}\n\n${systemAdditions}` }
         : {}),
-      tools: stableMcpTools,
-      activeTools,
+      tools: visibleTools,
+      activeTools: visibleActiveTools,
     } satisfies TurnConfig
   }
 
   override async beforeToolCall(ctx: ToolCallContext) {
+    if (!isChatToolAllowed(this.currentPermissions, ctx.toolName)) {
+      throw new ChatToolDeniedError({
+        message: `Tool ${ctx.toolName} is not allowed for this agent.`,
+      })
+    }
     this.aiObservation.beforeToolCall(ctx)
     return undefined
   }

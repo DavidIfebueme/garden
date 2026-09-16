@@ -350,7 +350,7 @@
   --secondary: var(--background-neutral-secondary);
   --secondary-foreground: var(--text-neutral-on-neutral-secondary);
   --muted: var(--background-main-secondary);
-  --muted-foreground: var(--text-secondary);
+  --muted-foreground: var(--text-neutral-secondary);
   --accent: var(--background-main-secondary);
   --accent-foreground: var(--text-neutral-default);
   --destructive: var(--background-danger-default);

@@ -19,7 +19,7 @@
  * `useQuery(connectionListOptions(workspaceId))` from
  * `@/lib/workspace/queries`, with `workspaceId` from `useWorkspaceId()`
  * (`@garden/app-state/hooks`). Clicking the strip calls the injected
- * `onOpenConnections` callback (wired to the Connections dock panel by the
+ * `onOpenConnections` callback (wired to the Connections route by the
  * caller — this component does not know what "Connections" means beyond a
  * click handler).
  *

@@ -1,7 +1,4 @@
-export function sanitizeRedirectTarget(
-  target: unknown,
-  fallback = '/workspace',
-) {
+export function sanitizeRedirectTarget(target: unknown, fallback = '/home') {
   if (
     typeof target !== 'string' ||
     !target.startsWith('/') ||

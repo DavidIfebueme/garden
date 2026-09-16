@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
 import { cn } from '@garden/ui/lib/utils'
-import { chatSessionDragType } from '@/components/shell/workspace-dock'
 import {
   isPendingFirstTurn,
   useAgentSessions,
@@ -106,15 +105,7 @@ function SessionRow({
         <div
           role="button"
           tabIndex={0}
-          draggable
           onClick={onSelect}
-          onDragStart={(event) => {
-            event.dataTransfer.effectAllowed = 'move'
-            event.dataTransfer.setData(
-              chatSessionDragType,
-              JSON.stringify({ id: session.id, title: session.title }),
-            )
-          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()

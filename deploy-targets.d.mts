@@ -1,6 +1,7 @@
 export interface DeploymentTarget {
-  readonly key: 'production' | 'preview'
-  readonly appName: string
+  readonly key: 'staging' | 'dev' | 'preview'
+  readonly branch: 'main' | 'dev' | null
+  readonly stackName: string
   readonly stage: string
   readonly workerId: string
   readonly workerName: string
@@ -8,6 +9,8 @@ export interface DeploymentTarget {
   readonly tailWorkerName: string
   readonly filesId: string
   readonly filesBucket: string
+  readonly brainFilesId: string
+  readonly brainFilesBucket: string
   readonly databaseId: string
   readonly databaseName: string
   readonly databaseUrlEnv: string
@@ -22,14 +25,15 @@ export interface DeploymentTarget {
   readonly sandboxId: string
   readonly sandboxName: string
   readonly aiGatewayId: string
-  readonly stateWorkerName: string
   readonly environment: 'production' | 'development'
   readonly bindConfiguredBetterAuthUrl: boolean
   readonly emptyBucketsOnDestroy: boolean
 }
 
 export const deploymentTargets: Readonly<
-  Record<'production' | 'preview', DeploymentTarget>
+  Record<'staging' | 'dev' | 'preview', DeploymentTarget>
 >
 
 export function deploymentTargetFromEnv(value?: string): DeploymentTarget
+
+export function deploymentTargetFromBranch(branch?: string): DeploymentTarget

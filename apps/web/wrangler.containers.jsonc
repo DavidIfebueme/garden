@@ -26,6 +26,8 @@
       "DATABASE_URL",
       "ENVIRONMENT",
       "EXECUTOR_SECRET_KEY",
+      "GOOGLE_AUTH_CLIENT_ID",
+      "GOOGLE_AUTH_CLIENT_SECRET",
     ],
   },
   "hyperdrive": [
@@ -93,6 +95,10 @@
   ],
   "r2_buckets": [
     {
+      "binding": "BRAIN_FILES",
+      "bucket_name": "org-brain-local",
+    },
+    {
       "binding": "FILES",
       "bucket_name": "garden-files-local",
     },
@@ -117,6 +123,7 @@
     "SANDBOX_TRANSPORT": "rpc",
     "SANDBOX_LOG_LEVEL": "warn",
     "GARDEN_LOG_LEVEL": "warn",
+    "HELIX_URL": "http://localhost:6968",
     // Offline/local-model config. Empty string means "unset"; `pnpm
     // dev:offline` overrides via process env (wrangler only forwards env keys
     // that are declared in `vars` or `secrets.required`). Deployed workers

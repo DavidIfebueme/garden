@@ -1,0 +1,4 @@
+# Drizzle snapshots repeat the full schema for migration generation. Match VCOS:
+# collapse generated snapshots on GitHub and suppress their local text diffs.
+# Keep snapshots tracked; SQL migrations and the journal remain reviewable.
+packages/db/drizzle/meta/*_snapshot.json linguist-generated=true -diff
