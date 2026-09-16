@@ -48,10 +48,6 @@ type SpeechRecognitionWindow = Window & {
   webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
 };
 
-// const HighlighterIcon = () => (
-//   <></>
-// );
-
 const HarnessyIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -139,7 +135,11 @@ function ModelPicker<T extends string>({
         className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
       >
         <current.Icon className="h-4 w-auto" />
-        {current.label}
+        {/* Hide the label on very narrow screens; the icon alone identifies
+            the current model. Restores from `sm` up. */}
+        <span className="hidden max-w-24 truncate sm:inline">
+          {current.label}
+        </span>
         <ChevronDown
           className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
         />
@@ -154,7 +154,7 @@ function ModelPicker<T extends string>({
           />
           <ul
             role="listbox"
-            className="absolute bottom-full right-0 z-20 mb-2 min-w-45 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-lg"
+            className="absolute right-0 bottom-full z-20 mb-2 min-w-45 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-lg"
           >
             {options.map(({ id, label, Icon }) => {
               const selected = id === value;
@@ -188,7 +188,7 @@ function ModelPicker<T extends string>({
 function ListeningIndicator({ elapsed }: { elapsed: number }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="relative inline-flex size-2.5">
+      <span className="relative inline-flex size-2.5 shrink-0">
         <span className="absolute inset-0 animate-ping rounded-full bg-red-500/70" />
         <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
       </span>
@@ -208,7 +208,7 @@ function ListeningIndicator({ elapsed }: { elapsed: number }) {
         ))}
       </div>
 
-      <span className="text-xs font-medium tabular-nums text-muted-foreground">
+      <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
         {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
         {String(elapsed % 60).padStart(2, '0')}
       </span>
@@ -393,10 +393,13 @@ export function InboxReplyInput() {
   };
 
   return (
-    <div className="rounded-[28px] border border-border bg-background p-4">
-      <div className="flex items-center gap-4 text-muted-foreground">
+    <div className="rounded-2xl border border-border bg-background p-3 sm:rounded-[28px] sm:p-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground sm:gap-x-4">
         {toolbarGroups.map((group, groupIndex) => (
-          <div key={groupIndex} className="flex items-center gap-4">
+          <div
+            key={groupIndex}
+            className="flex shrink-0 items-center gap-2 sm:gap-4"
+          >
             {groupIndex > 0 && (
               <span className="h-4 w-px bg-border" aria-hidden="true" />
             )}
@@ -424,7 +427,7 @@ export function InboxReplyInput() {
 
       <div className="relative mt-4 min-h-16">
         {!hasContent && (
-          <div className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
+          <div className="pointer-events-none absolute top-0 left-0 text-sm text-muted-foreground">
             Write your reply here...
           </div>
         )}
@@ -442,24 +445,26 @@ export function InboxReplyInput() {
         />
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-y-3">
         <div className="flex items-center gap-3 text-xs font-medium text-foreground">
           <button
             type="button"
+            aria-label="Add attachment"
             className="inline-flex size-5 items-center justify-center text-foreground transition-colors hover:text-muted-foreground"
           >
             <Plus className="size-4" />
           </button>
           <button
             type="button"
+            aria-label="Reply options"
             className="inline-flex size-5 items-center justify-center text-foreground transition-colors hover:text-muted-foreground"
           >
             <SlidersHorizontal className="size-4" />
           </button>
-          <span>Default</span>
+          <span className="hidden sm:inline">Default</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isListening ? (
             <>
               <button
@@ -467,7 +472,7 @@ export function InboxReplyInput() {
                 aria-label="Cancel recording"
                 title="Cancel"
                 onClick={cancelListening}
-                className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <X className="size-4" />
               </button>
@@ -479,7 +484,7 @@ export function InboxReplyInput() {
                 aria-label="Stop recording"
                 title="Stop"
                 onClick={stopListening}
-                className="inline-flex size-8 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-500/90"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-500/90"
               >
                 <span className="block size-3 rounded-[3px] bg-white" />
               </button>
@@ -490,8 +495,9 @@ export function InboxReplyInput() {
                 type="button"
                 aria-pressed={false}
                 title="Start voice input"
+                aria-label="Start voice input"
                 onClick={toggleVoiceInput}
-                className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex size-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Mic className="size-3.5" />
               </button>
@@ -500,7 +506,8 @@ export function InboxReplyInput() {
 
               <button
                 type="button"
-                className="inline-flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                aria-label="Send reply"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <ArrowUp className="size-4" />
               </button>
