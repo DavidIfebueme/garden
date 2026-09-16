@@ -12,6 +12,7 @@ export type ComposeMessageBodyRef = {
   insertLink: (text: string, href: string) => void
   clear: () => void
   getMarkdown: () => string
+  saveSelection: () => void
 }
 
 type ComposeMessageBodyProps = {
@@ -37,11 +38,12 @@ export const ComposeMessageBody = forwardRef<
   ComposeMessageBodyRef,
   ComposeMessageBodyProps
 >(function ComposeMessageBody({ placeholder, onChange }, ref) {
-  const editorRef = useRef<HTMLDivElement>(null)
-  const [empty, setEmpty] = useState(true)
-  const [inspector, setInspector] = useState<LinkInspectorState | null>(null)
-  const [editingHref, setEditingHref] = useState(false)
-  const [hrefDraft, setHrefDraft] = useState('')
+  const editorRef = useRef<HTMLDivElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+  const [empty, setEmpty] = useState(true);
+  const [inspector, setInspector] = useState<LinkInspectorState | null>(null);
+  const [editingHref, setEditingHref] = useState(false);
+  const [hrefDraft, setHrefDraft] = useState('');
 
   const syncBody = () => {
     const root = editorRef.current
@@ -55,29 +57,44 @@ export const ComposeMessageBody = forwardRef<
     const root = editorRef.current
     if (!root) return
     root.focus()
-    const selection = window.getSelection()
-    const inRoot =
-      selection != null &&
-      selection.rangeCount > 0 &&
-      selection.anchorNode != null &&
-      root.contains(selection.anchorNode)
 
-    if (!inRoot || !selection) {
+
+    let range: Range | null = savedRangeRef.current
+    if (range && !root.contains(range.startContainer)) {
+      range = null
+    }
+    if (!range) {
+      const selection = window.getSelection()
+      if (
+        selection != null &&
+        selection.rangeCount > 0 &&
+        selection.anchorNode != null &&
+        root.contains(selection.anchorNode)
+      ) {
+        range = selection.getRangeAt(0)
+      }
+    }
+
+    if (!range) {
       root.appendChild(node)
       root.appendChild(document.createTextNode('\u00a0'))
       syncBody()
       return
     }
 
-    const range = selection.getRangeAt(0)
     range.deleteContents()
     range.insertNode(node)
     const spacer = document.createTextNode('\u00a0')
     node.parentNode?.insertBefore(spacer, node.nextSibling)
     range.setStartAfter(spacer)
     range.collapse(true)
-    selection.removeAllRanges()
-    selection.addRange(range)
+
+    const selection = window.getSelection()
+    if (selection) {
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
+    savedRangeRef.current = range.cloneRange()
     syncBody()
   }
 
@@ -104,6 +121,19 @@ export const ComposeMessageBody = forwardRef<
     getMarkdown: () => {
       const root = editorRef.current
       return root ? serializeComposeBody(root) : ''
+    },
+    saveSelection: () => {
+      const root = editorRef.current
+      if (!root) return
+      const selection = window.getSelection()
+      if (
+        selection != null &&
+        selection.rangeCount > 0 &&
+        selection.anchorNode != null &&
+        root.contains(selection.anchorNode)
+      ) {
+        savedRangeRef.current = selection.getRangeAt(0).cloneRange()
+      }
     },
   }))
 

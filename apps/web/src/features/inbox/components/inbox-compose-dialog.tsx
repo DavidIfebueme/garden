@@ -205,7 +205,10 @@ export function InboxComposeDialog({
                 className="rounded-lg"
                 onSelect={(emoji) => insertText(emoji)}
               />
-              <ComposeLinkButton onInsert={insertLink} />
+              <ComposeLinkButton
+                onBeforeOpen={() => bodyRef.current?.saveSelection()}
+                onInsert={insertLink}
+              />
               <ComposeFileButton
                 icon={Paperclip}
                 label="Attach document"
@@ -404,8 +407,10 @@ function avatarTone(email: string) {
 
 function ComposeLinkButton({
   onInsert,
+  onBeforeOpen
 }: {
-  onInsert: (text: string, href: string) => void
+  onInsert: (text: string, href: string) => void;
+  onBeforeOpen: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -429,6 +434,7 @@ function ComposeLinkButton({
     <Popover
       open={open}
       onOpenChange={(nextOpen) => {
+        if (nextOpen) onBeforeOpen()
         setOpen(nextOpen)
         if (!nextOpen) reset()
       }}
