@@ -3,7 +3,12 @@ import { cn } from '@garden/ui/lib/utils'
 import { LegendList, type LegendListRef } from '@legendapp/list/react'
 import type { UIMessage } from 'ai'
 import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
-import type { ComponentProps, ReactNode } from 'react'
+import type {
+  ComponentProps,
+  ReactNode,
+  TouchEvent as ReactTouchEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react'
 import {
   createContext,
   useCallback,
@@ -45,6 +50,13 @@ export type ConversationProps<TItem> = ComponentProps<'div'> & {
   renderItem: (args: { index: number; item: TItem }) => ReactNode
 }
 
+/**
+ * Keeps the conversation pinned while content grows, until a user scrolls up.
+ * LegendList owns the post-layout scroll work; this component only controls the
+ * pinning flag and records user intent before the next scroll event arrives.
+ * References: installed `@legendapp/list` `maintainScrollAtEnd` and `onLoad`
+ * types and implementation.
+ */
 export function Conversation<TItem>({
   children,
   className,
@@ -54,90 +66,52 @@ export function Conversation<TItem>({
   estimateItemSize = 90,
   getItemKey,
   initialContainerPoolRatio,
-  onWheel: callerOnWheel,
-  onTouchStart: callerOnTouchStart,
+  onTouchMove: callerOnTouchMove,
+  onTouchStart,
+  onWheel,
   renderItem: renderDataItem,
   ...props
 }: ConversationProps<TItem>) {
   const listRef = useRef<LegendListRef | null>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const isAtBottomRef = useRef(true)
-  const pendingScrollRef = useRef(0)
-  const pendingScrollTimeoutRef = useRef(0)
-  const prevScrollRef = useRef(0)
-  const isAutoScrollingRef = useRef(false)
   const userScrolledUpRef = useRef(false)
+  const touchStartYRef = useRef<number | null>(null)
 
+  /**
+   * Mirrors LegendList's end state, except while a user-scroll latch is active.
+   * The latch prevents streaming layout updates from re-enabling maintenance
+   * after the list's internal threshold briefly reports the end.
+   */
   const updateStickiness = useCallback(() => {
     const state = listRef.current?.getState?.()
     if (!state) return
-    if (isAutoScrollingRef.current) {
-      prevScrollRef.current = state.scroll
-      isAutoScrollingRef.current = false
-      return
+
+    if (userScrolledUpRef.current) {
+      if (!state.isAtEnd) {
+        setIsAtBottom(false)
+        return
+      }
+      userScrolledUpRef.current = false
     }
-    prevScrollRef.current = state.scroll
-    const atBottom =
-      state.isAtEnd || (!userScrolledUpRef.current && state.scrollLength - state.scroll < 50)
-    if (!atBottom) {
-      cancelAnimationFrame(pendingScrollRef.current)
-      clearTimeout(pendingScrollTimeoutRef.current)
-    }
-    isAtBottomRef.current = atBottom
-    setIsAtBottom((current) => (current === atBottom ? current : atBottom))
+
+    setIsAtBottom((current) =>
+      current === state.isAtEnd ? current : state.isAtEnd,
+    )
   }, [])
 
+  /** Restores the pinned state after the user selects the scroll button. */
   const scrollToBottom = useCallback(() => {
-    isAtBottomRef.current = true
     userScrolledUpRef.current = false
     setIsAtBottom(true)
-    listRef.current?.scrollToEnd?.({ animated: true })
+    void listRef.current?.scrollToEnd?.({ animated: true })
   }, [])
 
-  const onUserScrollIntent = useCallback(
-    (e: React.WheelEvent | React.TouchEvent) => {
-      cancelAnimationFrame(pendingScrollRef.current)
-      clearTimeout(pendingScrollTimeoutRef.current)
-      if ('deltaY' in e && e.deltaY < 0) {
-        userScrolledUpRef.current = true
-        isAtBottomRef.current = false
-        setIsAtBottom(false)
-      }
-    },
-    [],
-  )
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      onUserScrollIntent(e)
-      callerOnWheel?.(e)
-    },
-    [onUserScrollIntent, callerOnWheel],
-  )
-
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      onUserScrollIntent(e)
-      callerOnTouchStart?.(e)
-    },
-    [onUserScrollIntent, callerOnTouchStart],
-  )
-
-  const prevDataRef = useRef(data)
-  if (prevDataRef.current !== data) {
-    cancelAnimationFrame(pendingScrollRef.current)
-    clearTimeout(pendingScrollTimeoutRef.current)
-    pendingScrollRef.current = requestAnimationFrame(() => {
-      if (isAtBottomRef.current) {
-        isAutoScrollingRef.current = true
-        pendingScrollTimeoutRef.current = setTimeout(() => {
-          listRef.current?.scrollToEnd?.({ animated: false })
-        }, 10)
-      }
-      updateStickiness()
-    })
-  }
-  prevDataRef.current = data
+  /** Scrolls an initially loaded conversation to its newest message. */
+  const scrollToBottomOnLoad = useCallback(() => {
+    if (data.length === 0) return
+    void listRef.current?.scrollToEnd?.({ animated: false })
+    setIsAtBottom((current) => (current ? current : true))
+  }, [data.length])
 
   const rawRows = useMemo(
     () =>
@@ -163,6 +137,41 @@ export function Conversation<TItem>({
     [renderDataItem],
   )
 
+  /** Records upward wheel movement before LegendList reports the new offset. */
+  const handleWheel = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      if (event.deltaY < 0) {
+        userScrolledUpRef.current = true
+        setIsAtBottom(false)
+      }
+      onWheel?.(event)
+    },
+    [onWheel],
+  )
+
+  /** Stores the starting finger position for touch-scroll direction tracking. */
+  const handleTouchStart = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      touchStartYRef.current = event.touches[0]?.clientY ?? null
+      onTouchStart?.(event)
+    },
+    [onTouchStart],
+  )
+
+  /** Latches upward content movement and preserves the caller callback. */
+  const handleTouchMove = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      const currentY = event.touches[0]?.clientY
+      const startY = touchStartYRef.current
+      if (currentY !== undefined && startY !== null && currentY - startY > 10) {
+        userScrolledUpRef.current = true
+        setIsAtBottom(false)
+      }
+      callerOnTouchMove?.(event)
+    },
+    [callerOnTouchMove],
+  )
+
   const contextValue = useMemo(
     () => ({ isAtBottom, scrollToBottom }),
     [isAtBottom, scrollToBottom],
@@ -173,8 +182,9 @@ export function Conversation<TItem>({
       <div
         role="log"
         {...props}
-        onWheel={handleWheel}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onWheel={handleWheel}
         className={cn('relative min-h-0 flex-1 overflow-hidden', className)}
       >
         <LegendList<ConversationRow<TItem>>
@@ -187,8 +197,9 @@ export function Conversation<TItem>({
           estimatedListSize={estimatedListSize}
           estimatedItemSize={estimateItemSize}
           initialContainerPoolRatio={initialContainerPoolRatio}
-          maintainScrollAtEnd={false}
+          maintainScrollAtEnd={isAtBottom}
           maintainScrollAtEndThreshold={0.1}
+          onLoad={scrollToBottomOnLoad}
           onScroll={updateStickiness}
           className="h-full overflow-x-hidden overscroll-y-contain"
         />
