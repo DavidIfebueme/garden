@@ -40,6 +40,7 @@ import {
   AlignJustify,
   Highlighter,
 } from 'lucide-react'
+import { cn } from '@garden/ui/lib/utils'
 
 type TextAlign = 'left' | 'center' | 'right' | 'justify'
 
@@ -81,14 +82,22 @@ function nextHeadingLevel(level: 1 | 2 | 3 | undefined): 1 | 2 | 3 | undefined {
  */
 export function ComposerToolbar({
   editor,
+  disabled = false,
 }: {
   editor: Editor | null
+  disabled?: boolean
 }): JSX.Element | null {
   if (!editor) return null
-  return <ToolbarForEditor editor={editor} />
+  return <ToolbarForEditor editor={editor} disabled={disabled} />
 }
 
-function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
+function ToolbarForEditor({
+  editor,
+  disabled,
+}: {
+  editor: Editor
+  disabled: boolean
+}): JSX.Element | null {
   const [focusedIndex, setFocusedIndex] = useState(0)
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([])
 
@@ -226,9 +235,13 @@ function ToolbarForEditor({ editor }: { editor: Editor }): JSX.Element | null {
             ref={(el: HTMLButtonElement | null) => {
               buttonRefs.current[index] = el
             }}
-            className="size-8 rounded-sm p-0 text-icon-default"
+            className={cn(
+              'size-8 rounded-sm p-0',
+              disabled ? 'text-icon-disabled' : 'text-icon-default',
+            )}
             aria-label={button.label}
             pressed={button.pressed}
+            disabled={disabled}
             tabIndex={index === focusedIndex ? 0 : -1}
             onPressedChange={() => button.onToggle(editor)}
             onMouseDown={(event: React.MouseEvent) => event.preventDefault()}

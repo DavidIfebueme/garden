@@ -65,6 +65,15 @@ describe('ComposerToolbar', () => {
     ).toBeInTheDocument()
   })
 
+  it('disables every format control when the composer has no content', () => {
+    render(<ComposerToolbar editor={makeEditor()} disabled />)
+
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toBeDisabled()
+      expect(button).toHaveClass('text-icon-disabled')
+    }
+  })
+
   // Table-driven command pinning (review round 1, finding 1). Chosen over
   // one bespoke test per button: the assertion shape is identical for every
   // simple mark/align button (accessible name -> exactly this chain method

@@ -41,7 +41,7 @@
   float: left;
   pointer-events: none;
   height: 0;
-  color: var(--text-default);
+  color: var(--text-disabled-default);
   font-size: var(--font-size-sm);
   font-weight: 400;
   font-style: normal;

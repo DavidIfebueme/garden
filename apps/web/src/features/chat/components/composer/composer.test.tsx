@@ -164,6 +164,17 @@ describe('Composer', () => {
     expect(onSend).not.toHaveBeenCalled()
   })
 
+  it('renders the empty submit button with disabled tokens', () => {
+    render(<Composer {...base} />)
+
+    const submit = screen.getByRole('button', { name: /send message/i })
+    expect(submit).toBeDisabled()
+    expect(submit).toHaveClass(
+      'bg-background-disabled-default',
+      'text-icon-disabled',
+    )
+  })
+
   it('shows Stop while streaming', () => {
     render(<Composer {...base} isStreaming />)
     expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument()

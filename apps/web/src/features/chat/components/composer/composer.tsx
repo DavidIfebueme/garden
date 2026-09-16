@@ -256,7 +256,12 @@ function ComposerFooter(props: {
         ) : (
           <Button
             type="button"
-            className="size-8 rounded-xl bg-background-brand-secondary text-icon-brand-default transition-all duration-150 hover:scale-105 hover:bg-background-brand-secondary-hover disabled:opacity-30 disabled:hover:scale-100"
+            className={cn(
+              'size-8 rounded-xl transition-all duration-150 hover:scale-105 disabled:opacity-100 disabled:hover:scale-100',
+              hasContent
+                ? 'bg-background-brand-secondary text-icon-brand-default hover:bg-background-brand-secondary-hover'
+                : 'bg-background-disabled-default text-icon-disabled',
+            )}
             onClick={onSend}
             disabled={isSubmitted || hasStaleDocumentSelection || !hasContent}
             aria-label={isSubmitted ? 'Sending' : 'Send message'}
@@ -758,7 +763,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                 />
               </div>
             ) : null}
-            <ComposerToolbar editor={editorInstance} />
+            <ComposerToolbar
+              editor={editorInstance}
+              disabled={!editorHasContent}
+            />
             <ComposerEditor
               ref={editorRef}
               draft={input}
