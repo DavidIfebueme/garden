@@ -84,7 +84,6 @@ import { Composer } from './composer'
 
 const base = {
   agentId: 'a1',
-  documentLoadState: 'ready' as const,
   documents: [],
   isStreaming: false,
   status: 'ready' as const,
@@ -92,25 +91,6 @@ const base = {
   onInputChange: vi.fn(),
   onSend: vi.fn().mockResolvedValue(undefined),
   onStop: vi.fn(),
-}
-
-function makeDocument(
-  overrides: Partial<{
-    documentId: string
-    filename: string
-    meta: string
-    versionId: string | null
-    versionNumber: number | null
-  }> = {},
-) {
-  return {
-    documentId: 'd1',
-    filename: 'Spec.docx',
-    meta: 'DOCX',
-    versionId: null,
-    versionNumber: 2,
-    ...overrides,
-  }
 }
 
 describe('Composer', () => {
@@ -180,24 +160,6 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument()
   })
 
-  it('does not send when the selected document has gone stale (hasStaleDocumentSelection)', async () => {
-    editorState.md = 'hello'
-    const onSend = vi.fn()
-    const doc = makeDocument()
-    const { rerender } = render(
-      <Composer {...base} documents={[doc]} onSend={onSend} />,
-    )
-    await userEvent.click(screen.getByRole('button', { name: /add files/i }))
-    await userEvent.click(
-      await screen.findByRole('menuitemcheckbox', { name: /Spec\.docx/ }),
-    )
-    // The document disappears from the thread (e.g. deleted) while still
-    // selected — selectedDocumentIds now points at nothing.
-    rerender(<Composer {...base} documents={[]} onSend={onSend} />)
-    await userEvent.click(screen.getByTestId('fake-submit'))
-    expect(onSend).not.toHaveBeenCalled()
-  })
-
   it('attaches a file, renders a chip, removes it, and sends the remaining attachment', async () => {
     editorState.md = ''
     const onSend = vi.fn().mockResolvedValue(undefined)
@@ -249,43 +211,28 @@ describe('Composer', () => {
     expect(screen.getByTitle('clip.png')).toBeInTheDocument()
   })
 
-  it('clears the editor, draft, attachments, and selected documents on a successful send', async () => {
+  it('clears the editor, draft, and attachments on a successful send', async () => {
     editorState.md = 'hello'
     const onSend = vi.fn().mockResolvedValue(undefined)
     const onInputChange = vi.fn()
-    const doc = makeDocument()
-    render(
-      <Composer
-        {...base}
-        documents={[doc]}
-        onSend={onSend}
-        onInputChange={onInputChange}
-      />,
-    )
+    render(<Composer {...base} onSend={onSend} onInputChange={onInputChange} />)
 
     const file = new File(['a'], 'a.txt', { type: 'text/plain' })
     await userEvent.upload(
       screen.getByTestId('composer-file-input') as HTMLInputElement,
       file,
     )
-    await userEvent.click(screen.getByRole('button', { name: /add files/i }))
-    await userEvent.click(
-      await screen.findByRole('menuitemcheckbox', { name: /Spec\.docx/ }),
-    )
-    await userEvent.keyboard('{Escape}')
-
     await userEvent.click(screen.getByTestId('fake-submit'))
 
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'hello',
         files: [file],
-        selectedDocuments: [expect.objectContaining({ documentId: 'd1' })],
+        selectedDocuments: [],
       }),
     )
     expect(onInputChange).toHaveBeenLastCalledWith('')
     expect(screen.queryByText('a.txt')).not.toBeInTheDocument()
-    expect(screen.queryByText('Spec.docx')).not.toBeInTheDocument()
     // The editor itself must be cleared through the handle, not merely the
     // store draft. Asserting only on `onInputChange` would pass even if
     // `editorRef.current.clear()` were never called and the user's text

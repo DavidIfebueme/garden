@@ -130,7 +130,6 @@ export interface ComposerHandle {
 
 export interface ComposerProps {
   agentId: string
-  documentLoadState: 'error' | 'loading' | 'ready'
   documents: ComposerThreadDocument[]
   isStreaming: boolean
   status: RealtimeStatus
@@ -332,7 +331,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
   function Composer(
     {
       agentId,
-      documentLoadState,
       documents,
       isStreaming,
       status,

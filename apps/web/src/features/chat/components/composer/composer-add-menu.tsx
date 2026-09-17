@@ -1,55 +1,39 @@
 /**
- * ComposerAddMenu — the `+` dropdown for adding files and documents to the chat.
+ * ComposerAddMenu — the `+` dropdown for adding files to the chat.
  *
  * Extracted from `chat-composer.tsx` (~lines 945-1020). Trigger glyph changed from
  * `Paperclip` to `Plus` per 2026-09-08 spec §8.1.
  *
- * Fully controlled: documents, their load state, and selected document IDs come
- * in as props; toggle and upload events go out through callbacks. No internal
- * state or fetching.
+ * Before: the menu carried an "Add context" group plus a "Documents in this
+ * chat" group — a controlled checkbox list of thread documents with
+ * loading/error/empty affordances. After: two flat actions only, per the
+ * Board design. Thread-document selection has no entry point in the composer
+ * any more; the chip row in `composer.tsx` now only repopulates through
+ * `ComposerHandle.restoreDraft` when a queued message is put back.
  *
- * Two sections:
- *   1. "Add context" — the "Upload from computer" menu item that fires
- *      `onUploadClick`.
- *   2. "Documents in this chat" — a list of available documents from the
- *      current thread, with checkboxes for inclusion. Each checkbox fires
- *      `onToggleDocument(documentId, checked)`.
- *
- * Load states (loading/error/empty) are rendered as disabled menu items, per
- * the original implementation.
+ * The Drive action is intentionally visual-only until its picker flow exists,
+ * so it renders `disabled` rather than as a live no-op item.
  *
  * Sources: chat-composer.tsx ~945-1020; @garden/ui DropdownMenu components
- * (Base UI Menu under the hood); lucide-react Plus icon.
+ * (Base UI Menu under the hood); lucide-react Plus icon; `GoogleDriveIcon`
+ * from `@garden/ui/components/icons` (sized via `className`, since these icons
+ * take `SVGProps` and have no `size` prop).
  */
 
-import { FileText, Loader2, Paperclip, Plus } from 'lucide-react'
+import { Paperclip, Plus } from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garden/ui/components/ui/dropdown-menu'
-import type { ComposerThreadDocument } from './composer-helpers'
+import { GoogleDriveIcon } from '@garden/ui/components/icons'
 
 export function ComposerAddMenu(props: {
-  documents: ComposerThreadDocument[]
-  documentLoadState: 'error' | 'loading' | 'ready'
-  selectedDocumentIds: string[]
-  onToggleDocument: (documentId: string, checked: boolean) => void
   onUploadClick: () => void
 }): JSX.Element {
-  const {
-    documents,
-    documentLoadState,
-    selectedDocumentIds,
-    onToggleDocument,
-    onUploadClick,
-  } = props
+  const { onUploadClick } = props
 
   return (
     <DropdownMenu>
@@ -66,52 +50,15 @@ export function ComposerAddMenu(props: {
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Add context</DropdownMenuLabel>
-          <DropdownMenuItem onClick={onUploadClick}>
-            <Paperclip className="size-4" />
-            Upload from computer
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Documents in this chat</DropdownMenuLabel>
-          {documentLoadState === 'loading' ? (
-            <DropdownMenuItem disabled>
-              <Loader2 className="size-4 animate-spin" />
-              Loading documents…
-            </DropdownMenuItem>
-          ) : documentLoadState === 'error' ? (
-            <DropdownMenuItem disabled>
-              Couldn't load documents
-            </DropdownMenuItem>
-          ) : documents.length === 0 ? (
-            <DropdownMenuItem disabled>
-              No documents in this chat yet
-            </DropdownMenuItem>
-          ) : (
-            documents.map((document) => (
-              <DropdownMenuCheckboxItem
-                key={document.documentId}
-                checked={selectedDocumentIds.includes(document.documentId)}
-                onCheckedChange={(checked) =>
-                  onToggleDocument(document.documentId, checked)
-                }
-              >
-                <FileText className="size-4" />
-                <span className="min-w-0 flex-1 truncate">
-                  {document.filename}
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {document.versionNumber
-                    ? `V${document.versionNumber}`
-                    : document.meta}
-                </span>
-              </DropdownMenuCheckboxItem>
-            ))
-          )}
-        </DropdownMenuGroup>
+      <DropdownMenuContent align="start" className="w-40 p-2">
+        <DropdownMenuItem onClick={onUploadClick} className="gap-3">
+          <Paperclip className="size-4" />
+          Upload files
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled className="gap-3">
+          <GoogleDriveIcon className="size-[18px]" />
+          Add from Drive
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

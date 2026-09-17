@@ -93,7 +93,6 @@ export function ConnectedChatPanelInteraction({
   activeSession,
   className,
   documentAttachments,
-  documentLoadState,
   onClose,
   onOpenConnections,
   panelDescription,
@@ -104,7 +103,6 @@ export function ConnectedChatPanelInteraction({
   activeSession: AgentChatSession
   className?: string
   documentAttachments: ChatHeaderAttachment[]
-  documentLoadState: 'error' | 'loading' | 'ready'
   onClose?: () => void
   /**
    * Opens the Connections surface from the composer's connected-apps strip.
@@ -662,7 +660,6 @@ export function ConnectedChatPanelInteraction({
               ref={composerRef}
               agentId={activeSession.agentId}
               fallbackAgentId={activeSession.agentId}
-              documentLoadState={documentLoadState}
               documents={composerDocuments}
               isStreaming={isStreaming || isRecovering}
               status={status}
