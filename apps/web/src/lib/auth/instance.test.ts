@@ -109,6 +109,16 @@ describe('createBetterAuth Google sign-in policy', () => {
     )
   })
 
+  it('keeps session authorization available with a partial Google pair', () => {
+    const auth = createBetterAuth(null as unknown as Db, {
+      ...authEnv,
+      GOOGLE_AUTH_CLIENT_ID: 'google-auth-client',
+      authMode: 'session',
+    })
+
+    expect(auth.options.socialProviders).toBeUndefined()
+  })
+
   it('requires a verified local email before trusted Google linking', () => {
     const auth = createBetterAuth(null as unknown as Db, {
       ...authEnv,
