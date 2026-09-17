@@ -25,6 +25,11 @@ function scheduleClientStoreHydration(callback: () => void) {
 }
 
 export const Route = createFileRoute('/_authenticated')({
+  // Session and workspace bootstrap is the auth boundary, not page data. Keep
+  // it cached while moving between authenticated surfaces; explicit auth and
+  // workspace changes invalidate the route when the value must change.
+  staleTime: Number.POSITIVE_INFINITY,
+  preloadStaleTime: Number.POSITIVE_INFINITY,
   loader: async ({ location }) => {
     const bootstrap = await getAuthBootstrap()
     if (!bootstrap) {

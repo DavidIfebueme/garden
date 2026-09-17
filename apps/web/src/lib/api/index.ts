@@ -4,6 +4,7 @@ export type { ApiTransportOptions, ApiRequestInit } from './transport'
 export {
   configureApi,
   getApiTransport,
+  isApiConfigured,
   getBaseUrl,
   setWorkspaceHeader,
   setWorkspaceId,
