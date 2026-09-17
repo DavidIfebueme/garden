@@ -88,13 +88,15 @@ import {
 import { ComposerEditor, type ComposerEditorHandle } from './composer-editor'
 import { ComposerToolbar } from './composer-toolbar'
 import { ComposerAddMenu } from './composer-add-menu'
-import {
-  ComposerToolsMenu,
-  type ComposerSourceChip,
-} from './composer-tools-menu'
+import { ComposerToolsMenu } from './composer-tools-menu'
+import { ComposerSourcesMenu } from './composer-sources-menu'
 import { ComposerAgentSelect } from './composer-agent-select'
 import { ComposerExtensionRow } from './composer-extension-row'
-import { DEFAULT_TOOL_PRESET_ID, type ToolPresetId } from './composer-tools'
+import {
+  DEFAULT_TOOL_PRESET_ID,
+  TOOL_PRESET_IDS_WITH_SOURCES,
+  type ToolPresetId,
+} from './composer-tools'
 
 /** Stable no-op so an absent `onOpenConnections` doesn't change identity. */
 function noop() {}
@@ -144,11 +146,11 @@ export interface ComposerProps {
   pendingQuestions?: StructuredQuestion[]
   onSubmitAnswers?: (answers: StructuredQuestionAnswers) => void
   /**
-   * Opens the Connections dock panel. Accepted here (optional) so the
-   * controller (Task 13) can wire it through without a further prop-shape
-   * change, but not consumed inside this component — mounting
-   * `ComposerExtensionRow` (the strip that uses it) is Task 13's job, per
-   * task-12-rulings.md #6 ("Task 13 owns final assembly").
+   * Opens the Connections dock panel. Two things below reach for it: the
+   * extension row's "Connect your apps" strip, and the tools menu's sources
+   * panel (`composer-tools-menu.tsx`), whose rows each connect one provider.
+   * Optional, so a caller that has no Connections surface can leave it out —
+   * both call sites fall back to `noop`.
    */
   onOpenConnections?: () => void
   /** Falls back to this agent when the chat store has no selectedAgentId. */
@@ -198,8 +200,8 @@ async function uploadComposerFile(file: File): Promise<UploadResult | null> {
 
 /**
  * `ComposerFooter` — bottom row of the composer pill: left cluster (`+`
- * attachment menu, tools menu), right cluster (mic, agent select, send/stop
- * button).
+ * attachment menu, tools menu, and the sources menu when the selected tool
+ * has one), right cluster (mic, agent select, send/stop button).
  *
  * The send/stop button's class names and its `isStreaming` / `isSubmitted` /
  * `hasStaleDocumentSelection` / `hasContent` branching are copied verbatim
@@ -213,6 +215,13 @@ async function uploadComposerFile(file: File): Promise<UploadResult | null> {
 function ComposerFooter(props: {
   addMenu: ReactNode
   toolsMenu: ReactNode
+  /**
+   * The `Sources` control, or null. Null rather than a boolean flag because
+   * only the caller knows whether the selected tool draws on sources
+   * (`TOOL_PRESET_IDS_WITH_SOURCES`) and what connecting one should do; this
+   * row just places whatever it is given next to the tools trigger.
+   */
+  sourcesMenu: ReactNode
   agentSelect: ReactNode
   onMicTranscription: (value: string) => void
   isStreaming: boolean
@@ -225,6 +234,7 @@ function ComposerFooter(props: {
   const {
     addMenu,
     toolsMenu,
+    sourcesMenu,
     agentSelect,
     onMicTranscription,
     isStreaming,
@@ -240,6 +250,7 @@ function ComposerFooter(props: {
       <div className="flex items-center">
         {addMenu}
         {toolsMenu}
+        {sourcesMenu}
       </div>
       <div className="flex items-center gap-2">
         {/*
@@ -363,12 +374,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
 
     const [toolPreset, setToolPreset] = useState<ToolPresetId>(
       DEFAULT_TOOL_PRESET_ID,
-    )
-    // Carried over verbatim from `chat-composer.tsx:252`. `useToolApprovals`
-    // takes no mode argument (task-12-rulings.md #3) — this control is
-    // inert and stays local, with nothing downstream to lift it to.
-    const [permissionMode, setPermissionMode] = useState<'ask' | 'accept-all'>(
-      'ask',
     )
 
     const selectedDocuments = useMemo(
@@ -629,14 +634,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
       editorHasContent || attachments.length > 0 || selectedDocuments.length > 0
     const isSubmitted = normalizeStatus(status) === 'submitted'
 
-    const sourceChips: ComposerSourceChip[] = selectedDocuments.map(
-      (document) => ({
-        id: document.documentId,
-        label: document.filename,
-        kind: getFileKind({ mediaType: '', filename: document.filename }),
-      }),
-    )
-
     return (
       <div className="shrink-0 px-4 pb-3">
         {selectedDocumentIds.length > 0 ? (
@@ -846,18 +843,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
             <ComposerFooter
               addMenu={
                 <ComposerAddMenu
-                  documents={documents}
-                  documentLoadState={documentLoadState}
-                  selectedDocumentIds={selectedDocumentIds}
-                  onToggleDocument={(documentId, checked) =>
-                    setSelectedDocumentIds((current) =>
-                      checked
-                        ? current.includes(documentId)
-                          ? current
-                          : [...current, documentId]
-                        : current.filter((id) => id !== documentId),
-                    )
-                  }
                   onUploadClick={() => fileInputRef.current?.click()}
                 />
               }
@@ -865,15 +850,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                 <ComposerToolsMenu
                   presetId={toolPreset}
                   onPresetChange={setToolPreset}
-                  permissionMode={permissionMode}
-                  onPermissionModeChange={setPermissionMode}
-                  sources={sourceChips}
-                  onRemoveSource={(id) =>
-                    setSelectedDocumentIds((current) =>
-                      current.filter((documentId) => documentId !== id),
-                    )
-                  }
                 />
+              }
+              sourcesMenu={
+                TOOL_PRESET_IDS_WITH_SOURCES.has(toolPreset) ? (
+                  <ComposerSourcesMenu onConnect={onOpenConnections ?? noop} />
+                ) : null
               }
               agentSelect={
                 <ComposerAgentSelect

@@ -3,14 +3,43 @@ import {
   DEFAULT_TOOL_PRESET_ID,
   FOLDER_STUB,
   SUGGESTION_PILLS,
+  TOOL_PRESET_IDS_WITH_SOURCES,
   TOOL_PRESETS,
+  TOOL_SOURCE_STUB,
 } from './composer-tools'
 
 describe('composer-tools config', () => {
-  it('has 6 tool presets including "default"', () => {
-    expect(TOOL_PRESETS).toHaveLength(6)
-    expect(TOOL_PRESETS.map((p) => p.id)).toContain('default')
+  it('lists the 6 tool presets in menu order, "default" first', () => {
+    expect(TOOL_PRESETS.map((p) => p.id)).toEqual([
+      'default',
+      'qa-agent',
+      'eng-issue-triage',
+      'org-brain',
+      'research-synthesis',
+      'document-review',
+    ])
     expect(DEFAULT_TOOL_PRESET_ID).toBe('default')
+  })
+
+  it('gives every preset an icon and an accent class', () => {
+    for (const preset of TOOL_PRESETS) {
+      expect(preset.icon).toBeTruthy()
+      expect(preset.iconClassName.trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it('marks only the document-backed presets as having sources', () => {
+    expect([...TOOL_PRESET_IDS_WITH_SOURCES].sort()).toEqual([
+      'document-review',
+      'org-brain',
+      'research-synthesis',
+    ])
+    // Every id in the set must be a real preset, or the menu would silently
+    // never show the panel for it.
+    const presetIds = new Set(TOOL_PRESETS.map((p) => p.id))
+    for (const id of TOOL_PRESET_IDS_WITH_SOURCES) {
+      expect(presetIds.has(id)).toBe(true)
+    }
   })
 
   it('tool preset ids are unique', () => {
@@ -42,5 +71,18 @@ describe('composer-tools config', () => {
       'gmail',
       'github',
     ])
+  })
+
+  it('tool source stub adds Google Drive to the connect apps', () => {
+    expect(TOOL_SOURCE_STUB.map((a) => a.id)).toEqual([
+      'notion',
+      'slack',
+      'gmail',
+      'github',
+      'google-drive',
+    ])
+    for (const source of TOOL_SOURCE_STUB) {
+      expect(source.icon).toBeTruthy()
+    }
   })
 })
