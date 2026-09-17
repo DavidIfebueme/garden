@@ -11,7 +11,7 @@ import {
 } from '@garden/agent-runtime'
 import { proxyToSandbox, Sandbox } from '@cloudflare/sandbox'
 import { Result } from 'better-result'
-import { createAuth } from '@/lib/auth'
+import { createSessionAuth } from '@/lib/auth'
 import type { AppEnv } from '@/lib/server/env'
 import { bindAppEnv } from '@/lib/server/env'
 import {
@@ -195,7 +195,7 @@ async function authorizeAgentRequest(
     }
   }
 
-  const auth = await createAuth(env, request)
+  const auth = await createSessionAuth(env, request)
   const session = await getLoggedAuthSession({
     auth,
     request,
