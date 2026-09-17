@@ -12,6 +12,7 @@ import {
 } from '@cloudflare/think'
 import { Workspace } from '@cloudflare/shell'
 import type { Connection } from 'agents'
+import type { McpAgent } from 'agents/mcp'
 import { getSandbox, type Sandbox as SandboxDO } from '@cloudflare/sandbox'
 import {
   hasToolCall,
@@ -117,7 +118,7 @@ type AgentRuntimeEnv = Cloudflare.Env &
   FILES: R2Bucket
   LOADER: WorkerLoader
   Sandbox: DurableObjectNamespace<SandboxDO>
-  EXECUTOR_MCP_SESSION: DurableObjectNamespace
+  EXECUTOR_MCP_SESSION: DurableObjectNamespace<McpAgent>
   RUN_WORKFLOW: RunWorkflowBinding
   HELIX_URL?: string
   HELIX_API_KEY?: string

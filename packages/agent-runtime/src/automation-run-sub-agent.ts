@@ -14,6 +14,7 @@ import { getSandbox, type Sandbox as SandboxDO } from '@cloudflare/sandbox'
 import { createExecuteTool } from '@cloudflare/think/tools/execute'
 import { createBrowserTools } from 'agents/browser/ai'
 import type { Connection } from 'agents'
+import type { McpAgent } from 'agents/mcp'
 import {
   hasToolCall,
   tool,
@@ -99,7 +100,7 @@ type AgentRuntimeEnv = Cloudflare.Env &
     LOADER: WorkerLoader
     BROWSER: Fetcher
     Sandbox: DurableObjectNamespace<SandboxDO>
-    EXECUTOR_MCP_SESSION: DurableObjectNamespace
+    EXECUTOR_MCP_SESSION: DurableObjectNamespace<McpAgent>
     RUN_WORKFLOW: RunWorkflowBinding
     HELIX_URL?: string
     HELIX_API_KEY?: string

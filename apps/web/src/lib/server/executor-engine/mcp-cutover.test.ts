@@ -40,6 +40,9 @@ describe('Executor MCP one-Worker cutover', () => {
 
     for (const source of [issueRun, automationRun]) {
       expect(source).toContain('EXECUTOR_MCP_SESSION')
+      expect(source).toContain(
+        'EXECUTOR_MCP_SESSION: DurableObjectNamespace<McpAgent>',
+      )
       expect(source).toContain('addExecutorMcpServer')
       expect(source).not.toContain('this.env.MCP_SESSION')
       expect(source).not.toContain('addRpcMcpServer')
