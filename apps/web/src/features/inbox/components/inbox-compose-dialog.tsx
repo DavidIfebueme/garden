@@ -1,4 +1,10 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { Image as ImageIcon, Link, Paperclip, Trash2, X } from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
@@ -20,6 +26,7 @@ import {
 } from '@garden/ui/components/ui/popover'
 import { QuickEmojiPicker } from '@garden/ui/components/common/quick-emoji-picker'
 import { cn } from '@garden/ui/lib/utils'
+import { toast } from 'sonner'
 import {
   ComposeMessageBody,
   normalizeHref,
@@ -42,7 +49,6 @@ type InboxComposeDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
-
 
 export function InboxComposeDialog({
   open,
@@ -78,7 +84,12 @@ export function InboxComposeDialog({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!to.trim() || !body.trim()) return
-    handleOpenChange(false)
+    toast.info('Email sending is not connected yet.')
+  }
+
+  const handleSaveDraft = () => {
+    if (!to.trim() && !body.trim() && !subject.trim()) return
+    toast.info('Draft saving is not connected yet.')
   }
 
   const addAttachment = (file: File) => {
@@ -194,7 +205,7 @@ export function InboxComposeDialog({
                 type="button"
                 variant="outline"
                 className="cursor-pointer px-5 py-5"
-                onClick={() => handleOpenChange(false)}
+                onClick={handleSaveDraft}
               >
                 Save to draft
               </Button>
@@ -277,7 +288,6 @@ function ComposeAddressRow({
     </div>
   )
 }
-
 
 function ComposeEmailChipRow({
   id,
@@ -381,9 +391,7 @@ function EmailChip({
       >
         {initial}
       </span>
-      <span className="max-w-56 truncate text-sm text-foreground">
-        {email}
-      </span>
+      <span className="max-w-56 truncate text-sm text-foreground">{email}</span>
       <button
         type="button"
         className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
@@ -404,12 +412,11 @@ function avatarTone(email: string) {
   return AVATAR_TONES[hash] ?? AVATAR_TONES[0]
 }
 
-
 function ComposeLinkButton({
   onInsert,
-  onBeforeOpen
+  onBeforeOpen,
 }: {
-  onInsert: (text: string, href: string) => void;
+  onInsert: (text: string, href: string) => void
   onBeforeOpen: () => void
 }) {
   const [open, setOpen] = useState(false)
