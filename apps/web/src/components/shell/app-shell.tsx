@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import {
+  Outlet,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Result } from 'better-result'
 import { toast } from 'sonner'
@@ -101,6 +106,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
@@ -203,6 +209,7 @@ export function AppShell() {
           result.tapBoth({
             ok: () => {
               queryClient.invalidateQueries()
+              void router.invalidate()
               toast.success(`Switched to ${nextWorkspace.name}`)
             },
             err: (error) => {
@@ -215,7 +222,7 @@ export function AppShell() {
           }),
       )
     },
-    [navigate, queryClient, switchWorkspace, workspace?.id],
+    [navigate, queryClient, router, switchWorkspace, workspace?.id],
   )
 
   const handleLogout = useCallback(async () => {
@@ -229,10 +236,11 @@ export function AppShell() {
       return
     }
     queryClient.clear()
+    router.clearCache()
     clearWorkspace()
     toast.success('Signed out')
     void navigate({ to: '/login', search: { redirect: undefined } })
-  }, [clearWorkspace, logout, queryClient, navigate])
+  }, [clearWorkspace, logout, queryClient, navigate, router])
 
   const hasSession = Boolean(user)
   const activeWorkspaceId = workspace?.id ?? null

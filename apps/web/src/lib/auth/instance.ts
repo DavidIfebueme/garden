@@ -473,7 +473,11 @@ export function createBetterAuth(db: AuthDatabase, env: GardenAuthRuntime) {
       updateAccountOnSignIn: true,
       accountLinking: {
         trustedProviders: ['google'],
-        disableImplicitLinking: true,
+        // Require the existing Garden account to verify its email before
+        // trusted-provider linking. Otherwise, anyone can pre-register an
+        // unverified password account with another person's email and claim
+        // the account when that person later signs in with Google.
+        requireLocalEmailVerified: true,
         allowDifferentEmails: false,
         allowUnlinkingAll: false,
       },
