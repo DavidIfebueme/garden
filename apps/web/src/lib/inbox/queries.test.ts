@@ -7,7 +7,11 @@ vi.mock('@/lib/api', () => ({
   api: { listInbox },
 }))
 
-import { deduplicateInboxItems, inboxListOptions } from './queries'
+import {
+  deduplicateInboxItems,
+  groupInboxItems,
+  inboxListOptions,
+} from './queries'
 
 function inboxItem(overrides: Partial<InboxItem>): InboxItem {
   return {
@@ -63,5 +67,39 @@ describe('inbox queries', () => {
     })
 
     expect(deduplicateInboxItems([older, archived, newest])).toEqual([newest])
+  })
+
+  it('retains every active event in an issue thread ordered newest first', () => {
+    const comment = inboxItem({
+      id: 'comment',
+      type: 'new_comment',
+      created_at: '2026-09-17T15:25:42.740Z',
+    })
+    const review = inboxItem({
+      id: 'review',
+      type: 'wp_review',
+      created_at: '2026-09-17T15:25:48.066Z',
+      read: true,
+    })
+
+    expect(groupInboxItems([comment, review])).toEqual([
+      expect.objectContaining({
+        id: 'issue:issue-1',
+        issueId: 'issue-1',
+        items: [review, comment],
+        latest: review,
+        read: false,
+        summary: { ...review, read: false },
+      }),
+    ])
+  })
+
+  it('keeps notifications without an issue in separate threads', () => {
+    const first = inboxItem({ id: 'first', issue_id: null })
+    const second = inboxItem({ id: 'second', issue_id: null })
+
+    expect(groupInboxItems([first, second]).map((thread) => thread.id)).toEqual(
+      ['item:first', 'item:second'],
+    )
   })
 })

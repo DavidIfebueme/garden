@@ -19,11 +19,13 @@ function formatInboxDate(dateStr: string): string {
 
 export function InboxListItemV2({
   item,
+  eventCount,
   isSelected,
   onClick,
   onArchive,
 }: {
   item: InboxItem
+  eventCount: number
   isSelected: boolean
   onClick: () => void
   onArchive: () => void
@@ -70,9 +72,16 @@ export function InboxListItemV2({
           {actorName}
         </span>
 
-        <p className="truncate text-[13px] leading-5 text-muted-foreground">
-          {item.title}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[13px] leading-5 text-muted-foreground">
+            {item.title}
+          </p>
+          {eventCount > 1 && (
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {eventCount}
+            </span>
+          )}
+        </div>
         <div className="flex min-w-0 items-center gap-2">
           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium leading-4 text-foreground">
             <CalendarDays className="size-3.5 text-muted-foreground" />
@@ -89,7 +98,7 @@ export function InboxListItemV2({
       <button
         type="button"
         title="Archive"
-        aria-label={`Archive ${item.title}`}
+        aria-label={`Archive thread for ${item.title}`}
         onClick={(e) => {
           e.stopPropagation()
           onArchive()

@@ -4,7 +4,8 @@ import { useWorkspaceId } from '@garden/app-state/hooks'
 import {
   inboxKeys,
   inboxListOptions,
-  deduplicateInboxItems,
+  groupInboxItems,
+  type InboxThread,
 } from '@/lib/inbox/queries'
 import { useMarkInboxRead, useArchiveInbox } from '@/lib/inbox/mutations'
 import { api } from '@/lib/api'
@@ -325,45 +326,45 @@ export function InboxPage() {
 
   const wsId = useWorkspaceId()
   const { data: queryItems = [] } = useQuery(inboxListOptions(wsId))
-  const allItems = useMemo(
-    () => deduplicateInboxItems(queryItems),
-    [queryItems],
-  )
+  const allThreads = useMemo(() => groupInboxItems(queryItems), [queryItems])
 
   const { getActorName } = useActorName()
 
   const items = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return allItems.filter((item) => {
-      if (unreadsOnly && item.read) return false
+    return allThreads.filter((thread) => {
+      if (unreadsOnly && thread.read) return false
       if (!query) return true
-      const actor =
-        getActorName(
-          item.actor_type ?? item.recipient_type,
-          item.actor_id ?? item.recipient_id,
-        ) ?? ''
-      const haystack = [
-        item.title,
-        item.body ?? '',
-        typeLabels[item.type] ?? '',
-        actor,
-      ]
+      const haystack = thread.items
+        .flatMap((item) => [
+          item.title,
+          item.body ?? '',
+          typeLabels[item.type] ?? '',
+          getActorName(
+            item.actor_type ?? item.recipient_type,
+            item.actor_id ?? item.recipient_id,
+          ) ?? '',
+        ])
         .join(' ')
         .toLowerCase()
       return haystack.includes(query)
     })
-  }, [allItems, search, unreadsOnly, getActorName])
+  }, [allThreads, search, unreadsOnly, getActorName])
 
   const isMobile = useIsMobile()
   const isDesktop = useIsDesktop()
 
   const showDetailAsOverlay = !isDesktop
 
-  const selected =
-    items.find((i) => i.id === selectedKey) ??
-    allItems.find((i) => i.id === selectedKey) ??
+  const selectedThread =
+    items.find((thread) => thread.id === selectedKey) ??
+    allThreads.find((thread) => thread.id === selectedKey) ??
+    allThreads.find((thread) =>
+      thread.items.some((item) => item.id === selectedKey),
+    ) ??
     null
-  const unreadCount = allItems.filter((i) => !i.read).length
+  const selected = selectedThread?.summary ?? null
+  const unreadCount = allThreads.filter((thread) => !thread.read).length
 
   const markReadMutation = useMarkInboxRead()
   const archiveMutation = useArchiveInbox()
@@ -388,19 +389,18 @@ export function InboxPage() {
     onError: () => toast.error('Failed to send reply'),
   })
 
-  const handleSelect = (item: InboxItem) => {
-    setSelectedKey(item.id, item)
-    if (!item.read) {
-      markReadMutation.mutate(item.id, {
+  const handleSelect = (thread: InboxThread) => {
+    setSelectedKey(thread.id, thread.latest)
+    if (!thread.read) {
+      markReadMutation.mutate(thread.latest.id, {
         onError: () => toast.error('Failed to mark as read'),
       })
     }
   }
 
-  const handleArchive = (id: string) => {
-    const archived = allItems.find((i) => i.id === id)
-    if (archived && archived.id === selectedKey) setSelectedKey('')
-    archiveMutation.mutate(id, {
+  const handleArchive = (thread: InboxThread) => {
+    if (thread.id === selectedThread?.id) setSelectedKey('')
+    archiveMutation.mutate(thread.latest.id, {
       onError: () => toast.error('Failed to archive'),
     })
   }
@@ -449,7 +449,7 @@ export function InboxPage() {
 
   const listBody =
     items.length === 0 ? (
-      allItems.length === 0 ? (
+      allThreads.length === 0 ? (
         <InboxEmptyState
           title="No messages"
           body="You don't have any messages in your inbox"
@@ -466,13 +466,14 @@ export function InboxPage() {
       )
     ) : (
       <div className="divide-y divide-border">
-        {items.map((item) => (
+        {items.map((thread) => (
           <InboxListItemV2
-            key={item.id}
-            item={item}
-            isSelected={item.id === selectedKey}
-            onClick={() => handleSelect(item)}
-            onArchive={() => handleArchive(item.id)}
+            key={thread.id}
+            item={thread.summary}
+            eventCount={thread.items.length}
+            isSelected={thread.id === selectedThread?.id}
+            onClick={() => handleSelect(thread)}
+            onArchive={() => handleArchive(thread)}
           />
         ))}
       </div>
@@ -481,7 +482,10 @@ export function InboxPage() {
   const detailContent = selected ? (
     <InboxNotificationDetailV2
       item={selected}
-      onArchive={() => handleArchive(selected.id)}
+      items={selectedThread?.items ?? [selected]}
+      onArchive={() => {
+        if (selectedThread) handleArchive(selectedThread)
+      }}
       onOpenIssue={() => handleOpenIssue(selected)}
       onReply={handleReply}
       submittingReply={replyMutation.isPending}

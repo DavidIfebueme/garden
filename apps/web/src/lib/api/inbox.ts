@@ -10,14 +10,14 @@ export function listInbox(params?: {
   return getApiTransport().request(`/api/inbox${suffix}`)
 }
 
-export function markInboxRead(id: string): Promise<InboxItem> {
+export function markInboxRead(id: string): Promise<{ ok: true }> {
   return getApiTransport().request(
     `/api/inbox/${encodeURIComponent(id)}/read`,
     { method: 'POST' },
   )
 }
 
-export function archiveInbox(id: string): Promise<InboxItem> {
+export function archiveInbox(id: string): Promise<{ ok: true }> {
   return getApiTransport().request(
     `/api/inbox/${encodeURIComponent(id)}/archive`,
     { method: 'POST' },
