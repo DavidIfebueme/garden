@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ComponentType } from 'react';
+import { useCallback, useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 import {
   ArrowUp,
   Bold,
@@ -17,36 +17,36 @@ import {
   TextAlignStart,
   Underline,
   X,
-} from 'lucide-react';
-import { cn } from '@garden/ui/lib/utils';
-import { HighlighterIcon } from '@phosphor-icons/react';
+} from 'lucide-react'
+import { cn } from '@garden/ui/lib/utils'
+import { HighlighterIcon } from '@phosphor-icons/react'
 
 type SpeechRecognitionEvent = Event & {
-  resultIndex: number;
+  resultIndex: number
   results: {
-    length: number;
+    length: number
     [index: number]: {
-      isFinal: boolean;
-      [index: number]: { transcript: string };
-    };
-  };
-};
+      isFinal: boolean
+      [index: number]: { transcript: string }
+    }
+  }
+}
 
 type BrowserSpeechRecognition = EventTarget & {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onend: ((event: Event) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-};
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start: () => void
+  stop: () => void
+  onend: ((event: Event) => void) | null
+  onerror: ((event: Event) => void) | null
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+}
 
 type SpeechRecognitionWindow = Window & {
-  SpeechRecognition?: new () => BrowserSpeechRecognition;
-  webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
-};
+  SpeechRecognition?: new () => BrowserSpeechRecognition
+  webkitSpeechRecognition?: new () => BrowserSpeechRecognition
+}
 
 const HarnessyIcon = ({ className }: { className?: string }) => (
   <svg
@@ -60,7 +60,7 @@ const HarnessyIcon = ({ className }: { className?: string }) => (
       fill="#772CE8"
     />
   </svg>
-);
+)
 
 type EditorCommand =
   | 'highlight'
@@ -71,14 +71,14 @@ type EditorCommand =
   | 'justifyLeft'
   | 'justifyCenter'
   | 'justifyRight'
-  | 'justifyFull';
+  | 'justifyFull'
 
 type ToolbarItem = {
-  command: EditorCommand;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value?: string;
-};
+  command: EditorCommand
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value?: string
+}
 
 const toolbarGroups: ToolbarItem[][] = [
   [
@@ -97,33 +97,33 @@ const toolbarGroups: ToolbarItem[][] = [
     { command: 'justifyRight', icon: TextAlignEnd, label: 'Align right' },
     { command: 'justifyFull', icon: TextAlignJustify, label: 'Justify' },
   ],
-];
+]
 
 const models = [
   { id: 'harnessy', label: 'Harnessy', Icon: HarnessyIcon },
   { id: 'harnessy-pro', label: 'Harnessy Pro', Icon: HarnessyIcon },
   { id: 'harnessy-fast', label: 'Harnessy Fast', Icon: HarnessyIcon },
-] as const;
+] as const
 
-export type ModelId = (typeof models)[number]['id'];
+export type ModelId = (typeof models)[number]['id']
 
 type ModelOption<T extends string> = {
-  id: T;
-  label: string;
-  Icon: ComponentType<{ className?: string }>;
-};
+  id: T
+  label: string
+  Icon: ComponentType<{ className?: string }>
+}
 
 function ModelPicker<T extends string>({
   value,
   onChange,
   options,
 }: {
-  value: T;
-  onChange: (id: T) => void;
-  options: readonly ModelOption<T>[];
+  value: T
+  onChange: (id: T) => void
+  options: readonly ModelOption<T>[]
 }) {
-  const [open, setOpen] = useState(false);
-  const current = options.find((m) => m.id === value) ?? options[0];
+  const [open, setOpen] = useState(false)
+  const current = options.find((m) => m.id === value) ?? options[0]
 
   return (
     <div className="relative">
@@ -157,7 +157,7 @@ function ModelPicker<T extends string>({
             className="absolute right-0 bottom-full z-20 mb-2 min-w-45 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-lg"
           >
             {options.map(({ id, label, Icon }) => {
-              const selected = id === value;
+              const selected = id === value
               return (
                 <li key={id}>
                   <button
@@ -165,8 +165,8 @@ function ModelPicker<T extends string>({
                     role="option"
                     aria-selected={selected}
                     onClick={() => {
-                      onChange(id);
-                      setOpen(false);
+                      onChange(id)
+                      setOpen(false)
                     }}
                     className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent"
                   >
@@ -175,13 +175,13 @@ function ModelPicker<T extends string>({
                     {selected && <Check className="size-3.5 text-brand" />}
                   </button>
                 </li>
-              );
+              )
             })}
           </ul>
         </>
       )}
     </div>
-  );
+  )
 }
 
 /** Animated voice */
@@ -213,187 +213,220 @@ function ListeningIndicator({ elapsed }: { elapsed: number }) {
         {String(elapsed % 60).padStart(2, '0')}
       </span>
     </div>
-  );
+  )
 }
 
-export function InboxReplyInput() {
-  const [model, setModel] = useState<ModelId>('harnessy');
-  const [activeTools, setActiveTools] = useState<string[]>([]);
-  const [hasContent, setHasContent] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
-  const editorRef = useRef<HTMLDivElement | null>(null);
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
-  const baselineTextRef = useRef('');
+export function InboxReplyInput({
+  onSubmit,
+  submitting = false,
+}: {
+  onSubmit: (content: string) => Promise<boolean>
+  submitting?: boolean
+}) {
+  const [model, setModel] = useState<ModelId>('harnessy')
+  const [activeTools, setActiveTools] = useState<string[]>([])
+  const [hasContent, setHasContent] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null)
+  const editorRef = useRef<HTMLDivElement | null>(null)
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  const baselineTextRef = useRef('')
+  const timerRef = useRef<number | null>(null)
 
   const focusEditor = () => {
-    editorRef.current?.focus();
-  };
+    editorRef.current?.focus()
+  }
 
   const updateContentState = () => {
-    const text = editorRef.current?.textContent?.trim() ?? '';
-    setHasContent(text.length > 0);
-  };
+    const text = editorRef.current?.textContent?.trim() ?? ''
+    setHasContent(text.length > 0)
+  }
 
-  // Elapsed-seconds counter while listening.
-  useEffect(() => {
-    if (!isListening) return;
-    setElapsed(0);
-    const id = window.setInterval(() => setElapsed((v) => v + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [isListening]);
+  /** Starts the voice timer when speech recognition begins. */
+  const startElapsedTimer = () => {
+    if (timerRef.current !== null) window.clearInterval(timerRef.current)
+    setElapsed(0)
+    timerRef.current = window.setInterval(() => setElapsed((v) => v + 1), 1000)
+  }
+
+  /** Stops the voice timer when recognition ends or the editor unmounts. */
+  const stopElapsedTimer = () => {
+    if (timerRef.current === null) return
+    window.clearInterval(timerRef.current)
+    timerRef.current = null
+  }
 
   const toolKey = (command: EditorCommand, value?: string) =>
-    `${command}:${value ?? ''}`;
+    `${command}:${value ?? ''}`
 
   const setToolSelected = (
     command: EditorCommand,
     value: string | undefined,
     selected: boolean,
   ) => {
-    const key = toolKey(command, value);
+    const key = toolKey(command, value)
     setActiveTools((current) => {
       const withoutAlignment = command.startsWith('justify')
         ? current.filter((item) => !item.startsWith('justify'))
-        : current;
-      const next = withoutAlignment.filter((item) => item !== key);
-      return selected ? [...next, key] : next;
-    });
-  };
+        : current
+      const next = withoutAlignment.filter((item) => item !== key)
+      return selected ? [...next, key] : next
+    })
+  }
 
   const highlightSelection = () => {
-    const selection = window.getSelection();
+    const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      return false;
+      return false
     }
 
-    const range = selection.getRangeAt(0);
-    const span = document.createElement('span');
-    span.style.backgroundColor = 'var(--background-warning-default)';
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
-    selection.removeAllRanges();
-    selection.selectAllChildren(span);
-    return true;
-  };
+    const range = selection.getRangeAt(0)
+    const span = document.createElement('span')
+    span.style.backgroundColor = 'var(--background-warning-default)'
+    span.appendChild(range.extractContents())
+    range.insertNode(span)
+    selection.removeAllRanges()
+    selection.selectAllChildren(span)
+    return true
+  }
 
   const runEditorCommand = (command: EditorCommand, value?: string) => {
-    focusEditor();
+    focusEditor()
     if (command === 'highlight') {
-      const didHighlight = highlightSelection();
-      setToolSelected(command, value, didHighlight);
-      updateContentState();
-      return;
+      const didHighlight = highlightSelection()
+      setToolSelected(command, value, didHighlight)
+      updateContentState()
+      return
     }
 
-    document.execCommand(command, false, value);
-    const key = toolKey(command, value);
-    const alignmentCommand = command.startsWith('justify');
+    document.execCommand(command, false, value)
+    const key = toolKey(command, value)
+    const alignmentCommand = command.startsWith('justify')
     setActiveTools((current) => {
       const withoutAlignment = alignmentCommand
         ? current.filter((item) => !item.startsWith('justify'))
-        : current;
-      if (alignmentCommand) return [...withoutAlignment, key];
+        : current
+      if (alignmentCommand) return [...withoutAlignment, key]
       return withoutAlignment.includes(key)
         ? withoutAlignment.filter((item) => item !== key)
-        : [...withoutAlignment, key];
-    });
-    updateContentState();
-  };
+        : [...withoutAlignment, key]
+    })
+    updateContentState()
+  }
 
   /** Replaces the editor content with the given text (used for voice). */
   const setEditorText = (text: string) => {
-    if (!editorRef.current) return;
-    editorRef.current.textContent = text;
-    updateContentState();
-  };
+    if (!editorRef.current) return
+    editorRef.current.textContent = text
+    updateContentState()
+  }
 
   /** Appends a spoken chunk to the baseline captured when listening started. */
   const appendTranscript = (chunk: string) => {
-    const base = baselineTextRef.current;
-    const merged = base ? `${base} ${chunk}` : chunk;
-    setEditorText(merged);
-  };
+    const base = baselineTextRef.current
+    const merged = base ? `${base} ${chunk}` : chunk
+    setEditorText(merged)
+  }
 
   const createRecognition = () => {
-    const speechWindow = window as SpeechRecognitionWindow;
+    const speechWindow = window as SpeechRecognitionWindow
     const SpeechRecognition =
-      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition
 
     if (!SpeechRecognition) {
-      setVoiceMessage('Voice input is not available in this browser.');
-      return null;
+      setVoiceMessage('Voice input is not available in this browser.')
+      return null
     }
 
-    const recognition = new SpeechRecognition() as BrowserSpeechRecognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    const recognition = new SpeechRecognition() as BrowserSpeechRecognition
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
 
     recognition.onresult = (event) => {
-      let interim = '';
+      let interim = ''
 
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = result[0]?.transcript ?? '';
+        const result = event.results[i]
+        const transcript = result[0]?.transcript ?? ''
         if (result.isFinal) {
-          appendTranscript(transcript.trim());
+          appendTranscript(transcript.trim())
         } else {
-          interim += transcript;
+          interim += transcript
         }
       }
 
       if (interim) {
-        const base = baselineTextRef.current;
-        setEditorText(`${base ? `${base} ` : ''}${interim}`);
+        const base = baselineTextRef.current
+        setEditorText(`${base ? `${base} ` : ''}${interim}`)
       }
-    };
+    }
 
     recognition.onerror = () => {
-      setIsListening(false);
-      setVoiceMessage('Voice input stopped.');
-    };
+      setIsListening(false)
+      stopElapsedTimer()
+      setVoiceMessage('Voice input stopped.')
+    }
 
     recognition.onend = () => {
-      setIsListening(false);
-    };
+      setIsListening(false)
+      stopElapsedTimer()
+    }
 
-    return recognition;
-  };
+    return recognition
+  }
 
   const startListening = () => {
-    const recognition = recognitionRef.current ?? createRecognition();
-    if (!recognition) return;
-    recognitionRef.current = recognition;
-    baselineTextRef.current = editorRef.current?.textContent?.trim() ?? '';
-    setVoiceMessage(null);
-    setIsListening(true);
-    try {
-      recognition.start();
-    } catch {
-      // Already started — ignore.
-    }
-  };
+    const recognition = recognitionRef.current ?? createRecognition()
+    if (!recognition) return
+    recognitionRef.current = recognition
+    baselineTextRef.current = editorRef.current?.textContent?.trim() ?? ''
+    setVoiceMessage(null)
+    setIsListening(true)
+    startElapsedTimer()
+    recognition.start()
+  }
 
   const stopListening = () => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  };
+    recognitionRef.current?.stop()
+    setIsListening(false)
+    stopElapsedTimer()
+  }
 
   const cancelListening = () => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-    setEditorText(baselineTextRef.current);
-  };
+    recognitionRef.current?.stop()
+    setIsListening(false)
+    stopElapsedTimer()
+    setEditorText(baselineTextRef.current)
+  }
+
+  const cleanupVoiceInput = useCallback((node: HTMLDivElement | null) => {
+    if (node) return
+    recognitionRef.current?.stop()
+    stopElapsedTimer()
+  }, [])
+
+  const handleSubmit = async () => {
+    const content = editorRef.current?.textContent?.trim() ?? ''
+    if (!content || submitting) return
+
+    const sent = await onSubmit(content)
+    if (!sent || !editorRef.current) return
+    editorRef.current.textContent = ''
+    setHasContent(false)
+  }
 
   const toggleVoiceInput = () => {
-    if (isListening) stopListening();
-    else startListening();
-  };
+    if (isListening) stopListening()
+    else startListening()
+  }
 
   return (
-    <div className="rounded-2xl border border-border bg-background p-3 sm:rounded-[28px] sm:p-4">
+    <div
+      ref={cleanupVoiceInput}
+      className="rounded-2xl border border-border bg-background p-3 sm:rounded-[28px] sm:p-4"
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground sm:gap-x-4">
         {toolbarGroups.map((group, groupIndex) => (
           <div
@@ -507,6 +540,8 @@ export function InboxReplyInput() {
               <button
                 type="button"
                 aria-label="Send reply"
+                onClick={handleSubmit}
+                disabled={!hasContent || submitting}
                 className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <ArrowUp className="size-4" />
@@ -520,5 +555,5 @@ export function InboxReplyInput() {
         <p className="mt-2 text-xs text-muted-foreground">{voiceMessage}</p>
       )}
     </div>
-  );
+  )
 }

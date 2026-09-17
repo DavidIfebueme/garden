@@ -1,11 +1,14 @@
-import { useState, useCallback, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWorkspaceId } from '@garden/app-state/hooks'
-import { inboxListOptions, deduplicateInboxItems } from '@/lib/inbox/queries'
 import {
-  useMarkInboxRead,
-  useArchiveInbox,
-} from '@/lib/inbox/mutations'
+  inboxKeys,
+  inboxListOptions,
+  deduplicateInboxItems,
+} from '@/lib/inbox/queries'
+import { useMarkInboxRead, useArchiveInbox } from '@/lib/inbox/mutations'
+import { api } from '@/lib/api'
+import { issueKeys } from '@/lib/issues/queries'
 import { useActorName } from '@/lib/workspace/hooks'
 import { useNavigation } from '../../navigation'
 import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
@@ -20,23 +23,21 @@ import { typeLabels } from './inbox-detail-label'
 import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
 import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
-import { generateInboxTestItems } from './inbox-utils'
 import { EnvelopeOpenIcon } from '@phosphor-icons/react'
 
+/** Subscribes to the viewport media query without leaking a render-time listener. */
 function useIsDesktop(): boolean {
-  const [matches, setMatches] = useState(() =>
-    typeof window === 'undefined'
-      ? false
-      : window.matchMedia('(min-width: 1024px)').matches,
+  const query = '(min-width: 1024px)'
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      const mql = window.matchMedia(query)
+      const onChange = () => onStoreChange()
+      mql.addEventListener('change', onChange)
+      return () => mql.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
   )
-  useMemo(() => {
-    if (typeof window === 'undefined') return
-    const mql = window.matchMedia('(min-width: 1024px)')
-    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches)
-    mql.addEventListener('change', onChange)
-    return () => mql.removeEventListener('change', onChange)
-  }, [])
-  return matches
 }
 
 // ---------------------------------------------------------------------------
@@ -53,14 +54,14 @@ const InboxEmptyIcon = () => {
       fill="none"
     >
       <g>
-        <g style={{ display: "none" }}>
+        <g style={{ display: 'none' }}>
           <g className="fills">
             <rect
               width="32"
               height="32"
               x="0"
               transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)"
-              style={{ fill: "none" }}
+              style={{ fill: 'none' }}
               ry="0"
               fill="none"
               rx="0"
@@ -69,14 +70,14 @@ const InboxEmptyIcon = () => {
           </g>
         </g>
 
-        <g style={{ fill: "rgb(0, 0, 0)" }}>
+        <g style={{ fill: 'rgb(0, 0, 0)' }}>
           <g>
             <g className="fills">
               <path
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.4736328125,5.477294921875,31.999755859375,6.003662109375,31.999755859375,6.6484375L31.999755859375,25.3515625C31.999755859375,25.994873046875,31.4736328125,26.522705078125,30.828857421875,26.522705078125L1.171142578125,26.522705078125C0.5263671875,26.522705078125,0.000244140625,25.994873046875,0.000244140625,25.3515625L0.000244140625,6.6484375C0.000244140625,6.003662109375,0.5263671875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 178, 41)" }}
+                style={{ fill: 'rgb(255, 178, 41)' }}
               />
             </g>
           </g>
@@ -87,7 +88,7 @@ const InboxEmptyIcon = () => {
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.4736328125,5.477294921875,31.999755859375,6.003662109375,31.999755859375,6.6484375L31.999755859375,9.413818359375L18.804443359375,18.775390625C17.103759765625,19.981689453125,14.896240234375,19.981689453125,13.195556640625,18.775390625L0.000244140625,9.413818359375L0.000244140625,6.6484375C0.000244140625,6.003662109375,0.5263671875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 160, 37)" }}
+                style={{ fill: 'rgb(230, 160, 37)' }}
               />
             </g>
           </g>
@@ -98,7 +99,7 @@ const InboxEmptyIcon = () => {
                 d="M0.000244140625,24.510009765625L11.99609375,15.9990234375L0.000244140625,7.48828125Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 152, 0)" }}
+                style={{ fill: 'rgb(255, 152, 0)' }}
               />
             </g>
           </g>
@@ -109,7 +110,7 @@ const InboxEmptyIcon = () => {
                 d="M31.999755859375,24.510009765625L20.00390625,15.9990234375L31.999755859375,7.48828125Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 152, 0)" }}
+                style={{ fill: 'rgb(255, 152, 0)' }}
               />
             </g>
           </g>
@@ -120,7 +121,7 @@ const InboxEmptyIcon = () => {
                 d="M21.361083984375,16.961181640625L20.00390625,15.9990234375L31.999755859375,7.48828125L31.999755859375,9.413818359375Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 137, 0)" }}
+                style={{ fill: 'rgb(230, 137, 0)' }}
               />
             </g>
           </g>
@@ -131,7 +132,7 @@ const InboxEmptyIcon = () => {
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.4736328125,5.477294921875,31.999755859375,6.003662109375,31.999755859375,6.6484375L31.999755859375,7.48828125L17.895751953125,17.494384765625C16.740478515625,18.314697265625,15.259521484375,18.314697265625,14.1044921875,17.494384765625L0.000244140625,7.48828125L0.000244140625,6.6484375C0.000244140625,6.003662109375,0.5263671875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 213, 79)" }}
+                style={{ fill: 'rgb(255, 213, 79)' }}
               />
             </g>
           </g>
@@ -142,7 +143,7 @@ const InboxEmptyIcon = () => {
                 d="M10.640869140625,16.961181640625L11.99609375,15.9990234375L0.000244140625,7.48828125L0.000244140625,9.413818359375Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 137, 0)" }}
+                style={{ fill: 'rgb(230, 137, 0)' }}
               />
             </g>
           </g>
@@ -153,7 +154,7 @@ const InboxEmptyIcon = () => {
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.473876953125,5.477294921875,32,6.003662109375,32,6.648193359375L32,25.351806640625C32,25.9951171875,31.473876953125,26.522705078125,30.828857421875,26.522705078125L1.171142578125,26.522705078125C0.526123046875,26.522705078125,0,25.9951171875,0,25.351806640625L0,6.648193359375C0,6.003662109375,0.526123046875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 178, 41)" }}
+                style={{ fill: 'rgb(255, 178, 41)' }}
               />
             </g>
           </g>
@@ -164,7 +165,7 @@ const InboxEmptyIcon = () => {
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.473876953125,5.477294921875,32,6.003662109375,32,6.648193359375L32,9.413818359375L18.804443359375,18.775390625C17.103759765625,19.981689453125,14.896240234375,19.981689453125,13.195556640625,18.775390625L0,9.413818359375L0,6.648193359375C0,6.003662109375,0.526123046875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 160, 37)" }}
+                style={{ fill: 'rgb(230, 160, 37)' }}
               />
             </g>
           </g>
@@ -175,7 +176,7 @@ const InboxEmptyIcon = () => {
                 d="M0,24.510498046875L11.99609375,15.9990234375L0,7.48828125Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 152, 0)" }}
+                style={{ fill: 'rgb(255, 152, 0)' }}
               />
             </g>
           </g>
@@ -186,7 +187,7 @@ const InboxEmptyIcon = () => {
                 d="M32,24.510498046875L20.00390625,15.9990234375L32,7.48828125Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 152, 0)" }}
+                style={{ fill: 'rgb(255, 152, 0)' }}
               />
             </g>
           </g>
@@ -197,7 +198,7 @@ const InboxEmptyIcon = () => {
                 d="M21.361083984375,16.961181640625L20.00390625,15.9990234375L32,7.48828125L32,9.413818359375Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 137, 0)" }}
+                style={{ fill: 'rgb(230, 137, 0)' }}
               />
             </g>
           </g>
@@ -208,7 +209,7 @@ const InboxEmptyIcon = () => {
                 d="M1.171142578125,5.477294921875L30.828857421875,5.477294921875C31.473876953125,5.477294921875,32,6.003662109375,32,6.648193359375L32,7.488037109375L17.895751953125,17.494384765625C16.740478515625,18.314697265625,15.259521484375,18.314697265625,14.104248046875,17.494384765625L0,7.48828125L0,6.648193359375C0,6.003662109375,0.526123046875,5.477294921875,1.171142578125,5.477294921875Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(255, 213, 79)" }}
+                style={{ fill: 'rgb(255, 213, 79)' }}
               />
             </g>
           </g>
@@ -219,15 +220,15 @@ const InboxEmptyIcon = () => {
                 d="M10.640625,16.961181640625L11.99609375,15.9990234375L0,7.48828125L0,9.413818359375Z"
                 fillRule="evenodd"
                 clipRule="evenodd"
-                style={{ fill: "rgb(230, 137, 0)" }}
+                style={{ fill: 'rgb(230, 137, 0)' }}
               />
             </g>
           </g>
         </g>
       </g>
     </svg>
-  );
-};
+  )
+}
 
 function InboxEmptyState({
   title,
@@ -324,8 +325,10 @@ export function InboxPage() {
 
   const wsId = useWorkspaceId()
   const { data: queryItems = [] } = useQuery(inboxListOptions(wsId))
-  const rawItems = useMemo(() => generateInboxTestItems(queryItems), [queryItems])
-  const allItems = useMemo(() => deduplicateInboxItems(rawItems), [rawItems])
+  const allItems = useMemo(
+    () => deduplicateInboxItems(queryItems),
+    [queryItems],
+  )
 
   const { getActorName } = useActorName()
 
@@ -364,6 +367,26 @@ export function InboxPage() {
 
   const markReadMutation = useMarkInboxRead()
   const archiveMutation = useArchiveInbox()
+  const queryClient = useQueryClient()
+  const replyMutation = useMutation({
+    mutationFn: ({ issueId, content }: { issueId: string; content: string }) =>
+      api.createComment(issueId, content),
+    onSuccess: (_comment, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: inboxKeys.list(wsId),
+        exact: true,
+      })
+      queryClient.invalidateQueries({
+        queryKey: issueKeys.detail(wsId, variables.issueId),
+        exact: true,
+      })
+      queryClient.invalidateQueries({
+        queryKey: issueKeys.timeline(variables.issueId),
+        exact: true,
+      })
+    },
+    onError: () => toast.error('Failed to send reply'),
+  })
 
   const handleSelect = (item: InboxItem) => {
     setSelectedKey(item.id, item)
@@ -392,6 +415,24 @@ export function InboxPage() {
       )
     },
     [openIssue, setSelectedKey],
+  )
+
+  const handleReply = useCallback(
+    (content: string) => {
+      const issueId = selected?.issue_id
+      if (!issueId) return Promise.resolve(false)
+
+      return new Promise<boolean>((resolve) => {
+        replyMutation.mutate(
+          { issueId, content },
+          {
+            onSuccess: () => resolve(true),
+            onError: () => resolve(false),
+          },
+        )
+      })
+    },
+    [replyMutation, selected?.issue_id],
   )
 
   // -- Shared sub-components --------------------------------------------------
@@ -442,6 +483,8 @@ export function InboxPage() {
       item={selected}
       onArchive={() => handleArchive(selected.id)}
       onOpenIssue={() => handleOpenIssue(selected)}
+      onReply={handleReply}
+      submittingReply={replyMutation.isPending}
     />
   ) : (
     <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
@@ -486,7 +529,7 @@ export function InboxPage() {
     )
   }
 
-  // -- Medium 
+  // -- Medium
 
   if (showDetailAsOverlay) {
     return (
@@ -534,9 +577,9 @@ export function InboxPage() {
     )
   }
 
-  // -- Desktop 
+  // -- Desktop
 
-  const listWidth = selected && 'w-[320px]';
+  const listWidth = selected && 'w-[320px]'
 
   return (
     <div className="flex flex-1 min-h-0">

@@ -3,9 +3,6 @@ import { useActorName } from '@/lib/workspace/hooks'
 import type { InboxItem } from '@garden/core/types'
 import { cn } from '@garden/ui/lib/utils'
 
-const TEST_AVATAR_URL =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=96&h=96&q=80'
-
 function formatInboxDate(dateStr: string): string {
   const date = new Date(dateStr)
   const sameDay = date.toDateString() === new Date().toDateString()
@@ -38,23 +35,35 @@ export function InboxListItemV2({
       item.actor_type ?? item.recipient_type,
       item.actor_id ?? item.recipient_id,
     ) ??
-    'Bobby Ray'
+    'Garden'
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onClick()
+        }
+      }}
       className={cn(
-        'group relative cursor-pointer grid min-h-20.25 w-full grid-cols-[32px_minmax(0,1fr)] gap-x-3 border-b bg-background px-3 py-3 text-left transition-colors last:border-b-0',
-        isSelected
-          ? 'border-l-2 border-l-muted bg-muted'
-          : 'hover:bg-muted/40',
+        'group relative grid min-h-20.25 w-full cursor-pointer grid-cols-[32px_minmax(0,1fr)] gap-x-3 border-b bg-background px-3 py-3 pr-10 text-left transition-colors last:border-b-0',
+        isSelected ? 'border-l-2 border-l-muted bg-muted' : 'hover:bg-muted/40',
       )}
     >
-      <img
-        src={item.details?.avatar_url ?? TEST_AVATAR_URL}
-        alt=""
-        className="mt-0.5 size-8 rounded-full object-cover"
-      />
+      {item.details?.avatar_url ? (
+        <img
+          src={item.details.avatar_url}
+          alt=""
+          className="mt-0.5 size-8 rounded-full object-cover"
+        />
+      ) : (
+        <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-full bg-muted-foreground/15 text-xs font-semibold text-muted-foreground">
+          {actorName.slice(0, 1).toUpperCase()}
+        </span>
+      )}
 
       <div className="min-w-0">
         <span className="truncate text-[13px] font-semibold leading-5 text-foreground">
@@ -77,10 +86,10 @@ export function InboxListItemV2({
         </div>
       </div>
 
-      <span
-        role="button"
-        tabIndex={-1}
+      <button
+        type="button"
         title="Archive"
+        aria-label={`Archive ${item.title}`}
         onClick={(e) => {
           e.stopPropagation()
           onArchive()
@@ -91,10 +100,10 @@ export function InboxListItemV2({
             onArchive()
           }
         }}
-        className="absolute top-3 right-3 hidden rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground group-hover:hidden"
+        className="absolute top-3 right-3 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <Archive className="h-3.5 w-3.5" />
-      </span>
-    </button>
+      </button>
+    </div>
   )
 }
