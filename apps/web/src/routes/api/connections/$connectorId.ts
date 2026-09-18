@@ -566,7 +566,9 @@ export const Route = createFileRoute('/api/connections/$connectorId')({
                   ),
                   { discard: true },
                 )
-                yield* executor.integrations.remove(integration.slug)
+                if (!personalOnly) {
+                  yield* executor.integrations.remove(integration.slug)
+                }
                 return { kind: 'updated' as const }
               }
               if (bodyResult.value.action === 'connect') {
