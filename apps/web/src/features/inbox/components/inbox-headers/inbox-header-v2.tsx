@@ -10,6 +10,7 @@ type InboxListHeaderV2Props = {
   onSearchChange: (value: string) => void
   activeFilter: InboxFilter
   onFilterChange: (filter: InboxFilter) => void
+  onPrefetchFilter?: (filter: InboxFilter) => void
   unreadCount: number
 }
 
@@ -18,6 +19,7 @@ export const InboxListHeaderV2 = ({
   onSearchChange,
   activeFilter,
   onFilterChange,
+  onPrefetchFilter,
   unreadCount,
 }: InboxListHeaderV2Props) => {
   const filterOptions = ['All', 'Unread', 'In draft', 'Sent'] as const
@@ -56,6 +58,7 @@ export const InboxListHeaderV2 = ({
               key={filter}
               type="button"
               onClick={() => onFilterChange(filter)}
+              onMouseEnter={() => onPrefetchFilter?.(filter)}
               className={cn(
                 'cursor-pointer whitespace-nowrap rounded-sm px-4 text-sm font-medium transition-all',
                 isActive

@@ -18,7 +18,11 @@ import type {
   GmailSendResponse,
   GmailView,
 } from '@/lib/api/gmail-contract'
-import { executorProgram, type ExecutorIdentity } from './executor-runtime'
+import {
+  executorProgram,
+  type ExecutorIdentity,
+  type GardenExecutor,
+} from './executor-runtime'
 
 export class GmailServiceError extends Schema.Error<GmailServiceError>(
   'GmailServiceError',
@@ -29,7 +33,7 @@ export class GmailServiceError extends Schema.Error<GmailServiceError>(
 
 const GMAIL_INTEGRATION = 'google_gmail'
 const GMAIL_USER = 'me'
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 const DETAIL_CONCURRENCY = 5
 
 const notConnected = (reauth: boolean, detail?: string) =>
@@ -170,10 +174,22 @@ const splitAddresses = (value: string) =>
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0)
 
-const gmailToolAddress = (
+type GmailSessionOps = {
+  readonly executor: GardenExecutor
+  readonly call: (
+    operation: string,
+    toolName: string,
+    args: unknown,
+  ) => Effect.Effect<unknown, GmailServiceError>
+  readonly addressOf: (
+    operation: string,
+    toolName: string,
+  ) => Effect.Effect<ToolAddress, GmailServiceError>
+}
+
+const gmailSession = <A, E>(
   identity: ExecutorIdentity,
-  operation: string,
-  toolName: string,
+  use: (ops: GmailSessionOps) => Effect.Effect<A, E | GmailServiceError>,
 ) =>
   executorProgram(identity, (executor) =>
     Effect.gen(function* () {
@@ -181,48 +197,45 @@ const gmailToolAddress = (
         includeBlocked: true,
         includeAnnotations: true,
       })
-      const match = tools.find(
-        (tool) =>
-          String(tool.integration) === GMAIL_INTEGRATION &&
-          tool.owner === 'user' &&
-          String(tool.name) === toolName,
-      )
-      if (!match) {
-        if (
-          tools.some(
+      const addressOf = (
+        operation: string,
+        toolName: string,
+      ): Effect.Effect<ToolAddress, GmailServiceError> => {
+        const match = tools.find(
+          (tool) =>
+            String(tool.integration) === GMAIL_INTEGRATION &&
+            tool.owner === 'user' &&
+            String(tool.name) === toolName,
+        )
+        if (!match) {
+          const connected = tools.some(
             (tool) =>
               String(tool.integration) === GMAIL_INTEGRATION &&
               tool.owner === 'user',
           )
-        ) {
-          return yield* new GmailServiceError({
-            status: 502,
-            message: `Gmail operation ${operation} is not available on this connection.`,
-          })
+          return connected
+            ? Effect.fail(toolUnavailable(operation))
+            : Effect.fail(notConnected(false))
         }
-        return yield* notConnected(false)
+        return Schema.decodeUnknownEffect(ToolAddress)(
+          String(match.address),
+        ).pipe(Effect.mapError(() => toolUnavailable(operation)))
       }
-      return yield* Schema.decodeUnknownEffect(ToolAddress)(
-        String(match.address),
-      ).pipe(Effect.mapError(() => toolUnavailable(operation)))
+      const call = (operation: string, toolName: string, args: unknown) =>
+        Effect.flatMap(addressOf(operation, toolName), (address) =>
+          executor
+            .execute(address, args, {
+              onElicitation: 'accept-all',
+            })
+            .pipe(
+              Effect.mapError((error) => mapExecuteError(operation, error)),
+            ),
+        ).pipe((effect) =>
+          Effect.flatMap(effect, (result) => unwrapEnvelope(operation, result)),
+        )
+      return yield* use({ executor, call, addressOf })
     }),
   )
-
-const callGmailTool = (
-  identity: ExecutorIdentity,
-  operation: string,
-  toolName: string,
-  args: unknown,
-) =>
-  Effect.gen(function* () {
-    const address = yield* gmailToolAddress(identity, operation, toolName)
-    const result = yield* executorProgram(identity, (executor) =>
-      executor.execute(address, args, {
-        onElicitation: 'accept-all',
-      }),
-    ).pipe(Effect.mapError((error) => mapExecuteError(operation, error)))
-    return yield* unwrapEnvelope(operation, result)
-  })
 
 const toSummary = (
   message: z.output<typeof messageSchema>,
@@ -239,37 +252,27 @@ const toSummary = (
 })
 
 const getMessage = (
-  identity: ExecutorIdentity,
+  call: GmailSessionOps['call'],
   id: string,
   format: 'METADATA' | 'FULL',
 ) =>
   Effect.gen(function* () {
-    const raw = yield* callGmailTool(
-      identity,
-      'read message',
-      'gmail.users.messages.get',
-      {
-        userId: GMAIL_USER,
-        id,
-        format,
-        metadataHeaders: ['Subject', 'From', 'To', 'Date'],
-      },
-    )
+    const raw = yield* call('read message', 'gmail.users.messages.get', {
+      userId: GMAIL_USER,
+      id,
+      format,
+      metadataHeaders: ['Subject', 'From', 'To', 'Date'],
+    })
     return yield* parseProvider('read message', messageSchema, raw)
   })
 
-const getDraftMessage = (identity: ExecutorIdentity, id: string) =>
+const getDraftMessage = (call: GmailSessionOps['call'], id: string) =>
   Effect.gen(function* () {
-    const raw = yield* callGmailTool(
-      identity,
-      'read draft',
-      'gmail.users.drafts.get',
-      {
-        userId: GMAIL_USER,
-        id,
-        format: 'FULL',
-      },
-    )
+    const raw = yield* call('read draft', 'gmail.users.drafts.get', {
+      userId: GMAIL_USER,
+      id,
+      format: 'FULL',
+    })
     return yield* parseProvider('read draft', draftSchema, raw)
   })
 
@@ -378,202 +381,215 @@ export const listGmail = Effect.fn('Gmail.list')(function* (
   view: GmailView,
   cursor?: string,
 ) {
-  if (view === 'drafts') {
-    const raw = yield* callGmailTool(
-      identity,
-      'list drafts',
-      'gmail.users.drafts.list',
-      {
+  return yield* gmailSession(identity, ({ call }) =>
+    Effect.gen(function* () {
+      if (view === 'drafts') {
+        const raw = yield* call('list drafts', 'gmail.users.drafts.list', {
+          userId: GMAIL_USER,
+          maxResults: PAGE_SIZE,
+          ...(cursor ? { pageToken: cursor } : {}),
+        })
+        const page = yield* parseProvider('list drafts', listDraftsSchema, raw)
+        const items = yield* Effect.forEach(
+          page.drafts ?? [],
+          (draft) =>
+            Effect.gen(function* () {
+              const full = yield* getDraftMessage(call, draft.id)
+              return {
+                ...toSummary(full.message, full.id),
+                draftId: full.id,
+              } satisfies GmailDraftSummary
+            }),
+          { concurrency: DETAIL_CONCURRENCY },
+        )
+        const response: GmailListResponse = {
+          items,
+          nextCursor: page.nextPageToken ?? null,
+        }
+        return response
+      }
+      const raw = yield* call('list sent', 'gmail.users.messages.list', {
         userId: GMAIL_USER,
+        q: 'in:sent',
         maxResults: PAGE_SIZE,
         ...(cursor ? { pageToken: cursor } : {}),
-      },
-    )
-    const page = yield* parseProvider('list drafts', listDraftsSchema, raw)
-    const items = yield* Effect.forEach(
-      page.drafts ?? [],
-      (draft) =>
-        Effect.gen(function* () {
-          const full = yield* getDraftMessage(identity, draft.id)
-          return {
-            ...toSummary(full.message, full.id),
-            draftId: full.id,
-          } satisfies GmailDraftSummary
-        }),
-      { concurrency: DETAIL_CONCURRENCY },
-    )
-    const response: GmailListResponse = {
-      items,
-      nextCursor: page.nextPageToken ?? null,
-    }
-    return response
-  }
-  const raw = yield* callGmailTool(
-    identity,
-    'list sent',
-    'gmail.users.messages.list',
-    {
-      userId: GMAIL_USER,
-      q: 'in:sent',
-      maxResults: PAGE_SIZE,
-      ...(cursor ? { pageToken: cursor } : {}),
-    },
+      })
+      const page = yield* parseProvider('list sent', listMessagesSchema, raw)
+      const items = yield* Effect.forEach(
+        page.messages ?? [],
+        (entry) =>
+          Effect.gen(function* () {
+            const message = yield* getMessage(call, entry.id, 'METADATA')
+            return toSummary(message, null)
+          }),
+        { concurrency: DETAIL_CONCURRENCY },
+      )
+      const response: GmailListResponse = {
+        items,
+        nextCursor: page.nextPageToken ?? null,
+      }
+      return response
+    }),
   )
-  const page = yield* parseProvider('list sent', listMessagesSchema, raw)
-  const items = yield* Effect.forEach(
-    page.messages ?? [],
-    (entry) =>
-      Effect.gen(function* () {
-        const message = yield* getMessage(identity, entry.id, 'METADATA')
-        return toSummary(message, null)
-      }),
-    { concurrency: DETAIL_CONCURRENCY },
-  )
-  const response: GmailListResponse = {
-    items,
-    nextCursor: page.nextPageToken ?? null,
-  }
-  return response
 })
 
 export const getGmailMessage = Effect.fn('Gmail.getMessage')(function* (
   identity: ExecutorIdentity,
   id: string,
 ) {
-  const message = yield* getMessage(identity, id, 'METADATA')
-  return toSummary(message, null)
+  return yield* gmailSession(identity, ({ call }) =>
+    Effect.gen(function* () {
+      const message = yield* getMessage(call, id, 'METADATA')
+      return toSummary(message, null)
+    }),
+  )
 })
 
 export const getGmailDraft = Effect.fn('Gmail.getDraft')(function* (
   identity: ExecutorIdentity,
   draftId: string,
 ) {
-  const draft = yield* getDraftMessage(identity, draftId)
-  const message = draft.message
-  const detail: GmailDraftDetail = {
-    draftId: draft.id,
-    to: splitAddresses(findHeader(message, 'To')),
-    cc: splitAddresses(findHeader(message, 'Cc')),
-    bcc: splitAddresses(findHeader(message, 'Bcc')),
-    subject: findHeader(message, 'Subject'),
-    bodyText:
-      (message.payload ? findPlainBody(message.payload) : null) ??
-      message.snippet ??
-      '',
-  }
-  return detail
+  return yield* gmailSession(identity, ({ call }) =>
+    Effect.gen(function* () {
+      const draft = yield* getDraftMessage(call, draftId)
+      const message = draft.message
+      const detail: GmailDraftDetail = {
+        draftId: draft.id,
+        to: splitAddresses(findHeader(message, 'To')),
+        cc: splitAddresses(findHeader(message, 'Cc')),
+        bcc: splitAddresses(findHeader(message, 'Bcc')),
+        subject: findHeader(message, 'Subject'),
+        bodyText:
+          (message.payload ? findPlainBody(message.payload) : null) ??
+          message.snippet ??
+          '',
+      }
+      return detail
+    }),
+  )
 })
 
 export const saveGmailDraft = Effect.fn('Gmail.saveDraft')(function* (
   identity: ExecutorIdentity,
   input: GmailComposeInput,
 ) {
-  const raw = buildRawMessage(input)
-  if (input.draftId) {
-    const updated = yield* callGmailTool(
-      identity,
-      'update draft',
-      'gmail.users.drafts.update',
-      { userId: GMAIL_USER, id: input.draftId, body: { message: { raw } } },
-    )
-    const parsed = yield* parseProvider('update draft', draftSchema, updated)
-    const detail: GmailDraftDetail = {
-      draftId: parsed.id,
-      to: [...input.to],
-      cc: [...input.cc],
-      bcc: [...input.bcc],
-      subject: input.subject,
-      bodyText: input.body,
-    }
-    return detail
-  }
-  const created = yield* callGmailTool(
-    identity,
-    'create draft',
-    'gmail.users.drafts.create',
-    { userId: GMAIL_USER, body: { message: { raw } } },
+  return yield* gmailSession(identity, ({ call }) =>
+    Effect.gen(function* () {
+      const raw = buildRawMessage(input)
+      if (input.draftId) {
+        const updated = yield* call(
+          'update draft',
+          'gmail.users.drafts.update',
+          {
+            userId: GMAIL_USER,
+            id: input.draftId,
+            body: { message: { raw } },
+          },
+        )
+        const parsed = yield* parseProvider(
+          'update draft',
+          draftSchema,
+          updated,
+        )
+        const detail: GmailDraftDetail = {
+          draftId: parsed.id,
+          to: [...input.to],
+          cc: [...input.cc],
+          bcc: [...input.bcc],
+          subject: input.subject,
+          bodyText: input.body,
+        }
+        return detail
+      }
+      const created = yield* call('create draft', 'gmail.users.drafts.create', {
+        userId: GMAIL_USER,
+        body: { message: { raw } },
+      })
+      const parsed = yield* parseProvider('create draft', draftSchema, created)
+      const detail: GmailDraftDetail = {
+        draftId: parsed.id,
+        to: [...input.to],
+        cc: [...input.cc],
+        bcc: [...input.bcc],
+        subject: input.subject,
+        bodyText: input.body,
+      }
+      return detail
+    }),
   )
-  const parsed = yield* parseProvider('create draft', draftSchema, created)
-  const detail: GmailDraftDetail = {
-    draftId: parsed.id,
-    to: [...input.to],
-    cc: [...input.cc],
-    bcc: [...input.bcc],
-    subject: input.subject,
-    bodyText: input.body,
-  }
-  return detail
 })
 
 export const deleteGmailDraft = Effect.fn('Gmail.deleteDraft')(function* (
   identity: ExecutorIdentity,
   draftId: string,
 ) {
-  yield* callGmailTool(identity, 'delete draft', 'gmail.users.drafts.delete', {
-    userId: GMAIL_USER,
-    id: draftId,
-  })
+  return yield* gmailSession(identity, ({ call }) =>
+    call('delete draft', 'gmail.users.drafts.delete', {
+      userId: GMAIL_USER,
+      id: draftId,
+    }),
+  )
 })
 
 export const sendGmail = Effect.fn('Gmail.send')(function* (
   identity: ExecutorIdentity,
   input: GmailComposeInput,
 ) {
-  if (input.draftId) {
-    const draftSendAddress = yield* Effect.option(
-      gmailToolAddress(identity, 'send draft', 'gmail.users.drafts.send'),
-    )
-    if (Option.isSome(draftSendAddress)) {
-      const direct = yield* executorProgram(identity, (executor) =>
-        executor.execute(
-          draftSendAddress.value,
-          {
-            userId: GMAIL_USER,
-            body: { id: input.draftId },
-          },
-          {
-            onElicitation: 'accept-all',
-          },
-        ),
-      ).pipe(Effect.mapError((error) => mapExecuteError('send draft', error)))
-      const unwrapped = yield* unwrapEnvelope('send draft', direct)
+  return yield* gmailSession(identity, ({ executor, call, addressOf }) =>
+    Effect.gen(function* () {
+      if (input.draftId) {
+        const draftSendAddress = yield* Effect.option(
+          addressOf('send draft', 'gmail.users.drafts.send'),
+        )
+        if (Option.isSome(draftSendAddress)) {
+          const direct = yield* executor
+            .execute(
+              draftSendAddress.value,
+              {
+                userId: GMAIL_USER,
+                body: { id: input.draftId },
+              },
+              {
+                onElicitation: 'accept-all',
+              },
+            )
+            .pipe(
+              Effect.mapError((error) => mapExecuteError('send draft', error)),
+            )
+          const unwrapped = yield* unwrapEnvelope('send draft', direct)
+          const parsed = yield* parseProvider(
+            'send draft',
+            sentMessageSchema,
+            unwrapped,
+          )
+          const response: GmailSendResponse = {
+            id: parsed.id,
+            draftId: input.draftId,
+          }
+          return response
+        }
+      }
+      const raw = buildRawMessage(input)
+      const sent = yield* call('send message', 'gmail.users.messages.send', {
+        userId: GMAIL_USER,
+        body: { raw },
+      })
       const parsed = yield* parseProvider(
-        'send draft',
+        'send message',
         sentMessageSchema,
-        unwrapped,
+        sent,
       )
+      if (input.draftId) {
+        yield* call('delete draft', 'gmail.users.drafts.delete', {
+          userId: GMAIL_USER,
+          id: input.draftId,
+        }).pipe(Effect.ignore)
+      }
       const response: GmailSendResponse = {
         id: parsed.id,
-        draftId: input.draftId,
+        draftId: input.draftId ?? null,
       }
       return response
-    }
-  }
-  const raw = buildRawMessage(input)
-  const sent = yield* callGmailTool(
-    identity,
-    'send message',
-    'gmail.users.messages.send',
-    {
-      userId: GMAIL_USER,
-      body: { raw },
-    },
+    }),
   )
-  const parsed = yield* parseProvider('send message', sentMessageSchema, sent)
-  if (input.draftId) {
-    yield* callGmailTool(
-      identity,
-      'delete draft',
-      'gmail.users.drafts.delete',
-      {
-        userId: GMAIL_USER,
-        id: input.draftId,
-      },
-    ).pipe(Effect.ignore)
-  }
-  const response: GmailSendResponse = {
-    id: parsed.id,
-    draftId: input.draftId ?? null,
-  }
-  return response
 })

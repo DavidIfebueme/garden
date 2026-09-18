@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { GmailView } from '@/lib/api/gmail-contract'
 
@@ -13,7 +13,8 @@ export function gmailListOptions(wsId: string, view: GmailView | null) {
     queryKey: gmailKeys.list(wsId, view ?? 'drafts'),
     queryFn: () => api.listGmail(view ?? 'drafts'),
     enabled: Boolean(wsId && view),
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   })

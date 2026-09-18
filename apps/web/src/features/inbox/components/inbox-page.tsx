@@ -8,7 +8,11 @@ import {
   type InboxThread,
 } from '@/lib/inbox/queries'
 import { gmailListOptions } from '@/lib/gmail/queries'
-import type { GmailView } from '@/lib/api/gmail-contract'
+import type {
+  GmailDraftSummary,
+  GmailEmailSummary,
+  GmailView,
+} from '@/lib/api/gmail-contract'
 import { useMarkInboxRead, useArchiveInbox } from '@/lib/inbox/mutations'
 import { api } from '@/lib/api'
 import { issueKeys } from '@/lib/issues/queries'
@@ -319,6 +323,11 @@ export function InboxPage() {
   const [mode, setMode] = useState<InboxFilter>('All')
   const [composeOpen, setComposeOpen] = useState(false)
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
+  const [moreItems, setMoreItems] = useState<
+    readonly (GmailEmailSummary | GmailDraftSummary)[]
+  >([])
+  const [moreCursor, setMoreCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const unreadsOnly = mode === 'Unread'
   const gmailView = gmailViewForMode(mode)
 
@@ -384,7 +393,14 @@ export function InboxPage() {
   const unreadCount = allThreads.filter((thread) => !thread.read).length
 
   const gmailItems = useMemo(() => {
-    const rows = gmailQuery.data?.items ?? []
+    const seen = new Set<string>()
+    const rows = [...(gmailQuery.data?.items ?? []), ...moreItems].filter(
+      (item) => {
+        if (seen.has(item.id)) return false
+        seen.add(item.id)
+        return true
+      },
+    )
     const query = search.trim().toLowerCase()
     if (!query) return rows
     return rows.filter((item) =>
@@ -393,7 +409,10 @@ export function InboxPage() {
         .toLowerCase()
         .includes(query),
     )
-  }, [gmailQuery.data, search])
+  }, [gmailQuery.data, moreItems, search])
+
+  const activeCursor =
+    moreItems.length > 0 ? moreCursor : (gmailQuery.data?.nextCursor ?? null)
 
   const selectedGmail =
     gmailView !== null
@@ -403,7 +422,28 @@ export function InboxPage() {
 
   const handleModeChange = (next: InboxFilter) => {
     setMode(next)
+    setMoreItems([])
+    setMoreCursor(null)
+    setLoadingMore(false)
     setSelectedKey('')
+  }
+
+  const handleLoadMore = () => {
+    if (!gmailView || loadingMore || !activeCursor) return
+    setLoadingMore(true)
+    api
+      .listGmail(gmailView, activeCursor)
+      .then((page) => {
+        setMoreItems((current) => [...current, ...page.items])
+        setMoreCursor(page.nextCursor)
+        setLoadingMore(false)
+      })
+      .catch((error: unknown) => {
+        setLoadingMore(false)
+        toast.error(
+          error instanceof Error ? error.message : 'Could not load more email.',
+        )
+      })
   }
 
   const openComposer = (draftId: string | null) => {
@@ -503,6 +543,10 @@ export function InboxPage() {
       onSearchChange={setSearch}
       activeFilter={mode}
       onFilterChange={handleModeChange}
+      onPrefetchFilter={(filter) => {
+        const view = gmailViewForMode(filter)
+        if (view) void queryClient.prefetchQuery(gmailListOptions(wsId, view))
+      }}
     />
   )
 
@@ -525,17 +569,32 @@ export function InboxPage() {
       }
     />
   ) : (
-    <div className="divide-y divide-border">
-      {gmailItems.map((item) => (
-        <GmailListItem
-          key={item.id}
-          item={item}
-          badge={mode === 'In draft' ? 'Draft' : undefined}
-          isSelected={item.id === selectedKey}
-          onClick={() => setSelectedKey(item.id)}
-        />
-      ))}
-    </div>
+    <>
+      <div className="divide-y divide-border">
+        {gmailItems.map((item) => (
+          <GmailListItem
+            key={item.id}
+            item={item}
+            badge={mode === 'In draft' ? 'Draft' : undefined}
+            isSelected={item.id === selectedKey}
+            onClick={() => setSelectedKey(item.id)}
+          />
+        ))}
+      </div>
+      {activeCursor ? (
+        <div className="flex justify-center px-3 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loadingMore}
+            onClick={handleLoadMore}
+          >
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      ) : null}
+    </>
   )
 
   const listBody =
