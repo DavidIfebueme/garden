@@ -1713,9 +1713,7 @@ describe('BrainFilesPage', () => {
       screen.queryByRole('region', { name: 'Folders' }),
     ).not.toBeInTheDocument()
 
-    await user.click(
-      screen.getByRole('button', { name: /files & folders/i }),
-    )
+    await user.click(screen.getByRole('button', { name: /files & folders/i }))
 
     expect(
       await screen.findByRole('region', { name: 'Folders' }),
@@ -1854,8 +1852,7 @@ describe('BrainFilesPage', () => {
     // No filtering backend; the button stays visible but disabled.
     expect(filter).toBeDisabled()
     expect(
-      search.compareDocumentPosition(filter) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      search.compareDocumentPosition(filter) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(
       filter.compareDocumentPosition(exportButton) &
