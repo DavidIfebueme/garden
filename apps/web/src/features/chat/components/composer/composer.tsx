@@ -1021,7 +1021,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                 height: TEXTAREA_MIN_HEIGHT,
                 maxHeight: TEXTAREA_MAX_HEIGHT,
               }}
-              className="[field-sizing:fixed]! min-h-7 resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
+              className="[field-sizing:fixed]! min-h-7 resize-none overflow-hidden border-0 bg-transparent text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
               onFocus={onWarmRuntime}
               onBeforeInput={(event) => {
                 pendingTextEditRef.current = {
