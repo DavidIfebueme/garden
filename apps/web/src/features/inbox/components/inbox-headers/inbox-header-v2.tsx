@@ -3,31 +3,32 @@ import { Input } from '@garden/ui/components/ui/input'
 import { cn } from '@garden/ui/lib/utils'
 import { Search } from 'lucide-react'
 
+export type InboxFilter = 'All' | 'Unread' | 'In draft' | 'Sent'
+
 type InboxListHeaderV2Props = {
   search: string
   onSearchChange: (value: string) => void
-  unreadsOnly: boolean
-  onUnreadsOnlyChange: (value: boolean) => void
+  activeFilter: InboxFilter
+  onFilterChange: (filter: InboxFilter) => void
+  onPrefetchFilter?: (filter: InboxFilter) => void
   unreadCount: number
 }
 
 export const InboxListHeaderV2 = ({
   search,
   onSearchChange,
-  unreadsOnly,
-  onUnreadsOnlyChange,
+  activeFilter,
+  onFilterChange,
+  onPrefetchFilter,
   unreadCount,
 }: InboxListHeaderV2Props) => {
-  const activeFilter = unreadsOnly ? 'Unread' : 'All'
-  const filterOptions = ['All', 'Unread'] as const
+  const filterOptions = ['All', 'Unread', 'In draft', 'Sent'] as const
 
-  const filterDescriptions: Record<string, string> = {
+  const filterDescriptions: Record<InboxFilter, string> = {
     All: 'All notifications',
     Unread: `${unreadCount} unread notifications`,
-  }
-
-  const handleFilterClick = (filter: string) => {
-    onUnreadsOnlyChange(filter === 'Unread')
+    'In draft': 'Gmail drafts',
+    Sent: 'Sent Gmail messages',
   }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +57,8 @@ export const InboxListHeaderV2 = ({
             <button
               key={filter}
               type="button"
-              onClick={() => handleFilterClick(filter)}
+              onClick={() => onFilterChange(filter)}
+              onMouseEnter={() => onPrefetchFilter?.(filter)}
               className={cn(
                 'cursor-pointer whitespace-nowrap rounded-sm px-4 text-sm font-medium transition-all',
                 isActive
@@ -72,7 +74,7 @@ export const InboxListHeaderV2 = ({
 
       {/* Banner */}
       <div className="px-2.5 text-xs py-1 bg-muted uppercase my-3 rounded-sm text-muted-foreground font-medium">
-        {filterDescriptions[activeFilter] ?? `${activeFilter} notifications`}
+        {filterDescriptions[activeFilter]}
       </div>
     </div>
   )

@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Input } from '@garden/ui/components/ui/input'
 
@@ -17,6 +12,7 @@ export type ComposeMessageBodyRef = {
 
 type ComposeMessageBodyProps = {
   placeholder: string
+  initialText?: string
   onChange: (markdown: string) => void
 }
 
@@ -37,13 +33,15 @@ type LinkInspectorState = {
 export const ComposeMessageBody = forwardRef<
   ComposeMessageBodyRef,
   ComposeMessageBodyProps
->(function ComposeMessageBody({ placeholder, onChange }, ref) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const savedRangeRef = useRef<Range | null>(null);
-  const [empty, setEmpty] = useState(true);
-  const [inspector, setInspector] = useState<LinkInspectorState | null>(null);
-  const [editingHref, setEditingHref] = useState(false);
-  const [hrefDraft, setHrefDraft] = useState('');
+>(function ComposeMessageBody({ placeholder, initialText, onChange }, ref) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const savedRangeRef = useRef<Range | null>(null)
+  const [empty, setEmpty] = useState(
+    () => !(initialText && initialText.length > 0),
+  )
+  const [inspector, setInspector] = useState<LinkInspectorState | null>(null)
+  const [editingHref, setEditingHref] = useState(false)
+  const [hrefDraft, setHrefDraft] = useState('')
 
   const syncBody = () => {
     const root = editorRef.current
@@ -57,7 +55,6 @@ export const ComposeMessageBody = forwardRef<
     const root = editorRef.current
     if (!root) return
     root.focus()
-
 
     let range: Range | null = savedRangeRef.current
     if (range && !root.contains(range.startContainer)) {
@@ -185,7 +182,13 @@ export const ComposeMessageBody = forwardRef<
         </span>
       ) : null}
       <div
-        ref={editorRef}
+        ref={(node) => {
+          editorRef.current = node
+          if (node && initialText && !node.dataset.prefilled) {
+            node.dataset.prefilled = 'true'
+            node.innerText = initialText
+          }
+        }}
         id="inbox-compose-body"
         role="textbox"
         aria-multiline="true"
@@ -197,7 +200,9 @@ export const ComposeMessageBody = forwardRef<
         onClick={(event) => {
           const target = event.target
           if (!(target instanceof Element)) return
-          const anchor = target.closest<HTMLAnchorElement>('a[data-compose-link]')
+          const anchor = target.closest<HTMLAnchorElement>(
+            'a[data-compose-link]',
+          )
           if (!anchor) return
           event.preventDefault()
           event.stopPropagation()
@@ -209,22 +214,22 @@ export const ComposeMessageBody = forwardRef<
       />
       {inspector
         ? createPortal(
-          <LinkInspectorCard
-            inspector={inspector}
-            editingHref={editingHref}
-            hrefDraft={hrefDraft}
-            onHrefDraftChange={setHrefDraft}
-            onStartEdit={() => setEditingHref(true)}
-            onSaveHref={applyHrefChange}
-            onCancelEdit={() => {
-              setEditingHref(false)
-              setHrefDraft(inspector.href)
-            }}
-            onRemove={removeLink}
-            onClose={closeInspector}
-          />,
-          document.body,
-        )
+            <LinkInspectorCard
+              inspector={inspector}
+              editingHref={editingHref}
+              hrefDraft={hrefDraft}
+              onHrefDraftChange={setHrefDraft}
+              onStartEdit={() => setEditingHref(true)}
+              onSaveHref={applyHrefChange}
+              onCancelEdit={() => {
+                setEditingHref(false)
+                setHrefDraft(inspector.href)
+              }}
+              onRemove={removeLink}
+              onClose={closeInspector}
+            />,
+            document.body,
+          )
         : null}
     </div>
   )

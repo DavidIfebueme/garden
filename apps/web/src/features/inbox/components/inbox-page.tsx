@@ -7,6 +7,12 @@ import {
   groupInboxItems,
   type InboxThread,
 } from '@/lib/inbox/queries'
+import { gmailListOptions } from '@/lib/gmail/queries'
+import type {
+  GmailDraftSummary,
+  GmailEmailSummary,
+  GmailView,
+} from '@/lib/api/gmail-contract'
 import { useMarkInboxRead, useArchiveInbox } from '@/lib/inbox/mutations'
 import { api } from '@/lib/api'
 import { issueKeys } from '@/lib/issues/queries'
@@ -21,8 +27,12 @@ import { Button } from '@garden/ui/components/ui/button'
 import { useIsMobile } from '@garden/ui/hooks/use-mobile'
 import { InboxListItemV2 } from './inbox-list-item'
 import { typeLabels } from './inbox-detail-label'
-import { InboxListHeaderV2 } from './inbox-headers/inbox-header-v2'
+import {
+  InboxListHeaderV2,
+  type InboxFilter,
+} from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
+import { GmailDetail, GmailErrorState, GmailListItem } from './gmail-views'
 import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
 import { EnvelopeOpenIcon } from '@phosphor-icons/react'
 
@@ -262,6 +272,12 @@ function InboxEmptyState({
   )
 }
 
+function gmailViewForMode(mode: InboxFilter): GmailView | null {
+  if (mode === 'In draft') return 'drafts'
+  if (mode === 'Sent') return 'sent'
+  return null
+}
+
 function focusForInboxItem(item: InboxItem): string | null {
   const details = item.details ?? {}
 
@@ -304,7 +320,16 @@ export function InboxPage() {
   const selectedKey = searchParams.get('item') ?? ''
 
   const [search, setSearch] = useState('')
-  const [unreadsOnly, setUnreadsOnly] = useState(false)
+  const [mode, setMode] = useState<InboxFilter>('All')
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
+  const [moreItems, setMoreItems] = useState<
+    readonly (GmailEmailSummary | GmailDraftSummary)[]
+  >([])
+  const [moreCursor, setMoreCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const unreadsOnly = mode === 'Unread'
+  const gmailView = gmailViewForMode(mode)
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
@@ -326,6 +351,7 @@ export function InboxPage() {
 
   const wsId = useWorkspaceId()
   const { data: queryItems = [] } = useQuery(inboxListOptions(wsId))
+  const gmailQuery = useQuery(gmailListOptions(wsId, gmailView))
   const allThreads = useMemo(() => groupInboxItems(queryItems), [queryItems])
 
   const { getActorName } = useActorName()
@@ -365,6 +391,79 @@ export function InboxPage() {
     null
   const selected = selectedThread?.summary ?? null
   const unreadCount = allThreads.filter((thread) => !thread.read).length
+
+  const gmailItems = useMemo(() => {
+    const seen = new Set<string>()
+    const rows = [...(gmailQuery.data?.items ?? []), ...moreItems].filter(
+      (item) => {
+        if (seen.has(item.id)) return false
+        seen.add(item.id)
+        return true
+      },
+    )
+    const query = search.trim().toLowerCase()
+    if (!query) return rows
+    return rows.filter((item) =>
+      [item.subject, item.snippet, item.from, item.to]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    )
+  }, [gmailQuery.data, moreItems, search])
+
+  const activeCursor =
+    moreItems.length > 0 ? moreCursor : (gmailQuery.data?.nextCursor ?? null)
+
+  const selectedGmail =
+    gmailView !== null
+      ? (gmailItems.find((item) => item.id === selectedKey) ?? null)
+      : null
+  const hasSelection = selected !== null || selectedGmail !== null
+
+  const handleModeChange = (next: InboxFilter) => {
+    setMode(next)
+    setMoreItems([])
+    setMoreCursor(null)
+    setLoadingMore(false)
+    setSelectedKey('')
+  }
+
+  const handleLoadMore = () => {
+    if (!gmailView || loadingMore || !activeCursor) return
+    setLoadingMore(true)
+    api
+      .listGmail(gmailView, activeCursor)
+      .then((page) => {
+        setMoreItems((current) => [...current, ...page.items])
+        setMoreCursor(page.nextCursor)
+        setLoadingMore(false)
+      })
+      .catch((error: unknown) => {
+        setLoadingMore(false)
+        toast.error(
+          error instanceof Error ? error.message : 'Could not load more email.',
+        )
+      })
+  }
+
+  const openComposer = (draftId: string | null) => {
+    setEditingDraftId(draftId)
+    setComposeOpen(true)
+  }
+
+  const handleComposeOpenChange = (open: boolean) => {
+    setComposeOpen(open)
+    if (!open) setEditingDraftId(null)
+  }
+
+  const footer = (
+    <InboxFooter
+      composeOpen={composeOpen}
+      onComposeOpenChange={handleComposeOpenChange}
+      draftId={editingDraftId}
+      onNewEmail={() => openComposer(null)}
+    />
+  )
 
   const markReadMutation = useMarkInboxRead()
   const archiveMutation = useArchiveInbox()
@@ -442,13 +541,66 @@ export function InboxPage() {
       unreadCount={unreadCount}
       search={search}
       onSearchChange={setSearch}
-      unreadsOnly={unreadsOnly}
-      onUnreadsOnlyChange={setUnreadsOnly}
+      activeFilter={mode}
+      onFilterChange={handleModeChange}
+      onPrefetchFilter={(filter) => {
+        const view = gmailViewForMode(filter)
+        if (view) void queryClient.prefetchQuery(gmailListOptions(wsId, view))
+      }}
     />
   )
 
+  const gmailListBody = gmailQuery.isPending ? (
+    <div className="flex items-center justify-center px-6 py-16 text-sm text-muted-foreground">
+      Loading email...
+    </div>
+  ) : gmailQuery.isError ? (
+    <GmailErrorState
+      error={gmailQuery.error}
+      onRetry={() => gmailQuery.refetch()}
+    />
+  ) : gmailItems.length === 0 ? (
+    <InboxEmptyState
+      title={mode === 'In draft' ? 'No drafts' : 'No sent messages'}
+      body={
+        mode === 'In draft'
+          ? 'Drafts you save from the composer will appear here.'
+          : 'Messages you send will appear here.'
+      }
+    />
+  ) : (
+    <>
+      <div className="divide-y divide-border">
+        {gmailItems.map((item) => (
+          <GmailListItem
+            key={item.id}
+            item={item}
+            badge={mode === 'In draft' ? 'Draft' : undefined}
+            isSelected={item.id === selectedKey}
+            onClick={() => setSelectedKey(item.id)}
+          />
+        ))}
+      </div>
+      {activeCursor ? (
+        <div className="flex justify-center px-3 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loadingMore}
+            onClick={handleLoadMore}
+          >
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      ) : null}
+    </>
+  )
+
   const listBody =
-    items.length === 0 ? (
+    gmailView !== null ? (
+      gmailListBody
+    ) : items.length === 0 ? (
       allThreads.length === 0 ? (
         <InboxEmptyState
           title="No messages"
@@ -479,35 +631,50 @@ export function InboxPage() {
       </div>
     )
 
-  const detailContent = selected ? (
-    <InboxNotificationDetailV2
-      item={selected}
-      items={selectedThread?.items ?? [selected]}
-      onArchive={() => {
-        if (selectedThread) handleArchive(selectedThread)
-      }}
-      onOpenIssue={() => handleOpenIssue(selected)}
-      onReply={handleReply}
-      submittingReply={replyMutation.isPending}
-    />
-  ) : (
-    <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
-      <InboxEmptyState
-        title="No messages"
-        body="Once any new message is sent it'll be documented"
-        icon={
-          <div className="bg-muted h-20 w-20 flex items-center justify-center rounded-full text-muted-foreground shrink-0">
-            <EnvelopeOpenIcon strokeWidth={0.5} size={35} />
-          </div>
-        }
+  const detailContent =
+    gmailView !== null ? (
+      selectedGmail ? (
+        <GmailDetail
+          item={selectedGmail}
+          onEditDraft={(draftId) => openComposer(draftId)}
+        />
+      ) : (
+        <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
+          <InboxEmptyState
+            title="No messages"
+            body="Select an email to read it here"
+          />
+        </div>
+      )
+    ) : selected ? (
+      <InboxNotificationDetailV2
+        item={selected}
+        items={selectedThread?.items ?? [selected]}
+        onArchive={() => {
+          if (selectedThread) handleArchive(selectedThread)
+        }}
+        onOpenIssue={() => handleOpenIssue(selected)}
+        onReply={handleReply}
+        submittingReply={replyMutation.isPending}
       />
-    </div>
-  )
+    ) : (
+      <div className="flex min-h-[calc(100dvh-120px)] w-full items-center justify-center">
+        <InboxEmptyState
+          title="No messages"
+          body="Once any new message is sent it'll be documented"
+          icon={
+            <div className="bg-muted h-20 w-20 flex items-center justify-center rounded-full text-muted-foreground shrink-0">
+              <EnvelopeOpenIcon strokeWidth={0.5} size={35} />
+            </div>
+          }
+        />
+      </div>
+    )
 
   // -- Mobile
 
   if (isMobile) {
-    return selected ? (
+    return hasSelection ? (
       <div className="flex flex-1 flex-col min-h-0">
         <div className="flex h-12 shrink-0 items-center border-b px-2">
           <Button
@@ -526,9 +693,7 @@ export function InboxPage() {
       <div className="flex flex-1 flex-col min-h-0">
         {listHeader}
         <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
-        <div className="bg-background/30 px-3 py-2">
-          <InboxFooter />
-        </div>
+        <div className="bg-background/30 px-3 py-2">{footer}</div>
       </div>
     )
   }
@@ -541,12 +706,10 @@ export function InboxPage() {
         <div className="flex min-w-0 flex-1 flex-col">
           {listHeader}
           <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
-          <div className="bg-background/30 px-3 py-2">
-            <InboxFooter />
-          </div>
+          <div className="bg-background/30 px-3 py-2">{footer}</div>
         </div>
 
-        {selected && (
+        {hasSelection && (
           <>
             <button
               type="button"
@@ -583,7 +746,7 @@ export function InboxPage() {
 
   // -- Desktop
 
-  const listWidth = selected && 'w-[320px]'
+  const listWidth = hasSelection && 'w-[320px]'
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -593,9 +756,7 @@ export function InboxPage() {
         <div className="flex h-full w-full flex-col">
           {listHeader}
           <div className="flex-1 min-h-0 overflow-y-auto">{listBody}</div>
-          <div className="bg-background/30 px-3 py-2">
-            <InboxFooter />
-          </div>
+          <div className="bg-background/30 px-3 py-2">{footer}</div>
         </div>
       </div>
       <div className="flex flex-1 min-w-0 min-h-0 flex-col">
