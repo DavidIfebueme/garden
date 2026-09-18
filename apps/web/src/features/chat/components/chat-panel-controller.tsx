@@ -32,6 +32,7 @@ import { EnvironmentDebugDrawer } from '@/features/settings/components/environme
 import { usePrefetchDebugStream } from '@/features/settings/components/use-debug-stream'
 import { useDevSettingsStore } from '@/features/settings/dev-settings-store'
 import {
+  isPendingFirstTurn,
   useAgentSessions,
   type AgentChatSession,
   NEW_SESSION_TITLE,
@@ -81,6 +82,24 @@ import { IssueMentionCard } from '@/features/issues/components/issue-mention-car
  * is stable across renders (see `visibleMessages`).
  */
 const NO_MESSAGES: ChatRuntime['messages'] = []
+
+/**
+ * What to show as a thread's preview the moment a turn is dispatched, before
+ * there is any reply to summarise.
+ *
+ * Mirrors `buildSessionPreview` in `chat-runtime-provider.tsx`, which does the
+ * same job for the assistant's message: prefer the prose, and fall back to
+ * naming the attachments so a send that carries only files still produces a
+ * non-empty preview. Non-empty matters beyond looks — an empty preview is half
+ * of what marks a thread as never-used (`isPendingFirstTurn`).
+ */
+export function buildDispatchPreview(text: string, attachmentCount: number) {
+  const trimmed = text.trim()
+  if (trimmed) return trimmed
+  return attachmentCount > 0
+    ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}`
+    : ''
+}
 
 // Quiet agent prompt — serif, in repose. The agent's voice greeting the
 // person by first name when we have it, otherwise just a soft open.
@@ -312,9 +331,14 @@ export function ConnectedChatPanelInteraction({
     const liveDocumentPanelView = isActiveSession
       ? live.documentPanelView
       : null
-    const liveTitle = isActiveSession
-      ? live.activeSession.title
-      : activeSession.title
+    const liveSession = isActiveSession ? live.activeSession : activeSession
+    const liveTitle = liveSession.title
+    /**
+     * Whether `/chats` would still hand this thread out as the next "New
+     * Chat" (`isPendingFirstTurn`: placeholder title, empty preview). Read
+     * before dispatch, because the write below is what stops it being true.
+     */
+    const wasWarm = isPendingFirstTurn(liveSession)
 
     lastSentTextRef.current = text
     pendingMessageCountRef.current = liveMessages.length
@@ -335,11 +359,56 @@ export function ConnectedChatPanelInteraction({
       preview: text,
     })
 
+    /**
+     * Dispatch-time session write.
+     *
+     * `status` stays client-side as before — it is transient UI noise the
+     * server has no use for. What is new is that a thread's *first* turn also
+     * persists its title and preview here rather than waiting for
+     * `onFinish`.
+     *
+     * Before: those two fields were only committed when the client saw the
+     * reply finish. Between dispatch and that moment the row still read
+     * `title: "New Chat", lastMessage: ""` — which is exactly the
+     * `isPendingFirstTurn` test `/chats` uses to pick the session to show. Two
+     * things fell out of that window:
+     *
+     *   - If the turn never reached `onFinish` on this client — the tab
+     *     closed mid-stream, the machine slept — the thread kept a real
+     *     conversation in its runtime while its row still looked pristine
+     *     forever. The next visit to `/chats` claimed it and rendered that
+     *     conversation under the heading "New Chat". Observed 2026-09-18
+     *     against thread a34f40b5.
+     *   - `agent-interaction-screen.tsx` gates publishing the session to the
+     *     router on the same `isPendingFirstTurn` flag, so the hop from
+     *     `/chats` to `/chats/<id>` only happened once the reply landed. That
+     *     is the "sending from /chats looked like a vanishing send" the route
+     *     comment in `chats.index.tsx` describes.
+     *
+     * After: the row stops looking pristine the moment the turn is dispatched,
+     * which closes both. `onFinish` still runs and still overwrites
+     * `lastMessage` with the real reply — this only seeds it with what was
+     * sent, the same fallback `onFinish` already used when a reply had no text
+     * (`buildSessionPreview` → `pending.preview`).
+     *
+     * Gated on `wasWarm` so later turns keep exactly their old behaviour and
+     * do not add a second round trip each.
+     */
     updateSessionPreview({
-      sessionId: activeSession.id,
+      sessionId,
       status: 'submitted',
       unread: false,
       updatedAt: new Date().toISOString(),
+      ...(wasWarm
+        ? {
+            ...(nextTitle ? { title: nextTitle } : {}),
+            lastMessage: buildDispatchPreview(
+              text,
+              files.length + selectedDocuments.length,
+            ),
+            persist: true,
+          }
+        : {}),
     })
 
     const uploadResult =
