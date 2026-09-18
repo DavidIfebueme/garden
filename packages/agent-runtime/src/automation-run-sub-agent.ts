@@ -100,7 +100,7 @@ type AgentRuntimeEnv = Cloudflare.Env &
     LOADER: WorkerLoader
     BROWSER: Fetcher
     Sandbox: DurableObjectNamespace<SandboxDO>
-    MCP_SESSION: DurableObjectNamespace
+    EXECUTOR_MCP_SESSION: DurableObjectNamespace<McpAgent>
     RUN_WORKFLOW: RunWorkflowBinding
     HELIX_URL?: string
     HELIX_API_KEY?: string
@@ -2051,6 +2051,15 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
     this.currentTrace = []
   }
 
+  /**
+   * Creates the MCP controller used by automation-run facets.
+   * Before the Executor one-Worker cutover, automation runs registered proxy
+   * connectors through the removed `MCP_SESSION` binding. The current Worker
+   * exposes `EXECUTOR_MCP_SESSION`, and the shared controller now requires the
+   * explicit Executor registration callback. This mirrors `AgentDO` and the
+   * issue-run facet. Reference: `runtime-mcp-controller.ts` and
+   * `AgentDO.getMcpController()`.
+   */
   private getMcpController() {
     const host: McpHost = {
       name: this.name,
@@ -2059,12 +2068,11 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       mcp: this.mcp,
       getServerStates: () =>
         this.getMcpServers().servers as RuntimeMcpServerStates,
-      addRpcMcpServer: async ({ connectorId, id, props }) =>
-        await this.addMcpServer(
-          connectorId,
-          this.env.MCP_SESSION as unknown as DurableObjectNamespace<McpAgent>,
-          { id, props },
-        ),
+      addExecutorMcpServer: async ({ id, props }) =>
+        await this.addMcpServer(id, this.env.EXECUTOR_MCP_SESSION, {
+          id,
+          props,
+        }),
       removeMcpServer: this.removeMcpServer.bind(this),
       resolveRuntimeIdentity: async () =>
         await this.resolveAutomationMcpIdentity(),
