@@ -11,7 +11,7 @@
  *     virtualizer.
  */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import {
   Check,
   Copy,
@@ -233,7 +233,17 @@ export function ChatError({
   )
 }
 
-export function ChatTimeline({
+/**
+ * Memoized because the controller above it re-renders on every keystroke: the
+ * composer's draft lives in the chat store and the controller subscribes to it
+ * to drive the (controlled) input field. Without this the whole LegendList
+ * tree re-rendered per character even though nothing it renders had changed.
+ *
+ * That only pays off while every prop keeps its identity between those
+ * renders, which is why the controller routes `onRetry` through a ref and
+ * hands over a shared empty-message constant.
+ */
+const ChatTimelineComponent = ({
   debugMode,
   sessionId,
   messages,
@@ -284,7 +294,7 @@ export function ChatTimeline({
   onRetry?: () => void
   isRetrying?: boolean
   forcePendingActivity?: boolean
-}) {
+}) => {
   const normalizedStatus = normalizeStatus(status)
   const latestMessage = messages[messages.length - 1]
   const latestParts = latestMessage?.parts ?? []
@@ -440,6 +450,9 @@ export function ChatTimeline({
     </Conversation>
   )
 }
+
+export const ChatTimeline = memo(ChatTimelineComponent)
+ChatTimeline.displayName = 'ChatTimeline'
 
 export function getChatTimelineRowKey(row: ChatTimelineRow) {
   return row.id

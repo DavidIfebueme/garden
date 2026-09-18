@@ -1,33 +1,36 @@
 /**
  * `Composer` — orchestrator for the chat input box.
  *
- * Task 12 of the 2026-09-08 chat composer overhaul: this replaces the
- * `<Textarea>`-based `Composer` in `../chat-composer.tsx` (1096 lines) with
- * one built on the shared Tiptap editor (`./composer-editor.tsx`, Task 5) and
- * the small view components built in Tasks 6-11 (`./composer-toolbar`,
- * `./composer-add-menu`, `./composer-tools-menu`, `./composer-agent-select`).
+ * Field type: a plain controlled `<textarea>`, not a rich-text editor.
  *
- * Ported as-is (proven, not part of the redesign): attachment state and its
- * add/remove/paste/drag-drop handlers, the drag-depth counter, the
- * selected-document-chip state and `hasStaleDocumentSelection` guard, the
- * attachment/selected-document preview chip rows, the `StructuredInputPanel`
- * mount, the hidden file `<input>`, and the send/stop button's exact class
- * logic (see `ComposerFooter` below).
+ * The 2026-09-08 overhaul briefly moved this onto the shared Tiptap
+ * `ContentEditor`. The 2026-09-17 review reverted that: bold/italic/headings/
+ * alignment have no meaning in a message to a model, and the editor charged
+ * for them on every keystroke. Measured against the installed `@tiptap/react`
+ * 3.22.4 and `@tiptap/core` 3.22.4, each character typed serialized the whole
+ * document to markdown, rebuilt ~20 extension instances (`ContentEditor`
+ * builds them inline, and `EditorInstanceManager.onRender` compares them by
+ * identity, so the compare always missed), and pushed a full
+ * `view.setProps` + `view.updateState` through ProseMirror. The composer is
+ * also `key={sessionId}` in the controller, so every session switch tore down
+ * and rebuilt an editor, extension manager and view. A textarea costs one
+ * store write per keystroke and near-zero mount.
  *
- * Removed entirely (member-mention + inline skill-trigger machinery): the
- * hand-rolled `@`/`/` detection, `selectedMemberMentions`,
- * `serializeMemberMentions`, `rebaseMemberMentions`,
- * `resolveMemberMentionTextEdit`, `detectMemberMentionTrigger`,
- * `detectSkillTrigger`, `applyMemberSelection`, `applySkillSelection`, the
- * highlighted-index/menu-dismissed state, and the two `<Command>` popovers.
- * The shared Tiptap editor's mention extension (members-only, per
- * `composer-editor.tsx`) and its `/` skill-suggestion popup replace all of
- * this; `/slug` tokens remain literal text in the committed markdown
- * (2026-09-08 spec §12), unchanged from before.
+ * The overhaul's other work is kept as-is: the pill, the queued-message slot,
+ * the attachment/document chip rows, the `+` and tools menus, and the
+ * send/stop/mic footer.
  *
- * See task-12-rulings.md for the controller rulings this implementation
- * follows (editor-instance-in-state, the `ComposerHandle.setDraft` escape
- * hatch, no `permissionMode` props, `editorHasContent` seeded from `input`).
+ * `@` and `/` are back on `./member-mention.ts` + `../skill-invocation.ts`
+ * cursor detection with `<Command>` popovers. `member-mention.ts` was hardened
+ * for this box in July 2026 (4c69e772, f86dc2aa, d3f6d33d, fda427e2:
+ * cache-backed lookup, identity preservation, collapsed-deletion rebasing) and
+ * the Tiptap pass had deleted it wholesale. Both popovers read live query
+ * state on every render, which is also what fixes the cold-load `/` bug the
+ * editor's suggestion extension had: it captured the skill list once at
+ * creation and never saw the resolved query.
+ *
+ * `/slug` tokens stay literal text in the committed message (2026-09-08 spec
+ * §12); `@` mentions are serialized to mention links at submit.
  */
 
 import {
@@ -35,6 +38,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -42,8 +46,6 @@ import {
   type ReactNode,
 } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Result } from 'better-result'
-import type { Editor } from '@tiptap/core'
 import {
   ArrowUp,
   FileText,
@@ -54,13 +56,20 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@garden/ui/components/ui/command'
+import { Textarea } from '@garden/ui/components/ui/textarea'
 import { cn } from '@garden/ui/lib/utils'
 import { SpeechInput } from '@/components/ai-elements/speech-input'
-import { uploadFile } from '@/lib/api'
-import { agentSkillListOptions } from '@/lib/workspace/queries'
+import {
+  agentSkillListOptions,
+  memberListOptions,
+} from '@/lib/workspace/queries'
 import { useWorkspaceId } from '@garden/app-state/hooks'
-import type { UploadResult } from '@garden/app-state/hooks/use-file-upload'
-import type { SkillSuggestionItem } from '@/features/editor/extensions'
 import type {
   StructuredQuestion,
   StructuredQuestionAnswers,
@@ -69,8 +78,19 @@ import {
   type ComposerSkill,
   type RealtimeStatus,
 } from '../../chat-runtime-provider'
-import { formatSkillInvocation } from '../skill-invocation'
+import { ActorAvatar } from '../../../common/actor-avatar'
+import { detectSkillTrigger, formatSkillInvocation } from '../skill-invocation'
 import { searchComposerSkills } from '../skill-search'
+import {
+  deserializeMemberMentions,
+  detectMemberMentionTrigger,
+  isMemberMentionSelectionKey,
+  rebaseMemberMentions,
+  resolveMemberMentionTextEdit,
+  searchComposerMembers,
+  serializeMemberMentions,
+  type SelectedMemberMention,
+} from '../member-mention'
 import { StructuredInputPanel } from '../structured-input-panel'
 import type { SelectedThreadDocument } from '../document-selection'
 import {
@@ -81,51 +101,48 @@ import {
 import {
   ACCEPTED_FILE_TYPES,
   COMPOSER_WIDTH_CLASS_NAME,
+  SkillGlyph,
   normalizeStatus,
   type ComposerThreadDocument,
   type PreviewAttachment,
 } from './composer-helpers'
-import { ComposerEditor, type ComposerEditorHandle } from './composer-editor'
-import { ComposerToolbar } from './composer-toolbar'
 import { ComposerAddMenu } from './composer-add-menu'
 import { ComposerToolsMenu } from './composer-tools-menu'
-import { ComposerSourcesMenu } from './composer-sources-menu'
-import { ComposerAgentSelect } from './composer-agent-select'
-import { ComposerExtensionRow } from './composer-extension-row'
-import {
-  DEFAULT_TOOL_PRESET_ID,
-  TOOL_PRESET_IDS_WITH_SOURCES,
-  type ToolPresetId,
-} from './composer-tools'
+import { DEFAULT_TOOL_PRESET_ID, type ToolPresetId } from './composer-tools'
 
-/** Stable no-op so an absent `onOpenConnections` doesn't change identity. */
-function noop() {}
+/** Tallest the field grows before it starts scrolling its own overflow. */
+const TEXTAREA_MAX_HEIGHT = 200
+/** Resting height of the empty single-line field. */
+const TEXTAREA_MIN_HEIGHT = 28
 
 /**
- * Imperative handle exposed by `Composer`. `setDraft` lets a caller (the
- * suggestion pills, Task 13) push text straight into the live editor.
+ * Imperative handle exposed by `Composer`.
  *
- * Why this exists: `ContentEditor`'s `defaultValue` only seeds the editor on
- * mount — its re-sync effect bails once the editor is editable. So
- * `onInputChange(starter)` alone updates the chat-store draft but leaves the
- * on-screen editor untouched once it has been created. `setDraft` is the
- * escape hatch, delegating to `ComposerEditor`'s imperative `setMarkdown`.
+ * Only the two things a parent genuinely cannot do through props live here.
+ * The draft text is not one of them any more: the field is controlled by
+ * `input`/`onInputChange`, so pushing text in is just a store write (this is
+ * why the Tiptap-era `setDraft` escape hatch is gone).
  */
 export interface ComposerHandle {
-  /** Replace the draft in the live editor and focus it. */
-  setDraft: (markdown: string) => void
   /**
    * Put a queued send back into the composer so it can be edited before it
    * goes out (2026-09-16 message-queue design, the pencil action on a queue
    * row). Restores the whole payload, not just the prose: a queued message can
    * carry attachments and selected thread documents, and dropping those on the
    * way back would quietly change what the person is about to send.
+   *
+   * `text` arrives as the message was committed — mentions already serialized
+   * — so it is decoded back into `@Label` text plus live mention ranges here.
+   * Without that the person would be handed raw `[@Ada](mention://member/…)`
+   * to edit.
    */
   restoreDraft: (payload: {
-    markdown: string
+    text: string
     files: File[]
     selectedDocumentIds: string[]
   }) => void
+  /** Puts the caret in the field, e.g. after a suggestion pill prefills it. */
+  focus: () => void
 }
 
 export interface ComposerProps {
@@ -145,83 +162,38 @@ export interface ComposerProps {
   pendingQuestions?: StructuredQuestion[]
   onSubmitAnswers?: (answers: StructuredQuestionAnswers) => void
   /**
-   * Opens the Connections dock panel. Two things below reach for it: the
-   * extension row's "Connect your apps" strip, and the tools menu's sources
-   * panel (`composer-tools-menu.tsx`), whose rows each connect one provider.
-   * Optional, so a caller that has no Connections surface can leave it out —
-   * both call sites fall back to `noop`.
-   */
-  onOpenConnections?: () => void
-  /** Falls back to this agent when the chat store has no selectedAgentId. */
-  fallbackAgentId?: string | null
-  /**
    * Slot rendered directly above the pill, inside its width wrapper — the
    * queued-message slab (`../chat-message-queue.tsx`, 2026-09-16 design).
    *
    * A slot rather than a `queuedMessages` prop: the queue's contents, ordering
    * and actions belong to the controller that owns the send pipeline, and the
    * composer only needs to know where the thing goes. It has to be here and
-   * not in the controller's own markup because the slab tucks behind the pill
-   * the way `ComposerExtensionRow` does, which needs the two to be siblings
-   * under the same `COMPOSER_WIDTH_CLASS_NAME` wrapper.
+   * not in the controller's own markup because the slab tucks behind the pill,
+   * which needs the two to be siblings under the same
+   * `COMPOSER_WIDTH_CLASS_NAME` wrapper.
    */
   queue?: ReactNode
 }
 
 /**
- * Uploads one file via the generic attachment endpoint (`@/lib/api`'s
- * `uploadFile`) and adapts the response into the `UploadResult` shape
- * `ContentEditor`'s inline upload pipeline expects (see
- * `apps/web/src/features/issues/components/comment-input.tsx` for the
- * pattern this mirrors). Composer has no `threadId` prop — unlike
- * `uploadAgentDocuments` (thread-scoped document persistence, still used by
- * the `+` menu's flow in the parent controller) — so inline editor uploads
- * (paste/drop *inside* the rich-text field, e.g. an inline image) go through
- * this untargeted upload instead. No `try`/`catch` (repo uses
- * `better-result`); a failed upload resolves to `null`, which
- * `uploadAndInsertFile` (in the shared editor) treats as "upload failed,
- * leave a failure marker" rather than throwing.
- */
-async function uploadComposerFile(file: File): Promise<UploadResult | null> {
-  const result = await Result.tryPromise({
-    try: () => uploadFile(file),
-    catch: (error) =>
-      error instanceof Error ? error : new Error(String(error)),
-  })
-  if (result.isErr()) return null
-  const attachment = result.value
-  return {
-    id: attachment.id,
-    filename: attachment.filename,
-    link: attachment.url,
-  }
-}
-
-/**
  * `ComposerFooter` — bottom row of the composer pill: left cluster (`+`
- * attachment menu, tools menu, and the sources menu when the selected tool
- * has one), right cluster (mic, agent select, send/stop button).
+ * attachment menu, tools menu), right cluster (mic, send/stop).
  *
- * The send/stop button's class names and its `isStreaming` / `isSubmitted` /
- * `hasStaleDocumentSelection` / `hasContent` branching are copied verbatim
- * from the pre-Tiptap `../chat-composer.tsx` (~lines 1021-1076) per
- * task-12-rulings.md — deliberately not collapsed into a single simplified
- * enum, because the original lets the glow (armed) styling and the disabled
- * attribute vary independently (a stale document selection disables the
- * button without suppressing the glow) and rulings require that exact
- * behavior, not a redesign.
+ * The `Sources` control and the agent selector used to sit here too. Both were
+ * removed in the 2026-09-17 review: neither did anything (sources rendered a
+ * static stub list, the agent select only wrote a store field nothing in chat
+ * reads back), and both re-sorted/re-filtered their lists on every render of a
+ * component that re-renders on every keystroke.
+ *
+ * The send/stop button's `isStreaming` / `isSubmitted` /
+ * `hasStaleDocumentSelection` / `hasContent` branching is deliberately not
+ * collapsed into a single enum: the armed styling and the disabled attribute
+ * vary independently (a stale document selection disables the button without
+ * suppressing the armed fill).
  */
 function ComposerFooter(props: {
   addMenu: ReactNode
   toolsMenu: ReactNode
-  /**
-   * The `Sources` control, or null. Null rather than a boolean flag because
-   * only the caller knows whether the selected tool draws on sources
-   * (`TOOL_PRESET_IDS_WITH_SOURCES`) and what connecting one should do; this
-   * row just places whatever it is given next to the tools trigger.
-   */
-  sourcesMenu: ReactNode
-  agentSelect: ReactNode
   onMicTranscription: (value: string) => void
   isStreaming: boolean
   hasContent: boolean
@@ -233,8 +205,6 @@ function ComposerFooter(props: {
   const {
     addMenu,
     toolsMenu,
-    sourcesMenu,
-    agentSelect,
     onMicTranscription,
     isStreaming,
     hasContent,
@@ -249,13 +219,11 @@ function ComposerFooter(props: {
       <div className="flex items-center">
         {addMenu}
         {toolsMenu}
-        {sourcesMenu}
       </div>
       <div className="flex items-center gap-2">
         {/*
           Rendered only while there is nothing to send — 2026-09-08 spec §8.2
-          ("shown when the editor is empty"), matching the original at
-          chat-composer.tsx:962-971.
+          ("shown when the editor is empty").
 
           Deliberately passes NO `disabled` prop. SpeechInput destructures only
           className / onTranscriptionChange / onAudioRecorded / lang, so a
@@ -277,7 +245,6 @@ function ComposerFooter(props: {
             <Mic className="size-4" />
           </SpeechInput>
         ) : null}
-        {agentSelect}
         {/*
           Stop and send are no longer mutually exclusive. They were before the
           2026-09-16 message-queue design, which meant a turn in flight hid the
@@ -339,10 +306,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
       onSend,
       onStop,
       onWarmRuntime,
-      onOpenConnections,
       pendingQuestions,
       onSubmitAnswers,
-      fallbackAgentId,
       queue,
     },
     ref,
@@ -350,25 +315,25 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
     const [attachments, setAttachments] = useState<PreviewAttachment[]>([])
     const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
     const fileInputRef = useRef<HTMLInputElement | null>(null)
-    const editorRef = useRef<ComposerEditorHandle>(null)
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const workspaceId = useWorkspaceId()
 
-    // Editor instance in STATE, not just a ref (task-12-rulings.md #1):
-    // `onEditorReady` fires inside `useEditor`'s `onCreate`, and a ref
-    // assignment alone triggers no re-render — `<ComposerToolbar editor={...}
-    // />` would render null forever. The ref is kept alongside for the
-    // stable `onSkillSelect` closure below (an imperative read, not a
-    // render read).
-    const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
-    const editorInstanceRef = useRef<Editor | null>(null)
-
-    // Drives the armed/disabled render below only. `handleSubmit` does NOT
-    // read this — it reads the live document through
-    // `editorRef.current.getMarkdown()`, which is an imperative Tiptap read
-    // and therefore never stale, whatever React has or hasn't re-rendered.
-    // Seeded from `input` (not `''`) so a restored draft arms the send button
-    // on mount.
-    const [editorMarkdown, setEditorMarkdown] = useState(input)
+    /**
+     * Metadata from `beforeinput`, consumed by the next `change`. The browser
+     * reports the exact replaced range and the edit's `inputType` only on the
+     * former, and `rebaseMemberMentions` needs both to tell a backward delete
+     * from a forward one — diffing the two strings alone cannot, because a
+     * collapsed deletion looks identical from either side.
+     */
+    const pendingTextEditRef = useRef<{
+      selectionStart: number
+      selectionEnd: number
+      inputType: string
+    } | null>(null)
+    const [cursor, setCursor] = useState(() => input.length)
+    const [selectedMemberMentions, setSelectedMemberMentions] = useState<
+      SelectedMemberMention[]
+    >([])
 
     const [toolPreset, setToolPreset] = useState<ToolPresetId>(
       DEFAULT_TOOL_PRESET_ID,
@@ -389,16 +354,41 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
 
     // Drag depth counter — dragenter/dragleave fire for child elements too,
     // so nested entries/exits must be counted to know when the pointer has
-    // actually left the drop zone. Ported as-is from `chat-composer.tsx:256-259`.
+    // actually left the drop zone.
     const dragDepthRef = useRef(0)
     const [isDragging, setIsDragging] = useState(false)
+
+    /**
+     * Grows the field with its content up to `TEXTAREA_MAX_HEIGHT`, then lets
+     * it scroll. Driven only from the layout effect below, which covers every
+     * way `input` can move — typing, a restored draft, a suggestion pill, a
+     * queued message pulled back in, the mic — because the field is controlled
+     * and so each of those is a re-render.
+     */
+    const resizeTextarea = useCallback(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      textarea.style.height = 'auto'
+      const nextHeight = Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT)
+      textarea.style.height = `${Math.max(nextHeight, TEXTAREA_MIN_HEIGHT)}px`
+      textarea.style.overflowY =
+        textarea.scrollHeight > TEXTAREA_MAX_HEIGHT ? 'auto' : 'hidden'
+    }, [])
+
+    // `useLayoutEffect`, not `useEffect` (which the repo bans) and not derived
+    // state: this is a DOM measurement that has to land before paint, or the
+    // pill visibly jumps a frame after a multi-line draft is restored. There is
+    // no render-time equivalent — the height depends on `scrollHeight`, which
+    // only exists once the new value is in the DOM.
+    useLayoutEffect(() => {
+      resizeTextarea()
+    }, [input, resizeTextarea])
 
     // Track latest attachments in a ref so unmount cleanup doesn't fire on
     // every re-render (a plain per-render effect would revoke URLs still
     // referenced by rendered <img src=...> nodes). Revocation on
     // remove/clear happens inline in the event handlers below. This is the
-    // one tolerated `useEffect` (unmount-only cleanup), matching the
-    // ref-mirror pattern already in the original.
+    // one tolerated `useEffect` (unmount-only cleanup).
     const attachmentsRef = useRef(attachments)
     attachmentsRef.current = attachments
     useEffect(() => {
@@ -429,8 +419,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
       setAttachments((current) => [...current, ...next])
     }
 
-    // Paste now attaches to the editor's pill wrapper (a plain `div`), not a
-    // textarea — the rich-text field owns text paste itself.
+    // Bound to the pill rather than the field so a paste onto the composer's
+    // chrome still attaches. Text paste keeps the browser default — only
+    // clipboard *files* are intercepted.
     const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
       const files = Array.from(event.clipboardData?.files ?? [])
       if (files.length === 0) return
@@ -466,29 +457,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
     }
 
     /**
-     * Feeds one `onChange` from `ComposerEditor` into both the local markdown
-     * state (which drives the render-time `editorHasContent` derivation) and
-     * the parent's chat-store draft.
-     */
-    const handleEditorChange = useCallback(
-      (markdown: string) => {
-        setEditorMarkdown(markdown)
-        onInputChange(markdown)
-      },
-      [onInputChange],
-    )
-
-    /**
-     * Submit the composer. Text now comes straight from the editor as
-     * Markdown — no member-mention serialization step; the shared editor's
-     * mention extension already emits mention tokens in `getMarkdown()`.
-     * Skill `/slug` tokens are literal text, unchanged (2026-09-08 spec
-     * §12).
-     *
-     * Text comes from `editorRef.current.getMarkdown()` — an imperative read
-     * of the live Tiptap document, so it is never stale regardless of React's
-     * render timing. It deliberately does NOT read `editorMarkdown` (state)
-     * or any mirror of it.
+     * Submit the composer. Mentions are serialized to links here, `/slug`
+     * tokens stay literal (2026-09-08 spec §12).
      */
     const handleSubmit = async () => {
       // Submitting mid-turn is no longer an implicit "stop". Before the
@@ -500,44 +470,82 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
       // button, which is wired straight to `onStop` in `ComposerFooter`.
       if (normalizeStatus(status) === 'submitted') return
 
-      const text = (editorRef.current?.getMarkdown() ?? '').trim()
       if (
-        (!text && attachments.length === 0 && selectedDocuments.length === 0) ||
+        (!input.trim() &&
+          attachments.length === 0 &&
+          selectedDocuments.length === 0) ||
         hasStaleDocumentSelection
       ) {
         return
       }
+
+      const text = serializeMemberMentions(input, selectedMemberMentions).trim()
       const files = attachments.map((item) => item.file)
-      editorRef.current?.clear()
-      setEditorMarkdown('')
+      // Clear optimistically: `onSend` resolves only after the whole streaming
+      // turn finishes, so deferring the clear would leave the draft and its
+      // attachments on screen for the entire reply.
       onInputChange('')
+      setSelectedMemberMentions([])
+      setCursor(0)
       clearAttachments()
       setSelectedDocumentIds([])
       await onSend({ text, files, selectedDocuments })
     }
 
+    /**
+     * Moves the caret after something other than typing rewrites the draft (a
+     * menu selection, a restored queue row). The value is applied by React on
+     * the next render, so the selection has to be set after that paint — before
+     * it, the browser would place the caret against the old value and land it
+     * in the wrong spot.
+     */
+    const restoreCaret = useCallback((position: number) => {
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(position, position)
+      })
+    }, [])
+
     useImperativeHandle(
       ref,
       () => ({
-        setDraft: (markdown: string) => {
-          setEditorMarkdown(markdown)
-          editorRef.current?.setMarkdown(markdown)
-        },
-        restoreDraft: ({
-          markdown,
-          files,
-          selectedDocumentIds: documentIds,
-        }) => {
-          setEditorMarkdown(markdown)
-          editorRef.current?.setMarkdown(markdown)
+        restoreDraft: ({ text, files, selectedDocumentIds: documentIds }) => {
+          const restored = deserializeMemberMentions(text)
+          setSelectedMemberMentions(restored.mentions)
+          setCursor(restored.text.length)
+          onInputChange(restored.text)
           handleFiles(files)
           setSelectedDocumentIds((current) => [
             ...current,
             ...documentIds.filter((id) => !current.includes(id)),
           ])
+          restoreCaret(restored.text.length)
+        },
+        focus: () => {
+          textareaRef.current?.focus()
         },
       }),
-      [],
+      [onInputChange, restoreCaret],
+    )
+
+    const skillTrigger = useMemo(
+      () => detectSkillTrigger(input, cursor),
+      [cursor, input],
+    )
+    const memberTrigger = useMemo(
+      () => detectMemberMentionTrigger(input, cursor),
+      [cursor, input],
+    )
+
+    const membersQuery = useQuery(memberListOptions(workspaceId))
+    const filteredMembers = useMemo(
+      () =>
+        memberTrigger
+          ? searchComposerMembers(membersQuery.data ?? [], memberTrigger.query)
+          : [],
+      [memberTrigger, membersQuery.data],
     )
 
     const skillsQuery = useQuery({
@@ -558,78 +566,151 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
           })),
       [skillsQuery.data],
     )
-    const skillItems = useCallback(
-      ({ query }: { query: string }) =>
-        searchComposerSkills(skills, query).map((skill) => ({
-          id: skill.id,
-          slug: skill.slug ?? skill.name,
-          name: skill.name,
-          description: skill.description,
-        })),
-      [skills],
-    )
+    // Derived from the live query on every render. The Tiptap suggestion
+    // extension captured this list once when the editor was created, so on a
+    // cold cache `/` showed "No matching skills" until the composer remounted.
+    const filteredSkills = useMemo(() => {
+      if (!skillTrigger) return [] as ComposerSkill[]
+      return searchComposerSkills(skills, skillTrigger.query)
+    }, [skillTrigger, skills])
+
     /**
-     * Commits a `/` skill selection from the editor's suggestion popup by
-     * inserting the literal `/slug ` token at the trigger range — the same
-     * committed format `extractExplicitSkillSlugs` (skill-invocation.ts)
-     * already parses server-side, so nothing downstream needs to change.
+     * Popup dismissal and keyboard highlight, both derived rather than reset
+     * through effects (`useEffect` is banned here, and the old composer burned
+     * two on exactly this).
+     *
+     * Dismissal remembers the *input* the person pressed Escape on, so the
+     * menu stays closed until the text changes again — which is what typing
+     * the next character does, reopening it.
+     *
+     * The highlight remembers the query it belongs to, so a changed query
+     * falls back to the first row without a reset pass.
      */
-    const onSkillSelect = useCallback(
-      (item: SkillSuggestionItem, range: { from: number; to: number }) => {
-        const editor = editorInstanceRef.current
-        if (!editor) return
-        editor
-          .chain()
-          .focus()
-          .insertContentAt(range, `${formatSkillInvocation(item.slug)} `)
-          .run()
+    const [dismissedMenuInput, setDismissedMenuInput] = useState<string | null>(
+      null,
+    )
+    const menuDismissed = dismissedMenuInput === input
+
+    const showSkillMenu = Boolean(skillTrigger) && !menuDismissed
+    const showMemberMenu =
+      !showSkillMenu && Boolean(memberTrigger) && !menuDismissed
+
+    // Which menu the highlight belongs to. Keying on the menu as well as the
+    // query is what stops a highlight set on `/depl` from carrying over to the
+    // member list when the same token is retyped as `@depl`.
+    const highlightKey = showSkillMenu
+      ? `skill:${skillTrigger?.query ?? ''}`
+      : showMemberMenu
+        ? `member:${memberTrigger?.query ?? ''}`
+        : ''
+    const [highlight, setHighlight] = useState<{
+      key: string
+      index: number
+    }>({ key: '', index: 0 })
+    const highlightedIndex =
+      highlight.key === highlightKey ? highlight.index : 0
+    const moveHighlight = useCallback(
+      (nextIndex: number) =>
+        setHighlight({ key: highlightKey, index: nextIndex }),
+      [highlightKey],
+    )
+
+    const applySkillSelection = useCallback(
+      (skill: ComposerSkill) => {
+        if (!skillTrigger) return
+        const replacement = `${formatSkillInvocation(skill.slug ?? skill.name)} `
+        let rangeEnd = skillTrigger.rangeEnd
+        if (input[rangeEnd] === ' ') rangeEnd += 1
+        const nextValue =
+          input.slice(0, skillTrigger.rangeStart) +
+          replacement +
+          input.slice(rangeEnd)
+        const nextCursor = skillTrigger.rangeStart + replacement.length
+        setSelectedMemberMentions((current) =>
+          rebaseMemberMentions(input, nextValue, current, {
+            previousStart: skillTrigger.rangeStart,
+            previousEnd: rangeEnd,
+            nextEnd: nextCursor,
+          }),
+        )
+        setDismissedMenuInput(null)
+        onInputChange(nextValue)
+        setCursor(nextCursor)
+        restoreCaret(nextCursor)
       },
-      [],
+      [input, onInputChange, restoreCaret, skillTrigger],
+    )
+
+    const applyMemberSelection = useCallback(
+      (member: (typeof filteredMembers)[number]) => {
+        if (!memberTrigger) return
+        const replacement = `@${member.name} `
+        let rangeEnd = memberTrigger.rangeEnd
+        if (input[rangeEnd] === ' ') rangeEnd += 1
+        const nextValue =
+          input.slice(0, memberTrigger.rangeStart) +
+          replacement +
+          input.slice(rangeEnd)
+        const nextCursor = memberTrigger.rangeStart + replacement.length
+        const mentionEnd =
+          memberTrigger.rangeStart + replacement.trimEnd().length
+
+        setSelectedMemberMentions((current) => [
+          ...rebaseMemberMentions(input, nextValue, current, {
+            previousStart: memberTrigger.rangeStart,
+            previousEnd: rangeEnd,
+            nextEnd: nextCursor,
+          }),
+          {
+            id: member.user_id,
+            label: member.name,
+            start: memberTrigger.rangeStart,
+            end: mentionEnd,
+          },
+        ])
+        setDismissedMenuInput(null)
+        onInputChange(nextValue)
+        setCursor(nextCursor)
+        restoreCaret(nextCursor)
+      },
+      [input, memberTrigger, onInputChange, restoreCaret],
     )
 
     /**
      * Click-to-focus for the whole composer pill.
      *
-     * Before: the pill's handler was `onClick` guarded by
-     * `event.target === event.currentTarget`, so only a click landing on the
-     * pill element itself focused the editor. Every layout box inside it — the
-     * gaps the `flex-col gap-3` opens between toolbar, editor and footer, the
-     * footer's own row wrapper, the blank space beside the agent select — is a
-     * descendant, so the guard rejected it and the click went nowhere. The pill
-     * reads as one input field, so the dead zones felt broken.
+     * The pill reads as one input field, so any press inside it should put the
+     * caret in the field — except on the field itself (the browser places the
+     * caret at the click position, which beats our `focus()`) and on real
+     * controls, whose own focus and activation must not be stolen.
      *
-     * After: any mousedown inside the pill focuses the editor, except on the
-     * editor itself (ProseMirror places the caret at the click position — far
-     * better than our `focus("end")`) and on real controls, whose own focus and
-     * activation must not be stolen.
-     *
-     * `onMouseDown` + `preventDefault`, not `onClick`: by click time the browser
-     * has already moved focus and begun a text selection from the chrome, so
-     * focusing there fights what just happened. Preventing the default on
-     * mousedown stops both before they start. This mirrors
-     * `handleContainerMouseDown` in `@/features/editor/content-editor.tsx`,
-     * which solves the same problem one level down for the editor's own padding.
+     * `onMouseDown` + `preventDefault`, not `onClick`: by click time the
+     * browser has already moved focus and begun a text selection from the
+     * chrome, so focusing there fights what just happened.
      */
     const handlePillMouseDown = useCallback(
       (event: ReactMouseEvent<HTMLDivElement>) => {
         const target = event.target as HTMLElement
-        if (target.closest('.ProseMirror')) return
         if (
           target.closest(
-            'a, button, input, textarea, select, label, [role="button"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [data-node-view-wrapper], [data-composer-keep-focus]',
+            'a, button, input, textarea, select, label, [role="button"], [role="menuitem"], [role="combobox"], [data-composer-keep-focus]',
           )
         ) {
           return
         }
         event.preventDefault()
-        editorRef.current?.focus()
+        const textarea = textareaRef.current
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(input.length, input.length)
       },
-      [],
+      [input.length],
     )
 
-    const editorHasContent = editorMarkdown.trim().length > 0
     const hasContent =
-      editorHasContent || attachments.length > 0 || selectedDocuments.length > 0
+      input.trim().length > 0 ||
+      attachments.length > 0 ||
+      selectedDocuments.length > 0
     const isSubmitted = normalizeStatus(status) === 'submitted'
 
     return (
@@ -752,10 +833,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
 
         <div className={cn('mx-auto', COMPOSER_WIDTH_CLASS_NAME)}>
           {/*
-            Queued messages slab — the mirror of `ComposerExtensionRow` below:
-            it renders here, as a sibling of the pill inside this wrapper, so
-            it can tuck behind the pill's rounded top edge and read as one
-            shape. It disappears on its own when the queue is empty.
+            Queued messages slab — it renders here, as a sibling of the pill
+            inside this wrapper, so it can tuck behind the pill's rounded top
+            edge and read as one shape. It disappears on its own when the queue
+            is empty.
           */}
           {queue}
           <div
@@ -764,25 +845,20 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
               'relative z-10 flex flex-col gap-3 rounded-2xl border border-border-default bg-background-main-default p-4 shadow-5 transition-colors duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-border-brand-secondary focus-within:border-border-brand-secondary',
               /*
                * The I-beam advertises `handlePillMouseDown`: the chrome around
-               * the editor is clickable as text, so it should look clickable as
-               * text. Without this the pill showed the arrow everywhere except
-               * over the editor's own line, which read as "only that line is the
-               * field" — the same wrong impression the dead click zones gave.
+               * the field is clickable as text, so it should look clickable as
+               * text.
                *
                * The `:is(...)` reset is required, not belt-and-braces. `cursor`
                * is an inherited property and Tailwind v4's preflight sets no
-               * cursor on `button` (checked the installed `preflight.css`), so
-               * `cursor-text` alone would inherit straight into every control in
-               * the toolbar and footer. `cursor-auto` restores exactly what they
-               * had before, since nothing here declared a cursor of its own.
+               * cursor on `button`, so `cursor-text` alone would inherit
+               * straight into every control in the footer. `cursor-auto`
+               * restores exactly what they had before, since nothing here
+               * declared a cursor of its own.
                *
                * The selector list mirrors the skip list in
                * `handlePillMouseDown` above — same elements, same reason — but
                * is written out literally because Tailwind scans source
-               * statically and cannot read a shared constant. Keep the two in
-               * step; `a`, `[contenteditable]` and `[data-node-view-wrapper]`
-               * are omitted here only because they live inside `.ProseMirror`,
-               * which sets its own cursor.
+               * statically and cannot read a shared constant.
                */
               'cursor-text [&_:is(button,input,textarea,select,label,[role=button],[role=menuitem],[role=combobox],[data-composer-keep-focus])]:cursor-auto',
               isDragging && 'border-dashed border-border-brand-secondary',
@@ -803,13 +879,126 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                 </div>
               </div>
             ) : null}
+
+            {showSkillMenu ? (
+              <div className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-2xl border border-border-default bg-background-main-default shadow-5">
+                <Command shouldFilter={false} className="bg-transparent p-1">
+                  <CommandList className="max-h-72">
+                    {filteredSkills.length > 0 ? (
+                      <CommandGroup heading="Skills">
+                        {filteredSkills.map((skill, index) => (
+                          <CommandItem
+                            key={skill.id}
+                            value={skill.id}
+                            className={cn(
+                              'cursor-pointer select-none gap-2 hover:bg-transparent hover:text-inherit data-[selected=true]:bg-transparent data-[selected=true]:text-inherit',
+                              highlightedIndex === index &&
+                                'font-medium text-text-brand-secondary',
+                            )}
+                            onMouseMove={() => {
+                              if (highlightedIndex !== index) {
+                                moveHighlight(index)
+                              }
+                            }}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onSelect={() => applySkillSelection(skill)}
+                            onClick={() => applySkillSelection(skill)}
+                          >
+                            <span className="inline-flex size-4 shrink-0 items-center justify-center text-icon-secondary">
+                              <SkillGlyph className="size-3.5" />
+                            </span>
+                            <span className="flex min-w-0 flex-1 items-center gap-2">
+                              <span className="shrink-0">
+                                {formatSkillInvocation(
+                                  skill.slug ?? skill.name,
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-xs text-text-secondary">
+                                {skill.description || 'Workspace skill'}
+                              </span>
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ) : skillsQuery.isError ? (
+                      <div className="px-3 py-2.5 text-xs text-text-danger-default">
+                        Failed to load skills. Try again later.
+                      </div>
+                    ) : skillsQuery.isFetching && skills.length === 0 ? (
+                      <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-text-secondary">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        <span>Loading skills…</span>
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2.5 text-xs text-text-secondary">
+                        {skills.length === 0
+                          ? 'No skills available for this agent.'
+                          : 'No matching skills.'}
+                      </div>
+                    )}
+                  </CommandList>
+                </Command>
+              </div>
+            ) : showMemberMenu ? (
+              <div className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-2xl border border-border-default bg-background-main-default shadow-5">
+                <Command shouldFilter={false} className="bg-transparent p-1">
+                  <CommandList className="max-h-72">
+                    {filteredMembers.length > 0 ? (
+                      <CommandGroup heading="Members">
+                        {filteredMembers.map((member, index) => (
+                          <CommandItem
+                            key={member.user_id}
+                            value={member.user_id}
+                            className={cn(
+                              'cursor-pointer select-none gap-2 hover:bg-transparent hover:text-inherit data-[selected=true]:bg-transparent data-[selected=true]:text-inherit',
+                              highlightedIndex === index &&
+                                'bg-background-main-tertiary',
+                            )}
+                            onMouseMove={() => {
+                              if (highlightedIndex !== index) {
+                                moveHighlight(index)
+                              }
+                            }}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onSelect={() => applyMemberSelection(member)}
+                            onClick={() => applyMemberSelection(member)}
+                          >
+                            <ActorAvatar
+                              actorType="member"
+                              actorId={member.user_id}
+                              size={20}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium">
+                              @{member.name}
+                            </span>
+                            <span className="max-w-40 truncate text-xs text-text-secondary">
+                              {member.email}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    ) : membersQuery.isFetching ? (
+                      <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-text-secondary">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        <span>Loading members…</span>
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2.5 text-xs text-text-secondary">
+                        No matching members
+                      </div>
+                    )}
+                  </CommandList>
+                </Command>
+              </div>
+            ) : null}
+
             {pendingQuestions &&
             pendingQuestions.length > 0 &&
             onSubmitAnswers ? (
               /*
                * `data-composer-keep-focus` opts this subtree out of the pill's
                * click-to-focus (see `handlePillMouseDown`). While the agent is
-               * asking structured questions the panel — not the editor — is what
+               * asking structured questions the panel — not the field — is what
                * the user is answering, so a click on its padding must not yank
                * the caret down into the composer mid-answer.
                */
@@ -821,23 +1010,137 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                 />
               </div>
             ) : null}
-            <ComposerToolbar
-              editor={editorInstance}
-              disabled={!editorHasContent}
-            />
-            <ComposerEditor
-              ref={editorRef}
-              draft={input}
-              onChange={handleEditorChange}
-              onSubmit={() => void handleSubmit()}
-              onUploadFile={uploadComposerFile}
-              onEditorReady={(editor) => {
-                editorInstanceRef.current = editor
-                setEditorInstance(editor)
+
+            <Textarea
+              ref={textareaRef}
+              data-testid="composer-input"
+              value={input}
+              rows={1}
+              placeholder="Make requests with Garden AI..."
+              style={{
+                height: TEXTAREA_MIN_HEIGHT,
+                maxHeight: TEXTAREA_MAX_HEIGHT,
               }}
-              skillItems={skillItems}
-              onSkillSelect={onSkillSelect}
+              className="[field-sizing:fixed]! min-h-7 resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
+              onFocus={onWarmRuntime}
+              onBeforeInput={(event) => {
+                pendingTextEditRef.current = {
+                  selectionStart: event.currentTarget.selectionStart ?? cursor,
+                  selectionEnd: event.currentTarget.selectionEnd ?? cursor,
+                  inputType: (event.nativeEvent as InputEvent).inputType ?? '',
+                }
+              }}
+              onChange={(event) => {
+                const nextValue = event.target.value
+                const pendingEdit = pendingTextEditRef.current
+                pendingTextEditRef.current = null
+                setSelectedMemberMentions((current) =>
+                  rebaseMemberMentions(
+                    input,
+                    nextValue,
+                    current,
+                    pendingEdit
+                      ? resolveMemberMentionTextEdit({
+                          previousInput: input,
+                          nextInput: nextValue,
+                          ...pendingEdit,
+                        })
+                      : undefined,
+                  ),
+                )
+                setCursor(event.target.selectionStart ?? nextValue.length)
+                onInputChange(nextValue)
+              }}
+              onClick={(event) =>
+                setCursor(event.currentTarget.selectionStart ?? input.length)
+              }
+              onKeyUp={(event) =>
+                setCursor(event.currentTarget.selectionStart ?? input.length)
+              }
+              onSelect={(event) =>
+                setCursor(event.currentTarget.selectionStart ?? input.length)
+              }
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return
+
+                if (showMemberMenu) {
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    setDismissedMenuInput(input)
+                    return
+                  }
+                  if (filteredMembers.length > 0) {
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault()
+                      moveHighlight(
+                        (highlightedIndex + 1) % filteredMembers.length,
+                      )
+                      return
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault()
+                      moveHighlight(
+                        (highlightedIndex - 1 + filteredMembers.length) %
+                          filteredMembers.length,
+                      )
+                      return
+                    }
+                    if (
+                      isMemberMentionSelectionKey({
+                        key: event.key,
+                        isComposing: event.nativeEvent.isComposing,
+                      })
+                    ) {
+                      event.preventDefault()
+                      const member =
+                        filteredMembers[highlightedIndex] ?? filteredMembers[0]
+                      if (member) applyMemberSelection(member)
+                      return
+                    }
+                  }
+                }
+
+                if (showSkillMenu) {
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    setDismissedMenuInput(input)
+                    return
+                  }
+                  if (filteredSkills.length > 0) {
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault()
+                      moveHighlight(
+                        (highlightedIndex + 1) % filteredSkills.length,
+                      )
+                      return
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault()
+                      moveHighlight(
+                        (highlightedIndex - 1 + filteredSkills.length) %
+                          filteredSkills.length,
+                      )
+                      return
+                    }
+                    // Tab, not Enter: a `/` token is legal prose, so Enter
+                    // stays "send" while the skill menu is open.
+                    if (event.key === 'Tab') {
+                      event.preventDefault()
+                      const skill =
+                        filteredSkills[highlightedIndex] ?? filteredSkills[0]
+                      if (skill) applySkillSelection(skill)
+                      return
+                    }
+                  }
+                }
+
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  void handleSubmit()
+                }
+              }}
             />
+
             <ComposerFooter
               addMenu={
                 <ComposerAddMenu
@@ -850,18 +1153,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
                   onPresetChange={setToolPreset}
                 />
               }
-              sourcesMenu={
-                TOOL_PRESET_IDS_WITH_SOURCES.has(toolPreset) ? (
-                  <ComposerSourcesMenu onConnect={onOpenConnections ?? noop} />
-                ) : null
-              }
-              agentSelect={
-                <ComposerAgentSelect
-                  fallbackAgentId={fallbackAgentId ?? agentId}
-                />
-              }
               onMicTranscription={(value) =>
-                editorRef.current?.insertText(value)
+                onInputChange(input ? `${input.trimEnd()} ${value}` : value)
               }
               isStreaming={isStreaming}
               hasContent={hasContent}
@@ -871,16 +1164,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(
               onStop={() => void onStop()}
             />
           </div>
-          {/*
-            The extension row sits BENEATH the pill as its own slab — the pill
-            above keeps its full rounded border and focus ring, per
-            task-12-rulings.md #6 and the reference screenshot. Rendering it
-            here (inside the same COMPOSER_WIDTH_CLASS_NAME wrapper) keeps it aligned with the
-            pill and, because the controller wraps this whole subtree in its
-            lift `motion.div`, it animates with the composer rather than
-            jumping independently (spec §9).
-          */}
-          <ComposerExtensionRow onOpenConnections={onOpenConnections ?? noop} />
         </div>
 
         <input

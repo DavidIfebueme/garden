@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { useWorkspaceStore } from '@garden/app-state/workspace'
 import type {
@@ -14,11 +14,12 @@ import { createEditorExtensions } from './index'
 import { createMentionSuggestion } from './mention-suggestion'
 
 /**
- * Guards the shared factory's default surface. The chat composer adds opt-in
- * extensions (textAlign, skillSuggestion); every other consumer (issues,
- * comments, create-issue) passes none of them and must get an unchanged
- * extension set. If this snapshot changes without a matching consumer review,
- * that's a regression.
+ * Guards the shared factory's surface. Every consumer (issues, comments,
+ * create-issue) gets the same extension set, and the factory has no opt-in
+ * flags left: the chat composer's `textAlign` and `skillSuggestion` additions
+ * went out with the composer's move back to a textarea (2026-09-17 review).
+ * If this snapshot changes without a matching consumer review, that's a
+ * regression.
  *
  * NOTE: these are TOP-LEVEL extension names only. StarterKit is a single
  * extension named 'starterKit' that registers bold/italic/underline/heading
@@ -39,54 +40,36 @@ function extensionNames(opts: Parameters<typeof createEditorExtensions>[0]) {
 }
 
 describe('createEditorExtensions', () => {
-  it('does not include textAlign by default', () => {
+  it('builds the same extension set for every consumer', () => {
     const names = extensionNames({ editable: true })
+    // Rich-text-only extras the chat composer used to switch on. Nothing
+    // enables them any more, and no consumer should reintroduce them without
+    // owning the per-keystroke cost that came with the last attempt.
     expect(names).not.toContain('textAlign')
-  })
-
-  it('includes textAlign only when the flag is set', () => {
-    const names = extensionNames({ editable: true, textAlign: true })
-    expect(names).toContain('textAlign')
+    expect(names).not.toContain('skillSuggestion')
+    // The pieces every consumer does rely on.
+    expect(names).toContain('starterKit')
+    expect(names).toContain('mention')
+    expect(names).toContain('markdown')
   })
 
   // NO underline assertion here. StarterKit 3.22.4 does bundle Underline
   // (verified: it is a dependency in node_modules/@tiptap/starter-kit/
   // package.json), but StarterKit is ONE extension named 'starterKit' and its
   // children never appear in the returned array — `toContain('underline')`
-  // cannot pass. Underline availability is covered by the toolbar (Task 5) and
-  // the Task 15 smoke.
+  // cannot pass.
 
-  it('readonly mode still excludes textAlign by default', () => {
+  it('readonly mode drops the edit-only extensions', () => {
     const names = extensionNames({ editable: false })
-    expect(names).not.toContain('textAlign')
-  })
-
-  it('does not include skillSuggestion by default', () => {
-    const names = extensionNames({ editable: true })
-    expect(names).not.toContain('skillSuggestion')
-  })
-
-  it('includes skillSuggestion only when configured', () => {
-    const names = extensionNames({
-      editable: true,
-      skillSuggestion: { items: () => [], onSelect: vi.fn() },
-    })
-    expect(names).toContain('skillSuggestion')
-  })
-
-  it('readonly mode still excludes skillSuggestion even when configured', () => {
-    const names = extensionNames({
-      editable: false,
-      skillSuggestion: { items: () => [], onSelect: vi.fn() },
-    })
-    expect(names).not.toContain('skillSuggestion')
+    expect(names).not.toContain('placeholder')
+    expect(names).toContain('starterKit')
   })
 })
 
 /**
  * The mention popup is shared with issues / comments / create-issue, which must
- * keep offering members + agents + issues + @all. Chat opts down to members
- * only (team verdict, spec §12). Guard both directions.
+ * keep offering members + agents + issues + @all. `createMentionSuggestion`
+ * can still be narrowed to a subset, so guard both directions.
  *
  * Fixtures: a workspace is seeded into useWorkspaceStore (createMentionSuggestion
  * reads `useWorkspaceStore.getState().workspace?.id`), and the query cache is

@@ -65,11 +65,4 @@ describe('ContentEditor', () => {
 
     expect(mockFocus).not.toHaveBeenCalled()
   })
-
-  it('calls onEditorReady once with the editor instance', () => {
-    const onEditorReady = vi.fn()
-    render(<ContentEditor editable onEditorReady={onEditorReady} />)
-    expect(onEditorReady).toHaveBeenCalledTimes(1)
-    expect(onEditorReady.mock.calls[0][0]).toHaveProperty('getMarkdown')
-  })
 })

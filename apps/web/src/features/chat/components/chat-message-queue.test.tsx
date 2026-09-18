@@ -14,41 +14,68 @@ function queued(overrides: Partial<QueuedChatMessage> = {}): QueuedChatMessage {
   }
 }
 
+function props(
+  overrides: Partial<Parameters<typeof ChatMessageQueue>[0]> = {},
+) {
+  return {
+    messages: [queued()],
+    onEdit: vi.fn(),
+    onSendNext: vi.fn(),
+    onRemove: vi.fn(),
+    ...overrides,
+  }
+}
+
 describe('ChatMessageQueue', () => {
   it('renders nothing when the queue is empty', () => {
     const { container } = render(
-      <ChatMessageQueue messages={[]} onEdit={vi.fn()} onRemove={vi.fn()} />,
+      <ChatMessageQueue {...props({ messages: [] })} />,
     )
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('numbers rows by their position in the queue', () => {
+  /**
+   * The count and the "when does this send" explanation are said once over the
+   * whole stack, not per row. This is the 2026-09-17 review's compaction: the
+   * old layout repeated "Queue N · Reply after current reply" above every
+   * message and made each row two lines tall.
+   */
+  it('states the queue depth once instead of labelling every row', () => {
     render(
       <ChatMessageQueue
-        messages={[
-          queued(),
-          queued({ id: 'q2', text: 'Hello to the greatest willers' }),
-        ]}
-        onEdit={vi.fn()}
-        onRemove={vi.fn()}
+        {...props({
+          messages: [
+            queued(),
+            queued({ id: 'q2', text: 'Hello to the greatest willers' }),
+          ],
+        })}
       />,
     )
-    expect(screen.getByText('Queue 1')).toBeInTheDocument()
-    expect(screen.getByText('Queue 2')).toBeInTheDocument()
-    expect(screen.getAllByText('Reply after current reply')).toHaveLength(2)
+
+    expect(screen.getByText('2 queued')).toBeInTheDocument()
+    expect(
+      screen.getByText('Send in order after this reply'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Queue 1')).not.toBeInTheDocument()
+    expect(screen.getByText('Lets go away')).toBeInTheDocument()
+    expect(
+      screen.getByText('Hello to the greatest willers'),
+    ).toBeInTheDocument()
   })
 
   it('names the attachments when a queued send carries no prose', () => {
     render(
       <ChatMessageQueue
-        messages={[
-          queued({
-            text: '',
-            files: [new File(['x'], 'brief.pdf', { type: 'application/pdf' })],
-          }),
-        ]}
-        onEdit={vi.fn()}
-        onRemove={vi.fn()}
+        {...props({
+          messages: [
+            queued({
+              text: '',
+              files: [
+                new File(['x'], 'brief.pdf', { type: 'application/pdf' }),
+              ],
+            }),
+          ],
+        })}
       />,
     )
     expect(screen.getByText('1 attachment')).toBeInTheDocument()
@@ -60,9 +87,7 @@ describe('ChatMessageQueue', () => {
     const message = queued()
     render(
       <ChatMessageQueue
-        messages={[message]}
-        onEdit={onEdit}
-        onRemove={onRemove}
+        {...props({ messages: [message], onEdit, onRemove })}
       />,
     )
 
@@ -77,22 +102,35 @@ describe('ChatMessageQueue', () => {
     expect(onRemove).toHaveBeenCalledWith('q1')
   })
 
-  it('copies the queued text and confirms it', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
-
+  /**
+   * The up-arrow promotes a message to the front of the queue. The row that is
+   * already next has nothing to promote, so it must not render the control —
+   * otherwise the first row offers a button that provably does nothing.
+   */
+  it('offers send-next on every row except the one already at the front', async () => {
+    const onSendNext = vi.fn()
     render(
       <ChatMessageQueue
-        messages={[queued()]}
-        onEdit={vi.fn()}
-        onRemove={vi.fn()}
+        {...props({
+          messages: [queued(), queued({ id: 'q2', text: 'second' })],
+          onSendNext,
+        })}
       />,
     )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Copy queued message' }),
-    )
 
-    expect(writeText).toHaveBeenCalledWith('Lets go away')
-    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    const promote = screen.getAllByRole('button', {
+      name: 'Send this one next',
+    })
+    expect(promote).toHaveLength(1)
+
+    await userEvent.click(promote[0]!)
+    expect(onSendNext).toHaveBeenCalledWith('q2')
+  })
+
+  it('no longer offers a copy action', () => {
+    render(<ChatMessageQueue {...props()} />)
+    expect(
+      screen.queryByRole('button', { name: /copy/i }),
+    ).not.toBeInTheDocument()
   })
 })

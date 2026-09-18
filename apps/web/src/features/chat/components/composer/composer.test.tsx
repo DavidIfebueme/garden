@@ -1,83 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-// Mock the rich-text field: expose a controllable markdown value + submit.
-// See task-12-brief.md Step 2 — the fake-submit button fires the same
-// onChange/onSubmit sequence a real keystroke + Enter would, letting these
-// tests drive `Composer`'s send-gate logic without a real Tiptap instance.
-//
-// This mock is `forwardRef` + `useImperativeHandle`, mirroring the real
-// `ComposerEditor`'s signature, so `Composer`'s `editorRef` is actually
-// populated. That matters: `handleSubmit` reads its text from
-// `editorRef.current.getMarkdown()`, and an earlier plain-function mock left
-// the ref null for the life of every test — so the production text-extraction
-// path went entirely unexercised and a fallback branch existed in production
-// purely to keep the tests passing. Review finding, fix round 1.
-// `md` is what the fake-submit button pushes through `onChange`. `handleMd`,
-// when set, is what the imperative handle's `getMarkdown()` returns instead —
-// letting a test make the two disagree and prove which one `handleSubmit`
-// actually reads.
-const editorState = vi.hoisted(() => ({
-  md: '',
-  handleMd: null as string | null,
-  clearCalls: 0,
-  focusCalls: 0,
-  onSubmit: () => {},
-}))
-vi.mock('./composer-editor', async () => {
-  const React = await import('react')
-  return {
-    ComposerEditor: React.forwardRef(
-      (props: never, ref: React.Ref<unknown>) => {
-        ;(editorState as never).onSubmit = (
-          props as { onSubmit: () => void }
-        ).onSubmit
-        React.useImperativeHandle(ref, () => ({
-          getMarkdown: () => editorState.handleMd ?? editorState.md,
-          clear: () => {
-            editorState.md = ''
-            editorState.handleMd = null
-            editorState.clearCalls += 1
-          },
-          focus: () => {
-            editorState.focusCalls += 1
-          },
-          insertText: () => {},
-          setMarkdown: (markdown: string) => {
-            editorState.md = markdown
-          },
-        }))
-        return (
-          <button
-            data-testid="fake-submit"
-            onClick={() => {
-              ;(props as { onChange: (s: string) => void }).onChange(
-                editorState.md,
-              )
-              ;(props as { onSubmit: () => void }).onSubmit()
-            }}
-          />
-        )
-      },
-    ),
-  }
-})
+/**
+ * These tests drive the real field. The Tiptap-era version of this file had to
+ * mock `ComposerEditor` and fake a submit button, because there is no way to
+ * type into a ProseMirror view under jsdom — which meant the send-gate logic
+ * was exercised against a stand-in rather than the thing that ships. With the
+ * composer back on a `<textarea>` (2026-09-17 review), `userEvent.type` drives
+ * the same code path a person does.
+ */
 vi.mock('@garden/app-state/hooks', () => ({
   useWorkspaceId: () => 'ws-1',
   useWorkspaceStore: () => null,
 }))
 // `queryOptions` is tanstack's identity-shaped helper (it just returns its
-// argument with the right typing) — `agentSkillListOptions` calls it
-// directly, so the mock needs to pass it through even though the test never
-// exercises real query behavior.
+// argument with the right typing) — `memberListOptions`/`agentSkillListOptions`
+// call it directly, so the mock passes it through and then answers each query
+// off its real key. Keying on the query (rather than returning one blob) is
+// what lets the `@` test seed members without also handing the same rows to the
+// skills query.
+const MEMBERS = vi.hoisted(
+  () => [] as { user_id: string; name: string; email: string }[],
+)
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: [], isFetching: false }),
+  useQuery: (options: { queryKey: readonly unknown[] }) => ({
+    data: options.queryKey.includes('members') ? MEMBERS : [],
+    isFetching: false,
+    isError: false,
+  }),
   queryOptions: (options: unknown) => options,
-}))
-vi.mock('@garden/app-state/chat', () => ({
-  useChatStore: (s: (x: unknown) => unknown) =>
-    s({ selectedAgentId: null, setSelectedAgentId: vi.fn() }),
 }))
 
 import { Composer } from './composer'
@@ -93,54 +46,76 @@ const base = {
   onStop: vi.fn(),
 }
 
+/**
+ * The field is controlled by the `input` prop, so a test that types has to feed
+ * the change back the way the real controller does (a chat-store draft write
+ * that re-renders) — otherwise the value never moves and every assertion about
+ * "has content" is vacuous.
+ */
+function ControlledComposer({
+  onInputChange,
+  ...props
+}: Omit<React.ComponentProps<typeof Composer>, 'input'>) {
+  const [value, setValue] = useState('')
+  return (
+    <Composer
+      {...props}
+      input={value}
+      onInputChange={(next) => {
+        setValue(next)
+        onInputChange(next)
+      }}
+    />
+  )
+}
+
+function renderControlled(overrides: Partial<typeof base> = {}) {
+  const onSend = overrides.onSend ?? vi.fn().mockResolvedValue(undefined)
+  const view = render(
+    <ControlledComposer {...base} {...overrides} onSend={onSend} />,
+  )
+  return { ...view, onSend }
+}
+
+function field() {
+  return screen.getByTestId('composer-input') as HTMLTextAreaElement
+}
+
 describe('Composer', () => {
   beforeEach(() => {
-    // `editorState` is module-scoped via vi.hoisted, so it persists across
-    // tests in this file. Reset it so one test's markdown or clear() count
-    // cannot leak into the next.
-    editorState.md = ''
-    editorState.handleMd = null
-    editorState.clearCalls = 0
-    editorState.focusCalls = 0
+    vi.clearAllMocks()
+    MEMBERS.length = 0
   })
 
-  it('sends the editor markdown', async () => {
-    editorState.md = 'hello **world**'
-    const onSend = vi.fn().mockResolvedValue(undefined)
-    render(<Composer {...base} onSend={onSend} />)
-    await userEvent.click(screen.getByTestId('fake-submit'))
+  it('sends what was typed', async () => {
+    const { onSend } = renderControlled()
+    await userEvent.type(field(), 'hello there')
+    await userEvent.click(screen.getByRole('button', { name: /send message/i }))
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: 'hello **world**',
+        text: 'hello there',
         files: [],
         selectedDocuments: [],
       }),
     )
   })
 
-  /**
-   * Guards the production text-extraction path. `handleSubmit` reads
-   * `editorRef.current.getMarkdown()`, so the text it sends must come from
-   * the editor handle rather than from whatever was last pushed through
-   * `onChange`. Diverging the two proves which one is actually read: if a
-   * regression reintroduced a state/ref mirror as the source, this fails.
-   */
-  it('takes the sent text from the editor handle, not the last onChange value', async () => {
-    editorState.md = 'stale via onChange'
-    editorState.handleMd = 'fresh from getMarkdown'
-    const onSend = vi.fn().mockResolvedValue(undefined)
-    render(<Composer {...base} onSend={onSend} />)
-    await userEvent.click(screen.getByTestId('fake-submit'))
+  it('sends on Enter and inserts a newline on Shift+Enter', async () => {
+    const { onSend } = renderControlled()
+    await userEvent.type(field(), 'first{Shift>}{Enter}{/Shift}second')
+    expect(field().value).toBe('first\nsecond')
+    expect(onSend).not.toHaveBeenCalled()
+
+    await userEvent.type(field(), '{Enter}')
     expect(onSend).toHaveBeenCalledWith(
-      expect.objectContaining({ text: 'fresh from getMarkdown' }),
+      expect.objectContaining({ text: 'first\nsecond' }),
     )
   })
 
   it('does not send when empty', async () => {
-    editorState.md = '   '
-    const onSend = vi.fn()
-    render(<Composer {...base} onSend={onSend} />)
-    await userEvent.click(screen.getByTestId('fake-submit'))
+    const { onSend } = renderControlled()
+    await userEvent.type(field(), '   ')
+    await userEvent.type(field(), '{Enter}')
     expect(onSend).not.toHaveBeenCalled()
   })
 
@@ -160,10 +135,25 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument()
   })
 
+  /**
+   * The formatting toolbar, the `Sources` control and the agent selector were
+   * all removed in the 2026-09-17 review — the first because rich text has no
+   * meaning in a message to a model, the other two because they were no-ops.
+   */
+  it('renders no formatting toolbar, sources control or agent selector', () => {
+    render(<Composer {...base} />)
+    expect(
+      screen.queryByRole('button', { name: /bold/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /sources/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/connect your apps/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/use a folder/i)).not.toBeInTheDocument()
+  })
+
   it('attaches a file, renders a chip, removes it, and sends the remaining attachment', async () => {
-    editorState.md = ''
-    const onSend = vi.fn().mockResolvedValue(undefined)
-    render(<Composer {...base} onSend={onSend} />)
+    const { onSend } = renderControlled()
     const fileA = new File(['a'], 'notes.txt', { type: 'text/plain' })
     const fileB = new File(['b'], 'plan.txt', { type: 'text/plain' })
     const input = screen.getByTestId('composer-file-input') as HTMLInputElement
@@ -179,7 +169,7 @@ describe('Composer', () => {
     await userEvent.upload(input, fileB)
     expect(await screen.findByText('plan.txt')).toBeInTheDocument()
 
-    await userEvent.click(screen.getByTestId('fake-submit'))
+    await userEvent.click(screen.getByRole('button', { name: /send message/i }))
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({ files: [fileB] }),
     )
@@ -211,18 +201,17 @@ describe('Composer', () => {
     expect(screen.getByTitle('clip.png')).toBeInTheDocument()
   })
 
-  it('clears the editor, draft, and attachments on a successful send', async () => {
-    editorState.md = 'hello'
-    const onSend = vi.fn().mockResolvedValue(undefined)
+  it('clears the draft and attachments on a successful send', async () => {
     const onInputChange = vi.fn()
-    render(<Composer {...base} onSend={onSend} onInputChange={onInputChange} />)
+    const { onSend } = renderControlled({ onInputChange })
 
+    await userEvent.type(field(), 'hello')
     const file = new File(['a'], 'a.txt', { type: 'text/plain' })
     await userEvent.upload(
       screen.getByTestId('composer-file-input') as HTMLInputElement,
       file,
     )
-    await userEvent.click(screen.getByTestId('fake-submit'))
+    await userEvent.click(screen.getByRole('button', { name: /send message/i }))
 
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -232,38 +221,32 @@ describe('Composer', () => {
       }),
     )
     expect(onInputChange).toHaveBeenLastCalledWith('')
+    expect(field().value).toBe('')
     expect(screen.queryByText('a.txt')).not.toBeInTheDocument()
-    // The editor itself must be cleared through the handle, not merely the
-    // store draft. Asserting only on `onInputChange` would pass even if
-    // `editorRef.current.clear()` were never called and the user's text
-    // stayed visible in the composer after sending.
-    expect(editorState.clearCalls).toBe(1)
   })
 
   /**
    * Click-to-focus on the composer pill.
    *
-   * The pill reads as a single input field, so a press anywhere in its chrome
-   * — the gaps `flex-col gap-3` opens between toolbar, editor and footer, the
-   * footer's own row — must put the caret in the editor. The previous handler
-   * was an `onClick` guarded by `event.target === event.currentTarget`, which
-   * rejected every one of those spots because they are all descendants.
+   * The pill reads as a single input field, so a press anywhere in its chrome —
+   * the gaps `flex-col gap-3` opens between the field and the footer, the
+   * footer's own row — must put the caret in the field. The guard this replaced
+   * was an `onClick` with `event.target === event.currentTarget`, which rejected
+   * every one of those spots because they are all descendants.
    *
-   * Mousedown, not click: focus and text selection both happen on mousedown,
-   * so `handlePillMouseDown` has to run (and `preventDefault`) before them.
-   * `fireEvent.mouseDown` therefore models the real sequence; `userEvent.click`
-   * would too, but this keeps the assertion on the event that matters.
+   * Mousedown, not click: focus and text selection both happen on mousedown, so
+   * `handlePillMouseDown` has to run (and `preventDefault`) before them.
    */
-  it('focuses the editor when the pill chrome is pressed', () => {
+  it('focuses the field when the pill chrome is pressed', () => {
     render(<Composer {...base} />)
     const pill = screen.getByTestId('composer-pill')
-    // A DESCENDANT, not the pill itself: the footer's row wrapper is one of
-    // the dead zones the old `target === currentTarget` guard rejected, so
-    // pressing the pill element directly would not have caught the bug.
+    // A DESCENDANT, not the pill itself: the footer's row wrapper is one of the
+    // dead zones the old `target === currentTarget` guard rejected, so pressing
+    // the pill element directly would not have caught the bug.
     const footerRow = pill.lastElementChild as HTMLElement
     expect(footerRow.tagName).toBe('DIV')
     fireEvent.mouseDown(footerRow)
-    expect(editorState.focusCalls).toBe(1)
+    expect(document.activeElement).toBe(field())
   })
 
   /**
@@ -274,6 +257,59 @@ describe('Composer', () => {
   it('leaves focus alone when a control inside the pill is pressed', () => {
     render(<Composer {...base} />)
     fireEvent.mouseDown(screen.getByRole('button', { name: /add files/i }))
-    expect(editorState.focusCalls).toBe(0)
+    expect(document.activeElement).not.toBe(field())
+  })
+
+  /**
+   * The `@` popup and its serialization are the July 2026 `member-mention.ts`
+   * work (cache-backed lookup, identity preservation, collapsed-deletion
+   * rebasing) that the Tiptap pass deleted along with its 176-line test file.
+   * This covers the composer's half of it: the live member list reaches the
+   * popup, a pick writes `@Name` into the field, and submit commits it as a
+   * mention link rather than as the literal text.
+   */
+  it('offers members on @ and commits the pick as a mention link', async () => {
+    MEMBERS.push({
+      user_id: 'user-1',
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+    })
+    const { onSend } = renderControlled()
+
+    await userEvent.type(field(), 'ping @ada')
+    await userEvent.click(await screen.findByText('@Ada Lovelace'))
+
+    expect(field().value).toBe('ping @Ada Lovelace ')
+
+    await userEvent.click(screen.getByRole('button', { name: /send message/i }))
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'ping [@Ada Lovelace](mention://member/user-1)',
+      }),
+    )
+  })
+
+  /**
+   * Escape closes the popup, and typing the next character brings it back.
+   * The dismissal is keyed to the draft the person pressed Escape on rather
+   * than held as a boolean that an effect resets, so this also guards that the
+   * key still changes on the next keystroke.
+   */
+  it('dismisses the @ popup on Escape and reopens it on the next keystroke', async () => {
+    MEMBERS.push({
+      user_id: 'user-1',
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+    })
+    renderControlled()
+
+    await userEvent.type(field(), '@ad')
+    expect(await screen.findByText('@Ada Lovelace')).toBeInTheDocument()
+
+    await userEvent.type(field(), '{Escape}')
+    expect(screen.queryByText('@Ada Lovelace')).not.toBeInTheDocument()
+
+    await userEvent.type(field(), 'a')
+    expect(await screen.findByText('@Ada Lovelace')).toBeInTheDocument()
   })
 })

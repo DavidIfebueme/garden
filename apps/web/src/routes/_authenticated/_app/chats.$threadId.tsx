@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useSurfaceTabsStore } from '@garden/app-state/surface-tabs'
 import { AgentInteractionScreen } from '@/features/chat/components/agent-interaction-screen'
-import { useSurfaceNavigation } from '@/features/navigation/use-surface-navigation'
 
 export const Route = createFileRoute('/_authenticated/_app/chats/$threadId')({
   // Client-only tab bookkeeping on direct loads; the strip resolves the real
@@ -19,11 +18,9 @@ export const Route = createFileRoute('/_authenticated/_app/chats/$threadId')({
 
 function ChatThreadRoute() {
   const { threadId } = Route.useParams()
-  const { openConnections } = useSurfaceNavigation()
   return (
     <AgentInteractionScreen
       className="min-h-0 flex-1 bg-background"
-      onOpenConnections={() => openConnections()}
       sessionId={threadId}
     />
   )

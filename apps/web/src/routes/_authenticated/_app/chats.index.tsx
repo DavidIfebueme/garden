@@ -7,7 +7,7 @@ export const Route = createFileRoute('/_authenticated/_app/chats/')({
 })
 
 function ChatsIndexRoute() {
-  const { openChatSession, openConnections } = useSurfaceNavigation()
+  const { openChatSession } = useSurfaceNavigation()
   // First send materializes the warm draft into a real session — follow it to
   // the thread route so the composer doesn't appear to swallow the message
   // (smoke-observed 2026-09: sending from /chats looked like a vanishing send).
@@ -15,7 +15,6 @@ function ChatsIndexRoute() {
     <AgentInteractionScreen
       className="min-h-0 flex-1 bg-background"
       onSessionChange={(session) => openChatSession(session)}
-      onOpenConnections={() => openConnections()}
     />
   )
 }

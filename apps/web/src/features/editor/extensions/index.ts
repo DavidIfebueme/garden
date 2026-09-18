@@ -26,7 +26,6 @@ import { common, createLowlight } from 'lowlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import Typography from '@tiptap/extension-typography'
-import TextAlign from '@tiptap/extension-text-align'
 import Image from '@tiptap/extension-image'
 import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
@@ -35,16 +34,13 @@ import { Table } from '@tiptap/extension-table'
 import { Markdown } from '@tiptap/markdown'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import type { AnyExtension } from '@tiptap/core'
-import type { SuggestionOptions } from '@tiptap/suggestion'
 import type { UploadResult } from '@garden/app-state/hooks/use-file-upload'
 import { BaseMentionExtension } from './mention-extension'
 import { createMentionSuggestion } from './mention-suggestion'
-import type { MentionItem } from './mention-suggestion'
 import { CodeBlockView } from './code-block-view'
 import { createMarkdownPasteExtension } from './markdown-paste'
 import { createSubmitExtension } from './submit-shortcut'
 import { createFileUploadExtension } from './file-upload'
-import { createSkillSuggestionExtension } from './skill-suggestion'
 import { FileCardExtension } from './file-card'
 import { ImageView } from './image-view'
 
@@ -82,50 +78,6 @@ const ImageExtension = Image.extend({
   allowBase64: false,
 })
 
-/**
- * Tiptap's `SuggestionOptions['render']` return shape, re-exported so
- * `SkillSuggestionConfig.render` callers don't need to reach into
- * `@tiptap/suggestion` themselves. See skill-suggestion.ts `defaultRender`
- * and mention-suggestion.tsx's `render()` for the canonical shape
- * (onStart/onUpdate/onKeyDown/onExit).
- */
-export type SuggestionRenderer = ReturnType<
-  NonNullable<SuggestionOptions['render']>
->
-
-/** One candidate offered by the `/` skill suggestion popup. */
-export interface SkillSuggestionItem {
-  id: string
-  slug: string
-  name: string
-  description?: string
-}
-
-/**
- * Config for the chat composer's `/` skill-suggestion Tiptap extension
- * (2026-09-08 chat composer overhaul, task 3). The design spec (§6.1)
- * originally sketched `{ onQuery, getItems, onSelect }`; that sketch is
- * superseded by this shape per a recorded controller ruling, since tasks 11
- * and 12 (composer wiring, popup) both consume this exact interface.
- *
- * `items` is recomputed by the caller per query (no internal caching/query
- * state here — this extension only owns trigger detection + popup
- * lifecycle). `onSelect` performs the actual text insertion so the
- * committed message format (`/{slug} `) stays exactly what
- * `extractExplicitSkillSlugs` (skill-invocation.ts) already parses.
- */
-export interface SkillSuggestionConfig {
-  /** Filtered candidates to render, recomputed by the caller per query. */
-  items: (args: { query: string }) => SkillSuggestionItem[]
-  /** Commit — caller inserts the literal `/slug ` text into the editor. */
-  onSelect: (
-    item: SkillSuggestionItem,
-    range: { from: number; to: number },
-  ) => void
-  /** Optional: render the popup. If omitted, a minimal built-in list is used. */
-  render?: () => SuggestionRenderer
-}
-
 export interface EditorExtensionsOptions {
   editable: boolean
   placeholder?: string
@@ -136,28 +88,6 @@ export interface EditorExtensionsOptions {
   >
   /** When true, bare Enter also submits (chat-style). Default false. */
   submitOnEnter?: boolean
-  /**
-   * When true, append @tiptap/extension-text-align (heading + paragraph).
-   * Opt-in so non-chat consumers keep an unchanged extension set.
-   * Added for the chat composer overhaul (2026-09-08 spec).
-   */
-  textAlign?: boolean
-  /**
-   * Restricts what the `@` popup offers. Omitted → all types (members,
-   * agents, issues, @all), which is what issues / comments / create-issue
-   * expect. The chat composer passes ['member']: chat's `@` was members-only
-   * before the Tiptap migration and the team chose to keep it that way
-   * (2026-09-08 spec §12).
-   */
-  mentionTypes?: readonly MentionItem['type'][]
-  /**
-   * When present (and `editable`), append a `/` slash-command suggestion
-   * extension. Opt-in so non-chat consumers (issues, comments, create-issue)
-   * keep an unchanged extension set. Added for the chat composer overhaul
-   * (2026-09-08 spec, task 3) to replace the old textarea-cursor-math
-   * `/skill` detection with a proper Tiptap suggestion plugin.
-   */
-  skillSuggestion?: SkillSuggestionConfig
 }
 
 export function createEditorExtensions(
@@ -190,18 +120,10 @@ export function createEditorExtensions(
     BaseMentionExtension.configure({
       HTMLAttributes: { class: 'mention' },
       ...(editable && options.queryClient
-        ? {
-            suggestion: createMentionSuggestion(options.queryClient, {
-              types: options.mentionTypes,
-            }),
-          }
+        ? { suggestion: createMentionSuggestion(options.queryClient) }
         : {}),
     }),
   ]
-
-  if (options.textAlign) {
-    extensions.push(TextAlign.configure({ types: ['heading', 'paragraph'] }))
-  }
 
   if (editable) {
     extensions.push(
@@ -219,10 +141,6 @@ export function createEditorExtensions(
       ),
       createFileUploadExtension(options.onUploadFileRef!),
     )
-
-    if (options.skillSuggestion) {
-      extensions.push(createSkillSuggestionExtension(options.skillSuggestion))
-    }
   }
 
   return extensions

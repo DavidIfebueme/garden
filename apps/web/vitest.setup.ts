@@ -1,8 +1,16 @@
 import '@testing-library/jest-dom/vitest'
 import './src/bones/registry'
 
-// JSDOM polyfills — cmdk uses ResizeObserver; /ui's use-mobile hook
-// reads window.matchMedia. Neither ships with JSDOM so we stub them.
+// JSDOM polyfills — cmdk uses ResizeObserver and scrolls its selected item
+// into view; /ui's use-mobile hook reads window.matchMedia. None of the three
+// ship with JSDOM so we stub them.
+if (
+  typeof Element !== 'undefined' &&
+  !('scrollIntoView' in Element.prototype)
+) {
+  Element.prototype.scrollIntoView = function scrollIntoView(): void {}
+}
+
 if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = class {
     observe(): void {}

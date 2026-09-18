@@ -27,19 +27,15 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
-import type { Editor } from '@tiptap/core'
 import { cn } from '@garden/ui/lib/utils'
 import type { UploadResult } from '@garden/app-state/hooks/use-file-upload'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  createEditorExtensions,
-  type SkillSuggestionConfig,
-} from './extensions'
-import type { MentionItem } from './extensions/mention-suggestion'
+import { createEditorExtensions } from './extensions'
 import { uploadAndInsertFile } from './extensions/file-upload'
 import { preprocessMarkdown } from './utils/preprocess'
 import { openLink, isMentionHref } from './utils/link-handler'
@@ -77,32 +73,6 @@ interface ContentEditorProps {
   showBubbleMenu?: boolean
   /** When true, bare Enter submits (chat-style). Mod-Enter always submits. */
   submitOnEnter?: boolean
-  /**
-   * Fired once when the Tiptap instance is created. Lets a consumer drive an
-   * external, always-visible toolbar from the live editor (the chat composer).
-   * Consumers that omit it are unaffected. Added 2026-09-08 (composer overhaul).
-   */
-  onEditorReady?: (editor: Editor) => void
-  /**
-   * When true, append @tiptap/extension-text-align (heading + paragraph).
-   * Forwarded to `createEditorExtensions`. Optional and undefined by default
-   * so the six pre-existing consumers (issues, comments, create-issue, etc.)
-   * keep their current extension set unchanged. Added 2026-09-08 (composer
-   * overhaul, task 11) alongside `mentionTypes` and `skillSuggestion`.
-   */
-  textAlign?: boolean
-  /**
-   * Restricts what the `@` mention popup offers (see
-   * `EditorExtensionsOptions.mentionTypes` in `./extensions`). Omitted →
-   * unchanged behavior (all types). The chat composer passes `['member']`.
-   */
-  mentionTypes?: readonly MentionItem['type'][]
-  /**
-   * Enables the `/` skill-suggestion popup extension (see
-   * `EditorExtensionsOptions.skillSuggestion`). Omitted → unchanged behavior
-   * (no slash-command extension). Only the chat composer supplies this.
-   */
-  skillSuggestion?: SkillSuggestionConfig
 }
 
 interface ContentEditorRef {
@@ -132,10 +102,6 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       onUploadFile,
       showBubbleMenu = true,
       submitOnEnter = false,
-      onEditorReady,
-      textAlign,
-      mentionTypes,
-      skillSuggestion,
     },
     ref,
   ) {
@@ -144,7 +110,6 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     const onSubmitRef = useRef(onSubmit)
     const onBlurRef = useRef(onBlur)
     const onUploadFileRef = useRef(onUploadFile)
-    const onEditorReadyRef = useRef(onEditorReady)
     const prevContentRef = useRef(defaultValue)
 
     // Keep refs in sync without recreating editor
@@ -152,9 +117,38 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     onSubmitRef.current = onSubmit
     onBlurRef.current = onBlur
     onUploadFileRef.current = onUploadFile
-    onEditorReadyRef.current = onEditorReady
 
     const queryClient = useQueryClient()
+
+    /**
+     * Built once per real config change, not once per render.
+     *
+     * Before: this array was constructed inline in the `useEditor` call below.
+     * `useEditor` is called with no dependency list, so on every render
+     * `EditorInstanceManager.onRender` (checked against the installed
+     * `@tiptap/react` 3.22.4) compared the incoming extensions element by
+     * element by identity, always missed, and called `editor.setOptions()` —
+     * which in `@tiptap/core` 3.22.4 runs `view.setProps(editorProps)` plus
+     * `view.updateState(state)`. So a full ProseMirror view update rode along
+     * with every render of every consumer, including the per-keystroke ones.
+     *
+     * After: a stable array identity lets that comparison pass, so the view is
+     * only rebuilt when something in the config genuinely changed. The deps
+     * are the whole option set; the three refs are stable by construction and
+     * are deliberately not listed.
+     */
+    const extensions = useMemo(
+      () =>
+        createEditorExtensions({
+          editable,
+          placeholder: placeholderText,
+          queryClient,
+          onSubmitRef,
+          onUploadFileRef,
+          submitOnEnter,
+        }),
+      [editable, placeholderText, queryClient, submitOnEnter],
+    )
 
     const editor = useEditor({
       immediatelyRender: false,
@@ -164,20 +158,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       editable,
       content: defaultValue ? preprocessMarkdown(defaultValue) : '',
       contentType: defaultValue ? 'markdown' : undefined,
-      extensions: createEditorExtensions({
-        editable,
-        placeholder: placeholderText,
-        queryClient,
-        onSubmitRef,
-        onUploadFileRef,
-        submitOnEnter,
-        textAlign,
-        mentionTypes,
-        skillSuggestion,
-      }),
-      onCreate: ({ editor: ed }) => {
-        onEditorReadyRef.current?.(ed)
-      },
+      extensions,
       onUpdate: ({ editor: ed }) => {
         if (!onUpdateRef.current) return
         if (debounceRef.current) clearTimeout(debounceRef.current)
