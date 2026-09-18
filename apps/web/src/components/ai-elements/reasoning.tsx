@@ -220,37 +220,32 @@ export type ReasoningContentProps = ComponentProps<
 const streamdownPlugins = { cjk, code, math, mermaid }
 
 /**
- * Split reasoning text into the beats the tree renders as branches.
+ * One branch of the reasoning tree, rendered in place of every paragraph in
+ * the summary.
  *
- * Before: the whole summary went through Streamdown as one markdown blob, so it
- * read as an undifferentiated grey paragraph under the trigger. The design draws
- * each beat as its own branch off a vertical trunk, which needs one element per
- * beat.
+ * Before: `ReasoningContent` split the text on newlines and gave each line its
+ * own `<Streamdown>`. A 40-line summary meant 40 markdown pipelines, each with
+ * the cjk/code/math/mermaid plugins attached, and all of them re-rendered on
+ * every streamed token because the split re-ran whenever `children` changed.
  *
- * Models emit these summaries as short lines separated by single or blank line
- * breaks, so splitting on newlines and dropping the blanks recovers the beats
- * without parsing markdown. Each beat is still rendered through Streamdown, so
- * inline emphasis, code spans and links survive the split, and a half-streamed
- * trailing line renders as its own (growing) branch.
- */
-function splitReasoningBeats(text: string) {
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-}
-
-/**
- * One branch of the reasoning tree.
+ * After: a single `<Streamdown>` parses the whole summary and this component
+ * is handed to it as the `p` renderer, so the branches come out of the one
+ * parse. Streamdown splits its input into blocks and memoizes them, so a
+ * streamed token only re-parses the tail block — and streamdown 2.6.0
+ * (vercel/streamdown#584) is what makes that memoization trustworthy when a
+ * block is rewritten to the same length, which is exactly the shape a rewritten
+ * reasoning beat has.
  *
  * The connector is two absolutely positioned spans rather than an SVG so it
  * inherits `--border` and stays crisp at any zoom: the first draws the elbow
  * (trunk from the row's top down to its vertical centre, then a rounded turn
  * into the text), the second continues the trunk from that centre to the row's
- * bottom so consecutive rows join up. The continuation is hidden on the last row
- * so the trunk terminates at the final elbow instead of trailing into nothing.
+ * bottom so consecutive rows join up. The continuation is hidden on the last
+ * row so the trunk terminates at the final elbow instead of trailing into
+ * nothing — `last:` works here because Streamdown renders each block's element
+ * directly into the content container, making these real siblings.
  */
-function ReasoningBeat({ children }: { children: string }) {
+function ReasoningBeat({ children }: ComponentProps<'p'>) {
   return (
     <div className="group/reasoning-beat relative py-1.5 pl-10">
       <span
@@ -261,34 +256,28 @@ function ReasoningBeat({ children }: { children: string }) {
         aria-hidden
         className="pointer-events-none absolute bottom-0 left-6 top-1/2 w-px bg-border group-last/reasoning-beat:hidden"
       />
-      <Streamdown className="[&_p]:my-0" plugins={streamdownPlugins}>
-        {children}
-      </Streamdown>
+      {children}
     </div>
   )
 }
 
-export const ReasoningContent = memo(
-  ({ className, children, ...props }: ReasoningContentProps) => {
-    const beats = useMemo(() => splitReasoningBeats(children), [children])
+const reasoningComponents = { p: ReasoningBeat }
 
-    return (
-      <CollapsibleContent
-        className={cn(
-          'mt-1 text-sm',
-          'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
-          className,
-        )}
-        {...props}
-      >
-        {beats.map((beat, index) => (
-          // Beats are positional and rewritten wholesale as the summary
-          // streams, so the index is the stable identity here.
-          <ReasoningBeat key={index}>{beat}</ReasoningBeat>
-        ))}
-      </CollapsibleContent>
-    )
-  },
+export const ReasoningContent = memo(
+  ({ className, children, ...props }: ReasoningContentProps) => (
+    <CollapsibleContent
+      className={cn(
+        'mt-1 text-sm',
+        'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
+        className,
+      )}
+      {...props}
+    >
+      <Streamdown components={reasoningComponents} plugins={streamdownPlugins}>
+        {children}
+      </Streamdown>
+    </CollapsibleContent>
+  ),
 )
 
 Reasoning.displayName = 'Reasoning'
