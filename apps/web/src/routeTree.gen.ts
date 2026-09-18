@@ -48,6 +48,9 @@ import { Route as ApiInboxMarkAllReadRouteImport } from './routes/api/inbox/mark
 import { Route as ApiInboxArchiveCompletedRouteImport } from './routes/api/inbox/archive-completed'
 import { Route as ApiInboxArchiveAllReadRouteImport } from './routes/api/inbox/archive-all-read'
 import { Route as ApiInboxArchiveAllRouteImport } from './routes/api/inbox/archive-all'
+import { Route as ApiGmailSendRouteImport } from './routes/api/gmail/send'
+import { Route as ApiGmailMessagesRouteImport } from './routes/api/gmail/messages'
+import { Route as ApiGmailDraftsRouteImport } from './routes/api/gmail/drafts'
 import { Route as ApiGithubSetupRouteImport } from './routes/api/github/setup'
 import { Route as ApiGithubInstallRouteImport } from './routes/api/github/install'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api/github/callback'
@@ -102,6 +105,7 @@ import { Route as ApiIssuesIdCancelRouteImport } from './routes/api/issues/$id/c
 import { Route as ApiIssuesIdActiveRunRouteImport } from './routes/api/issues/$id/active-run'
 import { Route as ApiInboxIdReadRouteImport } from './routes/api/inbox/$id/read'
 import { Route as ApiInboxIdArchiveRouteImport } from './routes/api/inbox/$id/archive'
+import { Route as ApiGmailDraftsDraftIdRouteImport } from './routes/api/gmail/drafts/$draftId'
 import { Route as ApiExecutorOauthStartRouteImport } from './routes/api/executor/oauth/start'
 import { Route as ApiDocumentsIdVersionsRouteImport } from './routes/api/documents/$id/versions'
 import { Route as ApiDocumentsIdMetadataRouteImport } from './routes/api/documents/$id/metadata'
@@ -333,6 +337,21 @@ const ApiInboxArchiveAllRoute = ApiInboxArchiveAllRouteImport.update({
   id: '/archive-all',
   path: '/archive-all',
   getParentRoute: () => ApiInboxRoute,
+} as any)
+const ApiGmailSendRoute = ApiGmailSendRouteImport.update({
+  id: '/api/gmail/send',
+  path: '/api/gmail/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGmailMessagesRoute = ApiGmailMessagesRouteImport.update({
+  id: '/api/gmail/messages',
+  path: '/api/gmail/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGmailDraftsRoute = ApiGmailDraftsRouteImport.update({
+  id: '/api/gmail/drafts',
+  path: '/api/gmail/drafts',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGithubSetupRoute = ApiGithubSetupRouteImport.update({
   id: '/api/github/setup',
@@ -617,6 +636,11 @@ const ApiInboxIdArchiveRoute = ApiInboxIdArchiveRouteImport.update({
   path: '/$id/archive',
   getParentRoute: () => ApiInboxRoute,
 } as any)
+const ApiGmailDraftsDraftIdRoute = ApiGmailDraftsDraftIdRouteImport.update({
+  id: '/$draftId',
+  path: '/$draftId',
+  getParentRoute: () => ApiGmailDraftsRoute,
+} as any)
 const ApiExecutorOauthStartRoute = ApiExecutorOauthStartRouteImport.update({
   id: '/api/executor/oauth/start',
   path: '/api/executor/oauth/start',
@@ -861,6 +885,9 @@ export interface FileRoutesByFullPath {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/install': typeof ApiGithubInstallRoute
   '/api/github/setup': typeof ApiGithubSetupRoute
+  '/api/gmail/drafts': typeof ApiGmailDraftsRouteWithChildren
+  '/api/gmail/messages': typeof ApiGmailMessagesRoute
+  '/api/gmail/send': typeof ApiGmailSendRoute
   '/api/inbox/archive-all': typeof ApiInboxArchiveAllRoute
   '/api/inbox/archive-all-read': typeof ApiInboxArchiveAllReadRoute
   '/api/inbox/archive-completed': typeof ApiInboxArchiveCompletedRoute
@@ -895,6 +922,7 @@ export interface FileRoutesByFullPath {
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
   '/api/documents/$id/versions': typeof ApiDocumentsIdVersionsRoute
   '/api/executor/oauth/start': typeof ApiExecutorOauthStartRoute
+  '/api/gmail/drafts/$draftId': typeof ApiGmailDraftsDraftIdRoute
   '/api/inbox/$id/archive': typeof ApiInboxIdArchiveRoute
   '/api/inbox/$id/read': typeof ApiInboxIdReadRoute
   '/api/issues/$id/active-run': typeof ApiIssuesIdActiveRunRoute
@@ -984,6 +1012,9 @@ export interface FileRoutesByTo {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/install': typeof ApiGithubInstallRoute
   '/api/github/setup': typeof ApiGithubSetupRoute
+  '/api/gmail/drafts': typeof ApiGmailDraftsRouteWithChildren
+  '/api/gmail/messages': typeof ApiGmailMessagesRoute
+  '/api/gmail/send': typeof ApiGmailSendRoute
   '/api/inbox/archive-all': typeof ApiInboxArchiveAllRoute
   '/api/inbox/archive-all-read': typeof ApiInboxArchiveAllReadRoute
   '/api/inbox/archive-completed': typeof ApiInboxArchiveCompletedRoute
@@ -1018,6 +1049,7 @@ export interface FileRoutesByTo {
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
   '/api/documents/$id/versions': typeof ApiDocumentsIdVersionsRoute
   '/api/executor/oauth/start': typeof ApiExecutorOauthStartRoute
+  '/api/gmail/drafts/$draftId': typeof ApiGmailDraftsDraftIdRoute
   '/api/inbox/$id/archive': typeof ApiInboxIdArchiveRoute
   '/api/inbox/$id/read': typeof ApiInboxIdReadRoute
   '/api/issues/$id/active-run': typeof ApiIssuesIdActiveRunRoute
@@ -1114,6 +1146,9 @@ export interface FileRoutesById {
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/install': typeof ApiGithubInstallRoute
   '/api/github/setup': typeof ApiGithubSetupRoute
+  '/api/gmail/drafts': typeof ApiGmailDraftsRouteWithChildren
+  '/api/gmail/messages': typeof ApiGmailMessagesRoute
+  '/api/gmail/send': typeof ApiGmailSendRoute
   '/api/inbox/archive-all': typeof ApiInboxArchiveAllRoute
   '/api/inbox/archive-all-read': typeof ApiInboxArchiveAllReadRoute
   '/api/inbox/archive-completed': typeof ApiInboxArchiveCompletedRoute
@@ -1148,6 +1183,7 @@ export interface FileRoutesById {
   '/api/documents/$id/metadata': typeof ApiDocumentsIdMetadataRoute
   '/api/documents/$id/versions': typeof ApiDocumentsIdVersionsRoute
   '/api/executor/oauth/start': typeof ApiExecutorOauthStartRoute
+  '/api/gmail/drafts/$draftId': typeof ApiGmailDraftsDraftIdRoute
   '/api/inbox/$id/archive': typeof ApiInboxIdArchiveRoute
   '/api/inbox/$id/read': typeof ApiInboxIdReadRoute
   '/api/issues/$id/active-run': typeof ApiIssuesIdActiveRunRoute
@@ -1243,6 +1279,9 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/install'
     | '/api/github/setup'
+    | '/api/gmail/drafts'
+    | '/api/gmail/messages'
+    | '/api/gmail/send'
     | '/api/inbox/archive-all'
     | '/api/inbox/archive-all-read'
     | '/api/inbox/archive-completed'
@@ -1277,6 +1316,7 @@ export interface FileRouteTypes {
     | '/api/documents/$id/metadata'
     | '/api/documents/$id/versions'
     | '/api/executor/oauth/start'
+    | '/api/gmail/drafts/$draftId'
     | '/api/inbox/$id/archive'
     | '/api/inbox/$id/read'
     | '/api/issues/$id/active-run'
@@ -1366,6 +1406,9 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/install'
     | '/api/github/setup'
+    | '/api/gmail/drafts'
+    | '/api/gmail/messages'
+    | '/api/gmail/send'
     | '/api/inbox/archive-all'
     | '/api/inbox/archive-all-read'
     | '/api/inbox/archive-completed'
@@ -1400,6 +1443,7 @@ export interface FileRouteTypes {
     | '/api/documents/$id/metadata'
     | '/api/documents/$id/versions'
     | '/api/executor/oauth/start'
+    | '/api/gmail/drafts/$draftId'
     | '/api/inbox/$id/archive'
     | '/api/inbox/$id/read'
     | '/api/issues/$id/active-run'
@@ -1495,6 +1539,9 @@ export interface FileRouteTypes {
     | '/api/github/callback'
     | '/api/github/install'
     | '/api/github/setup'
+    | '/api/gmail/drafts'
+    | '/api/gmail/messages'
+    | '/api/gmail/send'
     | '/api/inbox/archive-all'
     | '/api/inbox/archive-all-read'
     | '/api/inbox/archive-completed'
@@ -1529,6 +1576,7 @@ export interface FileRouteTypes {
     | '/api/documents/$id/metadata'
     | '/api/documents/$id/versions'
     | '/api/executor/oauth/start'
+    | '/api/gmail/drafts/$draftId'
     | '/api/inbox/$id/archive'
     | '/api/inbox/$id/read'
     | '/api/issues/$id/active-run'
@@ -1605,6 +1653,9 @@ export interface RootRouteChildren {
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
   ApiGithubInstallRoute: typeof ApiGithubInstallRoute
   ApiGithubSetupRoute: typeof ApiGithubSetupRoute
+  ApiGmailDraftsRoute: typeof ApiGmailDraftsRouteWithChildren
+  ApiGmailMessagesRoute: typeof ApiGmailMessagesRoute
+  ApiGmailSendRoute: typeof ApiGmailSendRoute
   ApiInternalCapabilitySyncRoute: typeof ApiInternalCapabilitySyncRoute
   ApiOauthCallbackRoute: typeof ApiOauthCallbackRoute
   ApiRunsIdRoute: typeof ApiRunsIdRoute
@@ -1891,6 +1942,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/inbox/archive-all'
       preLoaderRoute: typeof ApiInboxArchiveAllRouteImport
       parentRoute: typeof ApiInboxRoute
+    }
+    '/api/gmail/send': {
+      id: '/api/gmail/send'
+      path: '/api/gmail/send'
+      fullPath: '/api/gmail/send'
+      preLoaderRoute: typeof ApiGmailSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gmail/messages': {
+      id: '/api/gmail/messages'
+      path: '/api/gmail/messages'
+      fullPath: '/api/gmail/messages'
+      preLoaderRoute: typeof ApiGmailMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gmail/drafts': {
+      id: '/api/gmail/drafts'
+      path: '/api/gmail/drafts'
+      fullPath: '/api/gmail/drafts'
+      preLoaderRoute: typeof ApiGmailDraftsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/github/setup': {
       id: '/api/github/setup'
@@ -2269,6 +2341,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/inbox/$id/archive'
       preLoaderRoute: typeof ApiInboxIdArchiveRouteImport
       parentRoute: typeof ApiInboxRoute
+    }
+    '/api/gmail/drafts/$draftId': {
+      id: '/api/gmail/drafts/$draftId'
+      path: '/$draftId'
+      fullPath: '/api/gmail/drafts/$draftId'
+      preLoaderRoute: typeof ApiGmailDraftsDraftIdRouteImport
+      parentRoute: typeof ApiGmailDraftsRoute
     }
     '/api/executor/oauth/start': {
       id: '/api/executor/oauth/start'
@@ -2979,6 +3058,18 @@ const ApiCommentsIdRouteWithChildren = ApiCommentsIdRoute._addFileChildren(
   ApiCommentsIdRouteChildren,
 )
 
+interface ApiGmailDraftsRouteChildren {
+  ApiGmailDraftsDraftIdRoute: typeof ApiGmailDraftsDraftIdRoute
+}
+
+const ApiGmailDraftsRouteChildren: ApiGmailDraftsRouteChildren = {
+  ApiGmailDraftsDraftIdRoute: ApiGmailDraftsDraftIdRoute,
+}
+
+const ApiGmailDraftsRouteWithChildren = ApiGmailDraftsRoute._addFileChildren(
+  ApiGmailDraftsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -3018,6 +3109,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubCallbackRoute: ApiGithubCallbackRoute,
   ApiGithubInstallRoute: ApiGithubInstallRoute,
   ApiGithubSetupRoute: ApiGithubSetupRoute,
+  ApiGmailDraftsRoute: ApiGmailDraftsRouteWithChildren,
+  ApiGmailMessagesRoute: ApiGmailMessagesRoute,
+  ApiGmailSendRoute: ApiGmailSendRoute,
   ApiInternalCapabilitySyncRoute: ApiInternalCapabilitySyncRoute,
   ApiOauthCallbackRoute: ApiOauthCallbackRoute,
   ApiRunsIdRoute: ApiRunsIdRoute,

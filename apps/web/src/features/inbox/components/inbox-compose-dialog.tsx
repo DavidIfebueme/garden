@@ -5,8 +5,16 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
-import { Image as ImageIcon, Link, Paperclip, Trash2, X } from 'lucide-react'
+import {
+  Image as ImageIcon,
+  Link,
+  Loader2,
+  Paperclip,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   Dialog,
@@ -28,6 +36,15 @@ import { QuickEmojiPicker } from '@garden/ui/components/common/quick-emoji-picke
 import { cn } from '@garden/ui/lib/utils'
 import { toast } from 'sonner'
 import {
+  ApiError,
+  deleteGmailDraft,
+  getGmailDraft,
+  saveGmailDraft,
+  sendGmail,
+} from '@/lib/api'
+import { executorOAuthStartUrl } from '@/lib/api/executor'
+import type { GmailDraftDetail } from '@/lib/api/gmail-contract'
+import {
   ComposeMessageBody,
   normalizeHref,
   type ComposeMessageBodyRef,
@@ -48,205 +65,375 @@ const AVATAR_TONES = [
 type InboxComposeDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  draftId?: string | null
 }
 
 export function InboxComposeDialog({
   open,
   onOpenChange,
+  draftId,
 }: InboxComposeDialogProps) {
-  const bodyRef = useRef<ComposeMessageBodyRef>(null)
-  const [to, setTo] = useState('')
-  const [cc, setCc] = useState<string[]>([])
-  const [bcc, setBcc] = useState<string[]>([])
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
-  const [showCc, setShowCc] = useState(false)
-  const [showBcc, setShowBcc] = useState(false)
-  const [attachments, setAttachments] = useState<File[]>([])
-
-  const resetCompose = () => {
-    setTo('')
-    setCc([])
-    setBcc([])
-    setSubject('')
-    setBody('')
-    setShowCc(false)
-    setShowBcc(false)
-    setAttachments([])
-    bodyRef.current?.clear()
-  }
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    onOpenChange(nextOpen)
-    if (!nextOpen) resetCompose()
-  }
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!to.trim() || !body.trim()) return
-    toast.info('Email sending is not connected yet.')
-  }
-
-  const handleSaveDraft = () => {
-    if (!to.trim() && !body.trim() && !subject.trim()) return
-    toast.info('Draft saving is not connected yet.')
-  }
-
-  const addAttachment = (file: File) => {
-    setAttachments((current) => [...current, file])
-  }
-
-  const insertText = (snippet: string) => {
-    bodyRef.current?.insertText(snippet)
-  }
-
-  const insertLink = (text: string, href: string) => {
-    bodyRef.current?.insertLink(text, href)
-  }
-
-  const canSend = to.trim().length > 0 && body.trim().length > 0
-
+  const editingId = open && draftId ? draftId : null
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {editingId ? (
+        <DraftLoader
+          key={editingId}
+          draftId={editingId}
+          onOpenChange={onOpenChange}
+        />
+      ) : open ? (
+        <ComposeForm key="new" initial={null} onOpenChange={onOpenChange} />
+      ) : null}
+    </Dialog>
+  )
+}
+
+function DraftLoader({
+  draftId,
+  onOpenChange,
+}: {
+  draftId: string
+  onOpenChange: (open: boolean) => void
+}) {
+  const draftQuery = useQuery({
+    queryKey: ['gmail', 'draft', draftId],
+    queryFn: () => getGmailDraft(draftId),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  })
+
+  if (draftQuery.isPending) {
+    return (
       <DialogContent
         showCloseButton={false}
         className="gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
-        <DialogTitle className="sr-only">Start email</DialogTitle>
+        <DialogTitle className="sr-only">Loading draft</DialogTitle>
         <DialogDescription className="sr-only">
-          Compose a new email with recipients, subject, and message.
+          The saved Gmail draft is loading.
         </DialogDescription>
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
-          <div className="space-y-1 px-4 py-3">
-            <ComposeAddressRow
-              id="inbox-compose-to"
-              label="To:"
-              placeholder="Enter an email"
-              type="email"
-              value={to}
-              onChange={setTo}
-              trailing={
-                <div className="flex shrink-0 items-center gap-3">
-                  {!showCc ? (
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowCc(true)}
-                    >
-                      Cc
-                    </button>
-                  ) : null}
-                  {!showBcc ? (
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowBcc(true)}
-                    >
-                      Bcc
-                    </button>
-                  ) : null}
-                </div>
-              }
-            />
-            {showCc ? (
-              <ComposeEmailChipRow
-                id="inbox-compose-cc"
-                label="Cc:"
-                emails={cc}
-                onEmailsChange={setCc}
-              />
-            ) : null}
-            {showBcc ? (
-              <ComposeEmailChipRow
-                id="inbox-compose-bcc"
-                label="Bcc:"
-                emails={bcc}
-                onEmailsChange={setBcc}
-              />
-            ) : null}
-            <ComposeAddressRow
-              id="inbox-compose-subject"
-              label="Subject:"
-              placeholder="Add a subject"
-              value={subject}
-              onChange={setSubject}
-            />
-          </div>
-
-          <ComposeMessageBody
-            ref={bodyRef}
-            placeholder="Write your message here..."
-            onChange={setBody}
-          />
-
-          {attachments.length > 0 ? (
-            <ul className="border-t px-4 py-2 text-xs text-muted-foreground">
-              {attachments.map((file) => (
-                <li
-                  key={`${file.name}-${file.lastModified}`}
-                  className="truncate"
-                >
-                  {file.name}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Button
-                type="submit"
-                disabled={!canSend}
-                className="cursor-pointer py-5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
-              >
-                Send message
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="cursor-pointer px-5 py-5"
-                onClick={handleSaveDraft}
-              >
-                Save to draft
-              </Button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <QuickEmojiPicker
-                align="end"
-                className="rounded-lg"
-                onSelect={(emoji) => insertText(emoji)}
-              />
-              <ComposeLinkButton
-                onBeforeOpen={() => bodyRef.current?.saveSelection()}
-                onInsert={insertLink}
-              />
-              <ComposeFileButton
-                icon={Paperclip}
-                label="Attach document"
-                onSelect={addAttachment}
-              />
-              <ComposeFileButton
-                accept="image/*"
-                icon={ImageIcon}
-                label="Attach image"
-                onSelect={addAttachment}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground"
-                aria-label="Discard email"
-                onClick={() => handleOpenChange(false)}
-              >
-                <Trash2 />
-              </Button>
-            </div>
-          </div>
-        </form>
+        <div className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Loading draft...
+        </div>
       </DialogContent>
-    </Dialog>
+    )
+  }
+
+  if (draftQuery.isError) {
+    const missing =
+      draftQuery.error instanceof ApiError && draftQuery.error.status === 409
+    return (
+      <DialogContent
+        showCloseButton={false}
+        className="gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      >
+        <DialogTitle className="sr-only">Draft unavailable</DialogTitle>
+        <DialogDescription className="sr-only">
+          The saved Gmail draft could not be loaded.
+        </DialogDescription>
+        <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            {missing
+              ? 'Gmail is not connected, so the draft cannot be loaded.'
+              : 'The draft could not be loaded.'}
+          </p>
+          {missing ? (
+            <ConnectGmailButton label="Connect Gmail" />
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Close
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    )
+  }
+
+  return (
+    <ComposeForm
+      key={draftQuery.data.draftId}
+      initial={draftQuery.data}
+      onOpenChange={onOpenChange}
+    />
   )
+}
+
+function ConnectGmailButton({ label }: { label: string }) {
+  return (
+    <Button
+      type="button"
+      onClick={() => {
+        window.location.assign(executorOAuthStartUrl('google_gmail', 'user'))
+      }}
+    >
+      {label}
+    </Button>
+  )
+}
+
+function ComposeForm({
+  initial,
+  onOpenChange,
+}: {
+  initial: GmailDraftDetail | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  const bodyRef = useRef<ComposeMessageBodyRef>(null)
+  const [to, setTo] = useState<string[]>(initial ? [...initial.to] : [])
+  const [cc, setCc] = useState<string[]>(initial ? [...initial.cc] : [])
+  const [bcc, setBcc] = useState<string[]>(initial ? [...initial.bcc] : [])
+  const [subject, setSubject] = useState(initial?.subject ?? '')
+  const [body, setBody] = useState(initial?.bodyText ?? '')
+  const [showCc, setShowCc] = useState((initial?.cc.length ?? 0) > 0)
+  const [showBcc, setShowBcc] = useState((initial?.bcc.length ?? 0) > 0)
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(
+    initial?.draftId ?? null,
+  )
+  const [needsConnect, setNeedsConnect] = useState(false)
+
+  const invalidateGmail = () => {
+    queryClient.invalidateQueries({ queryKey: ['gmail'] })
+  }
+
+  const mutationError = (error: unknown, fallback: string) => {
+    if (error instanceof ApiError && error.status === 409) {
+      setNeedsConnect(true)
+      return
+    }
+    toast.error(error instanceof Error ? error.message : fallback)
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: saveGmailDraft,
+    onSuccess: (draft) => {
+      setSavedDraftId(draft.draftId)
+      setNeedsConnect(false)
+      invalidateGmail()
+      toast.success('Draft saved to Gmail.')
+    },
+    onError: (error) => mutationError(error, 'Could not save the draft.'),
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: sendGmail,
+    onSuccess: () => {
+      setNeedsConnect(false)
+      invalidateGmail()
+      toast.success('Message sent.')
+      onOpenChange(false)
+    },
+    onError: (error) => mutationError(error, 'Could not send the message.'),
+  })
+
+  const discardMutation = useMutation({
+    mutationFn: deleteGmailDraft,
+    onSuccess: () => {
+      invalidateGmail()
+      onOpenChange(false)
+    },
+    onError: (error) => mutationError(error, 'Could not discard the draft.'),
+  })
+
+  const pending =
+    saveMutation.isPending ||
+    sendMutation.isPending ||
+    discardMutation.isPending
+  const draftId = savedDraftId
+
+  const buildInput = () => ({
+    ...(draftId ? { draftId } : {}),
+    to,
+    cc,
+    bcc,
+    subject,
+    body,
+  })
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (pending) return
+    if (to.length === 0 || !body.trim()) return
+    sendMutation.mutate(buildInput())
+  }
+
+  const handleSaveDraft = () => {
+    if (pending) return
+    if (to.length === 0 && !body.trim() && !subject.trim()) return
+    saveMutation.mutate({
+      ...(draftId ? { draftId } : {}),
+      to,
+      cc,
+      bcc,
+      subject,
+      body,
+    })
+  }
+
+  const handleDiscard = () => {
+    if (pending) return
+    if (draftId) {
+      discardMutation.mutate(draftId)
+      return
+    }
+    onOpenChange(false)
+  }
+
+  const canSend = to.length > 0 && body.trim().length > 0 && !pending
+
+  return (
+    <DialogContent
+      showCloseButton={false}
+      className="gap-0 overflow-hidden p-0 sm:max-w-2xl"
+    >
+      <DialogTitle className="sr-only">Start email</DialogTitle>
+      <DialogDescription className="sr-only">
+        Compose a new email with recipients, subject, and message.
+      </DialogDescription>
+      {needsConnect ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/50 px-4 py-2.5">
+          <p className="text-xs text-muted-foreground">
+            Gmail is not connected. Connect it to save drafts and send.
+          </p>
+          <ConnectGmailButton label="Connect Gmail" />
+        </div>
+      ) : null}
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
+        <div className="space-y-1 px-4 py-3">
+          <ComposeEmailChipRow
+            id="inbox-compose-to"
+            label="To:"
+            emails={to}
+            onEmailsChange={setTo}
+          />
+          {showCc ? (
+            <ComposeEmailChipRow
+              id="inbox-compose-cc"
+              label="Cc:"
+              emails={cc}
+              onEmailsChange={setCc}
+            />
+          ) : null}
+          {showBcc ? (
+            <ComposeEmailChipRow
+              id="inbox-compose-bcc"
+              label="Bcc:"
+              emails={bcc}
+              onEmailsChange={setBcc}
+            />
+          ) : null}
+          <ComposeAddressRow
+            id="inbox-compose-subject"
+            label="Subject:"
+            placeholder="Add a subject"
+            value={subject}
+            onChange={setSubject}
+            trailing={
+              <div className="flex shrink-0 items-center gap-3">
+                {!showCc ? (
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowCc(true)}
+                  >
+                    Cc
+                  </button>
+                ) : null}
+                {!showBcc ? (
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowBcc(true)}
+                  >
+                    Bcc
+                  </button>
+                ) : null}
+              </div>
+            }
+          />
+        </div>
+
+        <ComposeMessageBody
+          ref={bodyRef}
+          key={initial?.draftId ?? 'new'}
+          initialText={initial?.bodyText}
+          placeholder="Write your message here..."
+          onChange={setBody}
+        />
+
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Button
+              type="submit"
+              disabled={!canSend}
+              className="cursor-pointer py-5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+            >
+              {sendMutation.isPending ? 'Sending...' : 'Send message'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="cursor-pointer px-5 py-5"
+              disabled={pending}
+              onClick={handleSaveDraft}
+            >
+              {saveMutation.isPending ? 'Saving...' : 'Save to draft'}
+            </Button>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <QuickEmojiPicker
+              align="end"
+              className="rounded-lg"
+              onSelect={(emoji) => insertText(emoji)}
+            />
+            <ComposeLinkButton
+              onBeforeOpen={() => bodyRef.current?.saveSelection()}
+              onInsert={insertLink}
+            />
+            <ComposeFileButton
+              icon={Paperclip}
+              label="Attach document (not supported yet)"
+              disabled
+            />
+            <ComposeFileButton
+              icon={ImageIcon}
+              label="Attach image (not supported yet)"
+              disabled
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
+              aria-label="Discard email"
+              disabled={pending}
+              onClick={handleDiscard}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        </div>
+        <p className="px-4 pb-3 text-[11px] text-muted-foreground">
+          Attachments are not supported yet.
+        </p>
+      </form>
+    </DialogContent>
+  )
+
+  function insertText(snippet: string) {
+    bodyRef.current?.insertText(snippet)
+  }
+
+  function insertLink(text: string, href: string) {
+    bodyRef.current?.insertLink(text, href)
+  }
 }
 
 function ComposeAddressRow({
@@ -507,37 +694,31 @@ function ComposeLinkButton({
 }
 
 function ComposeFileButton({
-  accept,
   icon: Icon,
   label,
-  onSelect,
+  disabled,
 }: {
-  accept?: string
   icon: LucideIcon
   label: string
-  onSelect: (file: File) => void
+  disabled?: boolean
 }) {
+  if (disabled) {
+    return (
+      <span
+        title={label}
+        aria-label={label}
+        aria-disabled="true"
+        className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/40"
+      >
+        <Icon className="size-4" aria-hidden="true" />
+        <span className="sr-only">{label}</span>
+      </span>
+    )
+  }
   return (
-    <label
-      className={cn(
-        'relative inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-      )}
-    >
+    <label className="relative inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
       <Icon className="size-4" aria-hidden="true" />
       <span className="sr-only">{label}</span>
-      <input
-        type="file"
-        accept={accept}
-        aria-label={label}
-        className="absolute inset-0 cursor-pointer opacity-0"
-        onClick={(event) => {
-          event.currentTarget.value = ''
-        }}
-        onChange={(event) => {
-          const selected = event.currentTarget.files?.item(0)
-          if (selected) onSelect(selected)
-        }}
-      />
     </label>
   )
 }

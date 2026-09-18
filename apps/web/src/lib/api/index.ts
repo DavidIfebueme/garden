@@ -14,6 +14,7 @@ export * from './issues'
 export * from './workspace'
 export * from './skills'
 export * from './inbox'
+export * from './gmail'
 export * from './files'
 export * from './projects'
 export * from './connections'
@@ -28,6 +29,7 @@ import * as issues from './issues'
 import * as workspace from './workspace'
 import * as skills from './skills'
 import * as inbox from './inbox'
+import * as gmail from './gmail'
 import * as files from './files'
 import * as projects from './projects'
 import * as connections from './connections'
@@ -48,6 +50,7 @@ export const api = {
   ...workspace,
   ...skills,
   ...inbox,
+  ...gmail,
   ...files,
   ...projects,
   ...connections,
