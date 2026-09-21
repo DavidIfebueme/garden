@@ -111,7 +111,7 @@ describe('MailRepository Gmail sync ledger (integration)', () => {
   beforeAll(async () => {
     testDb = await startTestDb()
     await seedSyncFixture(testDb)
-  })
+  }, 300_000)
 
   afterAll(async () => {
     await testDb?.cleanup()

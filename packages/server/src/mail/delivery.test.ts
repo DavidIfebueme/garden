@@ -166,7 +166,7 @@ describe('MailDelivery (Postgres integration)', () => {
   beforeAll(async () => {
     testDb = await startTestDb()
     await seedDeliveryFixture(testDb)
-  })
+  }, 300_000)
 
   afterAll(async () => {
     await testDb?.cleanup()
