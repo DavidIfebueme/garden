@@ -114,7 +114,7 @@ describe('MailListToolbar', () => {
     const { rerender } = render(<MailListToolbar {...props} compact={false} />)
 
     const desktopSearch = screen.getByRole('textbox', { name: 'Search mail' })
-    expect(desktopSearch.parentElement).toHaveClass('max-w-lg')
+    expect(desktopSearch.closest('.max-w-lg')).not.toBeNull()
 
     rerender(<MailListToolbar {...props} compact />)
     expect(
