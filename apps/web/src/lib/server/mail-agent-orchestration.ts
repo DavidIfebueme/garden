@@ -34,7 +34,7 @@ import type { AppEnv } from './env'
 import { toChatThread } from './control-plane'
 
 /** Manual mail collaboration session could not be authorized or prepared. */
-export class MailAgentOrchestrationError extends Schema.TaggedErrorClass<MailAgentOrchestrationError>()(
+export class MailAgentOrchestrationError extends Schema.TaggedError<MailAgentOrchestrationError>()(
   'MailAgentOrchestrationError',
   {
     operation: Schema.String,

@@ -35,7 +35,7 @@ export type MailExecutorApprovalResult = {
 }
 
 /** Mail approval could not be authorized or delivered to Executor. */
-export class MailExecutorApprovalError extends Schema.TaggedErrorClass<MailExecutorApprovalError>()(
+export class MailExecutorApprovalError extends Schema.TaggedError<MailExecutorApprovalError>()(
   'MailExecutorApprovalError',
   {
     operation: Schema.String,

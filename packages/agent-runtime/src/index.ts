@@ -1,4 +1,10 @@
 export { AgentDO, ChatSubAgent } from './agent-do'
+export {
+  MailAgentConversationContext,
+  type MailAgentContextToken,
+  type MailAgentDraftToolCallContext,
+} from './agent-do'
+export type { MailAgentToolScope } from './mail-tool-scope'
 export { IssueRunSubAgent } from './issue-run-sub-agent'
 export { AutomationRunSubAgent } from './automation-run-sub-agent'
 export { BrainAuditSubAgent } from './brain-audit-sub-agent'

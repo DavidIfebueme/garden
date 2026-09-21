@@ -1,4 +1,6 @@
 import { setGardenLogLevel } from '@garden/observability/logger'
+import type { MailDeliveryWorkflowParams } from './mail-delivery-workflow'
+import type { GmailImportWorkflowParams } from './mail-import-workflow'
 
 type RequiredEnvBinding<Key extends keyof Env> = NonNullable<Env[Key]>
 
@@ -8,6 +10,7 @@ export type AppEnv = {
   BETTER_AUTH_SECRET: RequiredEnvBinding<'BETTER_AUTH_SECRET'>
   BETTER_AUTH_URL?: string
   AI: RequiredEnvBinding<'AI'>
+  EMAIL: RequiredEnvBinding<'EMAIL'>
   AI_GATEWAY_ID?: string
   BRAIN_FILES: RequiredEnvBinding<'BRAIN_FILES'>
   FILES: RequiredEnvBinding<'FILES'>
@@ -24,6 +27,8 @@ export type AppEnv = {
   AUTOMATION_TRIGGER: RequiredEnvBinding<'AUTOMATION_TRIGGER'>
   Sandbox: RequiredEnvBinding<'Sandbox'>
   RUN_WORKFLOW: RequiredEnvBinding<'RUN_WORKFLOW'>
+  MAIL_DELIVERY_WORKFLOW: Workflow<MailDeliveryWorkflowParams>
+  GMAIL_IMPORT_WORKFLOW: Workflow<GmailImportWorkflowParams>
   ENVIRONMENT?: 'development' | 'test' | 'staging' | 'production'
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
@@ -43,6 +48,10 @@ export type AppEnv = {
   DISCORD_PUBLIC_KEY?: string
   DISCORD_BOT_PERMISSIONS?: string
   RESEND_API_KEY?: string
+  CLOUDFLARE_MAIL_API_TOKEN?: string
+  CLOUDFLARE_MAIL_API_BASE_URL?: string
+  CLOUDFLARE_ACCOUNT_ID?: string
+  CLOUDFLARE_MAIL_WORKER_NAME?: string
   VITE_PUBLIC_POSTHOG_PROJECT_TOKEN?: string
   VITE_PUBLIC_POSTHOG_HOST?: string
 }

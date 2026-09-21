@@ -179,7 +179,7 @@ export const GmailApiOperation = Schema.Literals([
 ])
 export type GmailApiOperation = typeof GmailApiOperation.Type
 
-export class GmailApiError extends Schema.TaggedErrorClass<GmailApiError>()(
+export class GmailApiError extends Schema.TaggedError<GmailApiError>()(
   'GmailApiError',
   {
     operation: GmailApiOperation,

@@ -139,7 +139,7 @@ export interface DomainProviderIssue extends Schema.Schema.Type<
 > {}
 
 /** Provider or network request could not be completed. */
-export class MailDomainProviderRequestError extends Schema.TaggedErrorClass<MailDomainProviderRequestError>()(
+export class MailDomainProviderRequestError extends Schema.TaggedError<MailDomainProviderRequestError>()(
   'MailDomainProviderRequestError',
   {
     provider: ProviderKey,
@@ -150,7 +150,7 @@ export class MailDomainProviderRequestError extends Schema.TaggedErrorClass<Mail
 ) {}
 
 /** Provider rejected a syntactically valid provisioning operation. */
-export class MailDomainProviderRejectedError extends Schema.TaggedErrorClass<MailDomainProviderRejectedError>()(
+export class MailDomainProviderRejectedError extends Schema.TaggedError<MailDomainProviderRejectedError>()(
   'MailDomainProviderRejectedError',
   {
     provider: ProviderKey,
@@ -162,7 +162,7 @@ export class MailDomainProviderRejectedError extends Schema.TaggedErrorClass<Mai
 ) {}
 
 /** Provider resource referenced by Garden no longer exists. */
-export class MailDomainProviderNotFoundError extends Schema.TaggedErrorClass<MailDomainProviderNotFoundError>()(
+export class MailDomainProviderNotFoundError extends Schema.TaggedError<MailDomainProviderNotFoundError>()(
   'MailDomainProviderNotFoundError',
   {
     provider: ProviderKey,
@@ -178,7 +178,7 @@ export class MailDomainProviderNotFoundError extends Schema.TaggedErrorClass<Mai
 ) {}
 
 /** Provider response did not satisfy its documented or semantic contract. */
-export class MailDomainProviderResponseError extends Schema.TaggedErrorClass<MailDomainProviderResponseError>()(
+export class MailDomainProviderResponseError extends Schema.TaggedError<MailDomainProviderResponseError>()(
   'MailDomainProviderResponseError',
   {
     provider: ProviderKey,

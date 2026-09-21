@@ -59,7 +59,7 @@ export const MailDeliverySubmission = Schema.TaggedUnion({
 export type MailDeliverySubmission = typeof MailDeliverySubmission.Type
 
 /** Attachment bytes were absent, corrupt, or inconsistent with immutable metadata. */
-export class MailDeliveryContentError extends Schema.TaggedErrorClass<MailDeliveryContentError>()(
+export class MailDeliveryContentError extends Schema.TaggedError<MailDeliveryContentError>()(
   'MailDeliveryContentError',
   {
     draftId: DraftId,

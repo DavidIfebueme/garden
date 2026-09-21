@@ -9,7 +9,7 @@ import type { AppEnv } from './env'
 import { createRequestDbProvider } from './db'
 
 /** Request-scoped Hyperdrive setup failed before Garden Mail could run. */
-export class MailInboundDatabaseError extends Schema.TaggedErrorClass<MailInboundDatabaseError>()(
+export class MailInboundDatabaseError extends Schema.TaggedError<MailInboundDatabaseError>()(
   'MailInboundDatabaseError',
   {
     operation: Schema.String,

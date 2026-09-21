@@ -11,7 +11,7 @@ import { makeGmailClient, type GmailClientService } from '@garden/server/mail'
 
 export const GOOGLE_GMAIL_INTEGRATION = IntegrationSlug.make('google_gmail')
 
-export class GmailCredentialBridgeError extends Schema.TaggedErrorClass<GmailCredentialBridgeError>()(
+export class GmailCredentialBridgeError extends Schema.TaggedError<GmailCredentialBridgeError>()(
   'GmailCredentialBridgeError',
   {
     reason: Schema.Literals([

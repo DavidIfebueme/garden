@@ -42,12 +42,12 @@ export interface DraftAttachmentDescriptor extends Schema.Schema.Type<
   typeof DraftAttachmentDescriptor
 > {}
 
-export class DraftAttachmentValidationError extends Schema.TaggedErrorClass<DraftAttachmentValidationError>()(
+export class DraftAttachmentValidationError extends Schema.TaggedError<DraftAttachmentValidationError>()(
   'DraftAttachmentValidationError',
   { message: Schema.String },
 ) {}
 
-export class DraftAttachmentPersistenceError extends Schema.TaggedErrorClass<DraftAttachmentPersistenceError>()(
+export class DraftAttachmentPersistenceError extends Schema.TaggedError<DraftAttachmentPersistenceError>()(
   'DraftAttachmentPersistenceError',
   {
     operation: Schema.String,

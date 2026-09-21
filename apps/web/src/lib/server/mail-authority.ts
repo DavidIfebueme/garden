@@ -6,13 +6,13 @@ import { Effect, Schema } from 'effect'
 import type { AppRequestContext } from './context'
 
 /** Request did not carry an authenticated Garden member. */
-export class MailRequestUnauthorizedError extends Schema.TaggedErrorClass<MailRequestUnauthorizedError>()(
+export class MailRequestUnauthorizedError extends Schema.TaggedError<MailRequestUnauthorizedError>()(
   'MailRequestUnauthorizedError',
   { message: Schema.String },
 ) {}
 
 /** Authenticated member does not belong to the requested workspace. */
-export class MailRequestForbiddenError extends Schema.TaggedErrorClass<MailRequestForbiddenError>()(
+export class MailRequestForbiddenError extends Schema.TaggedError<MailRequestForbiddenError>()(
   'MailRequestForbiddenError',
   {
     workspaceId: WorkspaceId,
@@ -21,7 +21,7 @@ export class MailRequestForbiddenError extends Schema.TaggedErrorClass<MailReque
 ) {}
 
 /** Request-scoped auth or Hyperdrive access failed before mail could run. */
-export class MailRequestBoundaryError extends Schema.TaggedErrorClass<MailRequestBoundaryError>()(
+export class MailRequestBoundaryError extends Schema.TaggedError<MailRequestBoundaryError>()(
   'MailRequestBoundaryError',
   {
     operation: Schema.String,

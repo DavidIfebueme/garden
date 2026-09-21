@@ -30,7 +30,7 @@ export interface GmailOutboundAccount extends Schema.Schema.Type<
   typeof GmailOutboundAccount
 > {}
 
-export class GmailOutboundGatewayError extends Schema.TaggedErrorClass<GmailOutboundGatewayError>()(
+export class GmailOutboundGatewayError extends Schema.TaggedError<GmailOutboundGatewayError>()(
   'GmailOutboundGatewayError',
   {
     operation: Schema.String,

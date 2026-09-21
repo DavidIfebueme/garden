@@ -11,9 +11,11 @@ import {
   type PausedExecutionDeadline,
   type ResumeResponse,
 } from "@executor-js/execution/core";
+import type { ElicitationContext } from "@executor-js/sdk/core";
 import {
   PAUSED_APPROVAL_TIMEOUT_MS,
   formatMcpExecutionOutcome,
+  type BrowserApprovalOutcome,
   type PausedExecutionHooks,
   type ResumeFallbackOutcome,
 } from "@executor-js/host-mcp/tool-server";
@@ -73,6 +75,8 @@ export type McpSessionApprovalResult =
       readonly status: "ok";
       readonly text: string;
       readonly structured: Record<string, unknown>;
+      /** Immutable MCP resource whose session owns this paused execution. */
+      readonly resource: McpResource;
     }
   | McpSessionApprovalErrorResult;
 
@@ -129,6 +133,10 @@ export interface BuiltMcpServer {
 export interface BrowserApprovalStore {
   readonly takeResponse: (executionId: string) => Effect.Effect<ResumeResponse | null>;
   readonly waitForResponse: (executionId: string) => Effect.Effect<ResumeResponse | null>;
+  readonly completeOutcome: (
+    executionId: string,
+    outcome: BrowserApprovalOutcome,
+  ) => Effect.Effect<void>;
 }
 
 const SESSION_META_KEY = "session-meta";
@@ -141,6 +149,7 @@ const MCP_MESSAGE_HEADER = "cf-mcp-message";
 const MODEL_RESUME_FORWARD_TIMEOUT_MS = 10_000;
 const MCP_STREAM_REQS_KEY_PREFIX = "__mcp_stream_reqs__:";
 const approvalResponseKey = (executionId: string) => `approval-response:${executionId}`;
+const approvalOutcomeKey = (executionId: string) => `approval-outcome:${executionId}`;
 
 type JsonRpcRequestId = string | number;
 const JsonRpcRequestWithId = Schema.Struct({
@@ -232,6 +241,8 @@ export abstract class McpAgentSessionDOBase<
   private onStartPromise: Promise<void> | null = null;
   private lastActivityMs = 0;
   private approvalResponses = new Map<string, ResumeResponse>();
+  private approvalOutcomes = new Map<string, BrowserApprovalOutcome>();
+  private approvalOutcomeWaiters = new Map<string, Deferred.Deferred<BrowserApprovalOutcome>>();
   private approvalWaiters = new Map<string, Deferred.Deferred<ResumeResponse>>();
   private pendingApprovalLeases = new Map<string, PendingApprovalLease>();
 
@@ -311,6 +322,7 @@ export abstract class McpAgentSessionDOBase<
   protected readonly browserApprovalStore: BrowserApprovalStore = {
     takeResponse: (executionId) => this.takeApprovalResponse(executionId),
     waitForResponse: (executionId) => this.waitForApprovalResponse(executionId),
+    completeOutcome: (executionId, outcome) => this.completeApprovalOutcome(executionId, outcome),
   };
 
   protected readonly modelResumeFallback = (
@@ -327,6 +339,19 @@ export abstract class McpAgentSessionDOBase<
     onResumeStarted: (executionId) => this.beginPendingApprovalResume(executionId),
     onResumeSettled: (executionId) => this.finishPendingApprovalResume(executionId),
   };
+
+  /** Lets a concrete host bind the paused id to its exact provider invocation. */
+  protected bindApprovalInvocation(
+    _executionId: string,
+    _context: ElicitationContext,
+  ): Effect.Effect<void> {
+    return Effect.void;
+  }
+
+  /** Lets a concrete host discard a provider invocation after lease expiry. */
+  protected forgetApprovalInvocation(_executionId: string): Effect.Effect<void> {
+    return Effect.void;
+  }
 
   override async onConnect(conn: Connection, context: ConnectionContext): Promise<void> {
     const requestIds = readActivePostRequestIds(context.request);
@@ -801,10 +826,12 @@ export abstract class McpAgentSessionDOBase<
 
         const deadline = yield* self.deadlineForExecution(executionId);
         const formatted = formatPausedExecution(paused, { deadline });
+        yield* self.bindApprovalInvocation(executionId, paused.elicitationContext);
         return {
           status: "ok" as const,
           text: formatted.text,
           structured: formatted.structured,
+          resource: (yield* self.loadSessionMeta())?.resource ?? defaultMcpResource,
         };
       }).pipe(
         Effect.withSpan("McpSessionDO.getPausedExecutionForApproval", {
@@ -1311,6 +1338,20 @@ export abstract class McpAgentSessionDOBase<
         attributes: { "mcp.execution.id": executionId },
       }),
     );
+  }
+
+  /** Completes the browser RPC only after the exact resumed provider invocation settles. */
+  private completeApprovalOutcome(
+    executionId: string,
+    outcome: BrowserApprovalOutcome,
+  ): Effect.Effect<void> {
+    const self = this;
+    return Effect.gen(function* () {
+      self.approvalOutcomes.set(executionId, outcome);
+      yield* Effect.promise(() => self.ctx.storage.put(approvalOutcomeKey(executionId), outcome));
+      const waiter = self.approvalOutcomeWaiters.get(executionId);
+      if (waiter) yield* Deferred.succeed(waiter, outcome);
+    });
   }
 
   private takeApprovalResponse(executionId: string): Effect.Effect<ResumeResponse | null> {

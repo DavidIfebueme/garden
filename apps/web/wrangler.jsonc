@@ -97,6 +97,19 @@
       "binding": "RUN_WORKFLOW",
       "class_name": "RunWorkflow",
     },
+    {
+      "name": "garden-mail-delivery-local",
+      "binding": "MAIL_DELIVERY_WORKFLOW",
+      "class_name": "MailDeliveryWorkflow",
+    },
+    {
+      "name": "garden-gmail-import-local",
+      "binding": "GMAIL_IMPORT_WORKFLOW",
+      "class_name": "GmailImportWorkflow",
+      "limits": {
+        "steps": 25000,
+      },
+    },
   ],
   "r2_buckets": [
     {
@@ -124,6 +137,12 @@
     "binding": "AI",
     "remote": true,
   },
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "remote": true,
+    },
+  ],
   "vars": {
     "SANDBOX_TRANSPORT": "rpc",
     "SANDBOX_LOG_LEVEL": "warn",

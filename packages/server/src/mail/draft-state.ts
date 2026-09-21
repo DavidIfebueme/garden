@@ -34,7 +34,7 @@ export interface DraftTransition extends Schema.Schema.Type<
 > {}
 
 /** A command is well-formed but illegal for the draft's current state or actor. */
-export class InvalidDraftTransitionError extends Schema.TaggedErrorClass<InvalidDraftTransitionError>()(
+export class InvalidDraftTransitionError extends Schema.TaggedError<InvalidDraftTransitionError>()(
   'InvalidDraftTransitionError',
   {
     command: Schema.String,

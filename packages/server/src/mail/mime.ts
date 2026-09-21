@@ -89,7 +89,7 @@ export interface ParsedMimeMessage extends Schema.Schema.Type<
 > {}
 
 /** PostalMime rejected MIME syntax or failed while decoding its structure. */
-export class MailMimeParseError extends Schema.TaggedErrorClass<MailMimeParseError>()(
+export class MailMimeParseError extends Schema.TaggedError<MailMimeParseError>()(
   'MailMimeParseError',
   {
     operation: Schema.String,
@@ -99,7 +99,7 @@ export class MailMimeParseError extends Schema.TaggedErrorClass<MailMimeParseErr
 ) {}
 
 /** MIME parsed, but its normalized content violates Garden's mail contract. */
-export class MailMimeValidationError extends Schema.TaggedErrorClass<MailMimeValidationError>()(
+export class MailMimeValidationError extends Schema.TaggedError<MailMimeValidationError>()(
   'MailMimeValidationError',
   {
     operation: Schema.String,

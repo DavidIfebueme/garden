@@ -442,7 +442,7 @@ export interface FailDraftDeliveryInput extends Schema.Schema.Type<
   typeof FailDraftDeliveryInput
 > {}
 
-export class MailRepositoryAccessDeniedError extends Schema.TaggedErrorClass<MailRepositoryAccessDeniedError>()(
+export class MailRepositoryAccessDeniedError extends Schema.TaggedError<MailRepositoryAccessDeniedError>()(
   'MailRepositoryAccessDeniedError',
   {
     workspaceId: WorkspaceId,
@@ -453,7 +453,7 @@ export class MailRepositoryAccessDeniedError extends Schema.TaggedErrorClass<Mai
   },
 ) {}
 
-export class MailRepositoryNotFoundError extends Schema.TaggedErrorClass<MailRepositoryNotFoundError>()(
+export class MailRepositoryNotFoundError extends Schema.TaggedError<MailRepositoryNotFoundError>()(
   'MailRepositoryNotFoundError',
   {
     entity: Schema.String,
@@ -463,7 +463,7 @@ export class MailRepositoryNotFoundError extends Schema.TaggedErrorClass<MailRep
   },
 ) {}
 
-export class MailDraftRevisionConflictError extends Schema.TaggedErrorClass<MailDraftRevisionConflictError>()(
+export class MailDraftRevisionConflictError extends Schema.TaggedError<MailDraftRevisionConflictError>()(
   'MailDraftRevisionConflictError',
   {
     draftId: DraftId,
@@ -474,7 +474,7 @@ export class MailDraftRevisionConflictError extends Schema.TaggedErrorClass<Mail
   },
 ) {}
 
-export class MailRepositoryInvariantError extends Schema.TaggedErrorClass<MailRepositoryInvariantError>()(
+export class MailRepositoryInvariantError extends Schema.TaggedError<MailRepositoryInvariantError>()(
   'MailRepositoryInvariantError',
   {
     operation: Schema.String,
@@ -483,7 +483,7 @@ export class MailRepositoryInvariantError extends Schema.TaggedErrorClass<MailRe
 ) {}
 
 /** An authorized mailbox has no active outbound identity. */
-export class MailDraftSenderUnavailableError extends Schema.TaggedErrorClass<MailDraftSenderUnavailableError>()(
+export class MailDraftSenderUnavailableError extends Schema.TaggedError<MailDraftSenderUnavailableError>()(
   'MailDraftSenderUnavailableError',
   {
     mailboxId: MailboxId,
@@ -492,7 +492,7 @@ export class MailDraftSenderUnavailableError extends Schema.TaggedErrorClass<Mai
   },
 ) {}
 
-export class MailRepositoryPersistenceError extends Schema.TaggedErrorClass<MailRepositoryPersistenceError>()(
+export class MailRepositoryPersistenceError extends Schema.TaggedError<MailRepositoryPersistenceError>()(
   'MailRepositoryPersistenceError',
   {
     reason: Schema.Literals(['connection', 'query', 'decode', 'transaction']),

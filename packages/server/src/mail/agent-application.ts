@@ -115,7 +115,7 @@ export type AgentDraftDeliveryRequestOutcome =
   typeof AgentDraftDeliveryRequestOutcome.Type
 
 /** Draft is absent from the actor-authorized conversation projection. */
-export class MailAgentDraftUnavailableError extends Schema.TaggedErrorClass<MailAgentDraftUnavailableError>()(
+export class MailAgentDraftUnavailableError extends Schema.TaggedError<MailAgentDraftUnavailableError>()(
   'MailAgentDraftUnavailableError',
   {
     conversationId: ConversationId,
@@ -126,7 +126,7 @@ export class MailAgentDraftUnavailableError extends Schema.TaggedErrorClass<Mail
 ) {}
 
 /** A viewer may read shared mail but cannot request external delivery. */
-export class MailAgentMailboxReadOnlyError extends Schema.TaggedErrorClass<MailAgentMailboxReadOnlyError>()(
+export class MailAgentMailboxReadOnlyError extends Schema.TaggedError<MailAgentMailboxReadOnlyError>()(
   'MailAgentMailboxReadOnlyError',
   {
     mailboxId: MailboxId,
@@ -136,7 +136,7 @@ export class MailAgentMailboxReadOnlyError extends Schema.TaggedErrorClass<MailA
 ) {}
 
 /** Durable delivery dispatch failed after authorization was recorded. */
-export class MailAgentDeliveryDispatchError extends Schema.TaggedErrorClass<MailAgentDeliveryDispatchError>()(
+export class MailAgentDeliveryDispatchError extends Schema.TaggedError<MailAgentDeliveryDispatchError>()(
   'MailAgentDeliveryDispatchError',
   {
     workflowInstanceId: Schema.String,

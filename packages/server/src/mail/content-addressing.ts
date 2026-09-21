@@ -9,7 +9,7 @@ import {
 import { Effect, Schema } from 'effect'
 
 /** Web Crypto failed while deriving a provider-neutral content identity. */
-export class MailContentHashError extends Schema.TaggedErrorClass<MailContentHashError>()(
+export class MailContentHashError extends Schema.TaggedError<MailContentHashError>()(
   'MailContentHashError',
   {
     operation: Schema.String,

@@ -37,6 +37,7 @@ import {
 } from './mcp-connectors'
 import { listAvailableConnectorBindings } from '@garden/server/connectors/availability'
 import { mcpRuntimeConfig } from './mcp-runtime-config'
+import type { ExecutorMcpResource } from './mail-tool-boundary'
 
 export { canonicalJsonString } from '@garden/connectors/capabilities'
 
@@ -173,6 +174,7 @@ export type McpHost = {
   }) => Promise<McpRegistration & { id?: string }>
   addExecutorMcpServer?: (input: {
     id: string
+    serverName?: string
     props: {
       session: {
         organizationId: string
@@ -183,6 +185,8 @@ export type McpHost = {
       }
     }
   }) => Promise<McpRegistration & { id?: string }>
+  getExecutorMcpResource?: () => ExecutorMcpResource
+  getExecutorToolkitConnectionNames?: () => readonly string[]
   removeMcpServer: (connectorId: string) => Promise<void>
   githubHostedMcp?: {
     listTools: (
@@ -1548,6 +1552,24 @@ export class RuntimeMcpConnectionPreparer {
     )
 
     return this.refreshInFlight
+  }
+
+  /**
+   * Replaces an already-warming Executor session after its authority/resource
+   * scope changes. A first Inbox bind can race the panel's default prewarm;
+   * returning that old in-flight promise would leave the default session in
+   * place (or let its completion overwrite the scoped reset). Serializing the
+   * old refresh, reset, and scoped refresh makes the mail-turn resource win.
+   */
+  async reload(reason: string): Promise<RuntimeMcpPrepareResult> {
+    if (this.refreshInFlight) await this.refreshInFlight
+
+    const controller = this.options.getController()
+    const reset = await controller.resetProxyMcpServers()
+    if (reset.isErr()) return Result.err(reset.error.message)
+
+    this.lastFullSyncAt = 0
+    return await this.ensureLoaded(reason)
   }
 
   private async refreshWithRetries(

@@ -61,7 +61,7 @@ export type MailSettingsSnapshot = {
 }
 
 /** Mail settings rows could not be loaded from request-scoped Postgres. */
-export class MailSettingsPersistenceError extends Schema.TaggedErrorClass<MailSettingsPersistenceError>()(
+export class MailSettingsPersistenceError extends Schema.TaggedError<MailSettingsPersistenceError>()(
   'MailSettingsPersistenceError',
   {
     operation: Schema.String,
@@ -71,7 +71,7 @@ export class MailSettingsPersistenceError extends Schema.TaggedErrorClass<MailSe
 ) {}
 
 /** Persisted mail relationships could not form a safe settings projection. */
-export class MailSettingsProjectionError extends Schema.TaggedErrorClass<MailSettingsProjectionError>()(
+export class MailSettingsProjectionError extends Schema.TaggedError<MailSettingsProjectionError>()(
   'MailSettingsProjectionError',
   {
     resourceType: Schema.String,

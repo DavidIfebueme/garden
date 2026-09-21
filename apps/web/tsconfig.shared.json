@@ -8,7 +8,8 @@
     "src/lib/auth/sign-in-methods.ts",
     "src/lib/executor-contract.ts",
     "src/lib/invitation-flow.ts",
-    "src/features/brain/contract.ts"
+    "src/features/brain/contract.ts",
+    "src/features/settings/mail-settings-contracts.ts"
   ],
   "compilerOptions": {
     "composite": true,

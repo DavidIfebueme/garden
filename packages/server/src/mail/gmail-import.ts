@@ -40,7 +40,7 @@ export interface ImportGmailMessageInput extends Schema.Schema.Type<
 > {}
 
 /** Gmail returned data that cannot safely become canonical RFC mail content. */
-export class GmailImportContentError extends Schema.TaggedErrorClass<GmailImportContentError>()(
+export class GmailImportContentError extends Schema.TaggedError<GmailImportContentError>()(
   'GmailImportContentError',
   {
     providerMessageId: Schema.String,

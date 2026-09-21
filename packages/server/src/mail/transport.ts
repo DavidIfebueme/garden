@@ -6,7 +6,7 @@ import type {
 } from './model.ts'
 
 /** Expected provider failure, including the native code needed for policy decisions. */
-export class MailTransportSendError extends Schema.TaggedErrorClass<MailTransportSendError>()(
+export class MailTransportSendError extends Schema.TaggedError<MailTransportSendError>()(
   'MailTransportSendError',
   {
     provider: Schema.NonEmptyString,
@@ -18,7 +18,7 @@ export class MailTransportSendError extends Schema.TaggedErrorClass<MailTranspor
 ) {}
 
 /** Failure while consuming a provider's one-shot inbound MIME stream. */
-export class MailInboundReadError extends Schema.TaggedErrorClass<MailInboundReadError>()(
+export class MailInboundReadError extends Schema.TaggedError<MailInboundReadError>()(
   'MailInboundReadError',
   {
     provider: Schema.NonEmptyString,

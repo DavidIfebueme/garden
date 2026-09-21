@@ -21,7 +21,7 @@ import type { GmailImportWorkflowParams } from './mail-import-workflow'
 const GOOGLE_GMAIL_INTEGRATION = 'google_gmail'
 
 /** Authenticated request references no usable personal Gmail connection. */
-export class GmailImportConnectionError extends Schema.TaggedErrorClass<GmailImportConnectionError>()(
+export class GmailImportConnectionError extends Schema.TaggedError<GmailImportConnectionError>()(
   'GmailImportConnectionError',
   {
     reason: Schema.Literals([

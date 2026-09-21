@@ -121,7 +121,7 @@ export interface MailDomainProvisioningEvidence extends Schema.Schema.Type<
 > {}
 
 /** A workspace-scoped provisioning resource does not exist. */
-export class MailProvisioningNotFoundError extends Schema.TaggedErrorClass<MailProvisioningNotFoundError>()(
+export class MailProvisioningNotFoundError extends Schema.TaggedError<MailProvisioningNotFoundError>()(
   'MailProvisioningNotFoundError',
   {
     workspaceId: WorkspaceId,
@@ -133,7 +133,7 @@ export class MailProvisioningNotFoundError extends Schema.TaggedErrorClass<MailP
 ) {}
 
 /** A unique Internet address or domain is already owned elsewhere. */
-export class MailProvisioningConflictError extends Schema.TaggedErrorClass<MailProvisioningConflictError>()(
+export class MailProvisioningConflictError extends Schema.TaggedError<MailProvisioningConflictError>()(
   'MailProvisioningConflictError',
   {
     workspaceId: WorkspaceId,
@@ -145,7 +145,7 @@ export class MailProvisioningConflictError extends Schema.TaggedErrorClass<MailP
 ) {}
 
 /** A member or agent cannot be granted access outside its workspace. */
-export class MailProvisioningActorError extends Schema.TaggedErrorClass<MailProvisioningActorError>()(
+export class MailProvisioningActorError extends Schema.TaggedError<MailProvisioningActorError>()(
   'MailProvisioningActorError',
   {
     workspaceId: WorkspaceId,
@@ -156,7 +156,7 @@ export class MailProvisioningActorError extends Schema.TaggedErrorClass<MailProv
 ) {}
 
 /** Persisted provider state is missing or cannot drive a safe refresh. */
-export class MailProvisioningStateError extends Schema.TaggedErrorClass<MailProvisioningStateError>()(
+export class MailProvisioningStateError extends Schema.TaggedError<MailProvisioningStateError>()(
   'MailProvisioningStateError',
   {
     workspaceId: WorkspaceId,
@@ -168,7 +168,7 @@ export class MailProvisioningStateError extends Schema.TaggedErrorClass<MailProv
 ) {}
 
 /** Expected Postgres or persisted-row decoding failure. */
-export class MailProvisioningPersistenceError extends Schema.TaggedErrorClass<MailProvisioningPersistenceError>()(
+export class MailProvisioningPersistenceError extends Schema.TaggedError<MailProvisioningPersistenceError>()(
   'MailProvisioningPersistenceError',
   {
     operation: Schema.String,

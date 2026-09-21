@@ -1,5 +1,6 @@
 import handler from '@tanstack/react-start/server-entry'
 import { routeAgentRequest } from 'agents'
+import { Effect } from 'effect'
 import {
   AgentDO,
   AutomationRunSubAgent,
@@ -37,6 +38,9 @@ import {
   ExecutorMcpExecutionOwnerDirectory,
   ExecutorMcpSession,
 } from '@/lib/server/executor-engine/mcp'
+import { processCloudflareInboundMail } from '@/lib/server/mail-inbound'
+import { MailDeliveryWorkflow } from '@/lib/server/mail-delivery-workflow'
+import { GmailImportWorkflow } from '@/lib/server/mail-import-workflow'
 import {
   isPostHogProxyRequest,
   proxyPostHogRequest,
@@ -49,6 +53,8 @@ export { BrainAuditSubAgent }
 export { ChatSubAgent }
 export { IssueRunSubAgent }
 export { RunWorkflow }
+export { MailDeliveryWorkflow }
+export { GmailImportWorkflow }
 export { Sandbox }
 export { ExecutorMcpExecutionOwnerDirectory, ExecutorMcpSession }
 
@@ -297,6 +303,26 @@ async function logReturnedErrorResponse(input: {
 }
 
 export default {
+  async email(
+    message: ForwardableEmailMessage,
+    env: ServerEnv,
+    _ctx: ExecutionContext,
+  ) {
+    bindAppEnv(env)
+    await Effect.runPromise(
+      processCloudflareInboundMail(message, env).pipe(
+        Effect.tapError((error) =>
+          Effect.sync(() => {
+            webLogger.error('mail.inbound.failed', {
+              rawSize: message.rawSize,
+              ...errorFields(error),
+            })
+          }),
+        ),
+      ),
+    )
+  },
+
   async scheduled(
     _controller: ScheduledController,
     env: ServerEnv,

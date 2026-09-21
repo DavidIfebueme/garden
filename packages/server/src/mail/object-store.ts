@@ -23,7 +23,7 @@ export interface StoredMailObject extends Schema.Schema.Type<
 > {}
 
 /** Expected R2 or compatible-store failure while writing mail content. */
-export class MailObjectWriteError extends Schema.TaggedErrorClass<MailObjectWriteError>()(
+export class MailObjectWriteError extends Schema.TaggedError<MailObjectWriteError>()(
   'MailObjectWriteError',
   {
     key: StorageKey,
@@ -34,7 +34,7 @@ export class MailObjectWriteError extends Schema.TaggedErrorClass<MailObjectWrit
 ) {}
 
 /** Expected R2 or compatible-store failure while reading mail content. */
-export class MailObjectReadError extends Schema.TaggedErrorClass<MailObjectReadError>()(
+export class MailObjectReadError extends Schema.TaggedError<MailObjectReadError>()(
   'MailObjectReadError',
   {
     key: StorageKey,
@@ -45,7 +45,7 @@ export class MailObjectReadError extends Schema.TaggedErrorClass<MailObjectReadE
 ) {}
 
 /** A referenced mail object no longer exists in the configured store. */
-export class MailObjectNotFoundError extends Schema.TaggedErrorClass<MailObjectNotFoundError>()(
+export class MailObjectNotFoundError extends Schema.TaggedError<MailObjectNotFoundError>()(
   'MailObjectNotFoundError',
   {
     key: StorageKey,
@@ -55,7 +55,7 @@ export class MailObjectNotFoundError extends Schema.TaggedErrorClass<MailObjectN
 ) {}
 
 /** Expected R2 or compatible-store failure while deleting mail content. */
-export class MailObjectDeleteError extends Schema.TaggedErrorClass<MailObjectDeleteError>()(
+export class MailObjectDeleteError extends Schema.TaggedError<MailObjectDeleteError>()(
   'MailObjectDeleteError',
   {
     key: StorageKey,

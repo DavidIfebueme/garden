@@ -72,7 +72,7 @@ const mailAgentLogger = createGardenLogger({
 })
 
 /** Workflow dispatch failed after draft authorization was durably recorded. */
-export class MailDeliveryDispatchError extends Schema.TaggedErrorClass<MailDeliveryDispatchError>()(
+export class MailDeliveryDispatchError extends Schema.TaggedError<MailDeliveryDispatchError>()(
   'MailDeliveryDispatchError',
   {
     workflowInstanceId: Schema.String,
@@ -82,7 +82,7 @@ export class MailDeliveryDispatchError extends Schema.TaggedErrorClass<MailDeliv
 ) {}
 
 /** Draft cannot be created from the selected accessible mailbox. */
-export class MailDraftSetupError extends Schema.TaggedErrorClass<MailDraftSetupError>()(
+export class MailDraftSetupError extends Schema.TaggedError<MailDraftSetupError>()(
   'MailDraftSetupError',
   {
     mailboxId: MailboxId,

@@ -139,7 +139,9 @@ import { Route as ApiBrainFoldersIdFilesRouteImport } from './routes/api/brain/f
 import { Route as ApiBrainFilesIdTextRouteImport } from './routes/api/brain/files/$id/text'
 import { Route as ApiBrainFilesIdContentRouteImport } from './routes/api/brain/files/$id/content'
 import { Route as ApiAutomationsIdTriggersTriggerIdRouteImport } from './routes/api/automations/$id/triggers/$triggerId'
+import { Route as ApiMailConversationIdMessagesMessageIdRawRouteImport } from './routes/api/mail/$conversationId/messages/$messageId/raw'
 import { Route as ApiConnectionsConnectorIdToolsNameGrantRouteImport } from './routes/api/connections/$connectorId/tools/$name/grant'
+import { Route as ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRouteImport } from './routes/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -821,12 +823,26 @@ const ApiAutomationsIdTriggersTriggerIdRoute =
     path: '/$triggerId',
     getParentRoute: () => ApiAutomationsIdTriggersRoute,
   } as any)
+const ApiMailConversationIdMessagesMessageIdRawRoute =
+  ApiMailConversationIdMessagesMessageIdRawRouteImport.update({
+    id: '/api/mail/$conversationId/messages/$messageId/raw',
+    path: '/api/mail/$conversationId/messages/$messageId/raw',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiConnectionsConnectorIdToolsNameGrantRoute =
   ApiConnectionsConnectorIdToolsNameGrantRouteImport.update({
     id: '/tools/$name/grant',
     path: '/tools/$name/grant',
     getParentRoute: () => ApiConnectionsConnectorIdRoute,
   } as any)
+const ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute =
+  ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRouteImport.update(
+    {
+      id: '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId',
+      path: '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -958,6 +974,8 @@ export interface FileRoutesByFullPath {
   '/api/workspaces/$id/invitations/$invitationId': typeof ApiWorkspacesIdInvitationsInvitationIdRoute
   '/api/workspaces/$id/members/$memberId': typeof ApiWorkspacesIdMembersMemberIdRoute
   '/api/connections/$connectorId/tools/$name/grant': typeof ApiConnectionsConnectorIdToolsNameGrantRoute
+  '/api/mail/$conversationId/messages/$messageId/raw': typeof ApiMailConversationIdMessagesMessageIdRawRoute
+  '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId': typeof ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -1085,6 +1103,8 @@ export interface FileRoutesByTo {
   '/api/workspaces/$id/invitations/$invitationId': typeof ApiWorkspacesIdInvitationsInvitationIdRoute
   '/api/workspaces/$id/members/$memberId': typeof ApiWorkspacesIdMembersMemberIdRoute
   '/api/connections/$connectorId/tools/$name/grant': typeof ApiConnectionsConnectorIdToolsNameGrantRoute
+  '/api/mail/$conversationId/messages/$messageId/raw': typeof ApiMailConversationIdMessagesMessageIdRawRoute
+  '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId': typeof ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1219,6 +1239,8 @@ export interface FileRoutesById {
   '/api/workspaces/$id/invitations/$invitationId': typeof ApiWorkspacesIdInvitationsInvitationIdRoute
   '/api/workspaces/$id/members/$memberId': typeof ApiWorkspacesIdMembersMemberIdRoute
   '/api/connections/$connectorId/tools/$name/grant': typeof ApiConnectionsConnectorIdToolsNameGrantRoute
+  '/api/mail/$conversationId/messages/$messageId/raw': typeof ApiMailConversationIdMessagesMessageIdRawRoute
+  '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId': typeof ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1352,6 +1374,8 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id/invitations/$invitationId'
     | '/api/workspaces/$id/members/$memberId'
     | '/api/connections/$connectorId/tools/$name/grant'
+    | '/api/mail/$conversationId/messages/$messageId/raw'
+    | '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1479,6 +1503,8 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id/invitations/$invitationId'
     | '/api/workspaces/$id/members/$memberId'
     | '/api/connections/$connectorId/tools/$name/grant'
+    | '/api/mail/$conversationId/messages/$messageId/raw'
+    | '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
   id:
     | '__root__'
     | '/'
@@ -1612,6 +1638,8 @@ export interface FileRouteTypes {
     | '/api/workspaces/$id/invitations/$invitationId'
     | '/api/workspaces/$id/members/$memberId'
     | '/api/connections/$connectorId/tools/$name/grant'
+    | '/api/mail/$conversationId/messages/$messageId/raw'
+    | '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1666,6 +1694,8 @@ export interface RootRouteChildren {
   ApiExecutorOauthStartRoute: typeof ApiExecutorOauthStartRoute
   ApiPermissionRequestsIdResolveRoute: typeof ApiPermissionRequestsIdResolveRoute
   ApiWorkProductsIdReviewRoute: typeof ApiWorkProductsIdReviewRoute
+  ApiMailConversationIdMessagesMessageIdRawRoute: typeof ApiMailConversationIdMessagesMessageIdRawRoute
+  ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute: typeof ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -2580,12 +2610,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAutomationsIdTriggersTriggerIdRouteImport
       parentRoute: typeof ApiAutomationsIdTriggersRoute
     }
+    '/api/mail/$conversationId/messages/$messageId/raw': {
+      id: '/api/mail/$conversationId/messages/$messageId/raw'
+      path: '/api/mail/$conversationId/messages/$messageId/raw'
+      fullPath: '/api/mail/$conversationId/messages/$messageId/raw'
+      preLoaderRoute: typeof ApiMailConversationIdMessagesMessageIdRawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/connections/$connectorId/tools/$name/grant': {
       id: '/api/connections/$connectorId/tools/$name/grant'
       path: '/tools/$name/grant'
       fullPath: '/api/connections/$connectorId/tools/$name/grant'
       preLoaderRoute: typeof ApiConnectionsConnectorIdToolsNameGrantRouteImport
       parentRoute: typeof ApiConnectionsConnectorIdRoute
+    }
+    '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId': {
+      id: '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
+      path: '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
+      fullPath: '/api/mail/$conversationId/messages/$messageId/attachments/$attachmentId'
+      preLoaderRoute: typeof ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -3122,6 +3166,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiExecutorOauthStartRoute: ApiExecutorOauthStartRoute,
   ApiPermissionRequestsIdResolveRoute: ApiPermissionRequestsIdResolveRoute,
   ApiWorkProductsIdReviewRoute: ApiWorkProductsIdReviewRoute,
+  ApiMailConversationIdMessagesMessageIdRawRoute:
+    ApiMailConversationIdMessagesMessageIdRawRoute,
+  ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute:
+    ApiMailConversationIdMessagesMessageIdAttachmentsAttachmentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
