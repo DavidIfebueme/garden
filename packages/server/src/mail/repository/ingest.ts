@@ -422,10 +422,14 @@ export const ingestInbound = Effect.fn('MailRepository.ingestInbound')(
           IngestedMail,
           {
             messageId: message.id,
+            workspaceId: input.workspaceId,
             conversationIds: projections.map(
               (projection) => projection.conversationId,
             ),
             duplicate,
+            subject: input.subject,
+            senderAddress: input.senderAddress,
+            textBody: input.textBody ?? '',
           },
           'ingestInbound.decode',
         )

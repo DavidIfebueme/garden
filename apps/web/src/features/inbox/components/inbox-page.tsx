@@ -33,6 +33,7 @@ import {
 } from './inbox-headers/inbox-header-v2'
 import { InboxFooter } from './inbox-footer'
 import { GmailDetail, GmailErrorState, GmailListItem } from './gmail-views'
+import { MailTabPanel } from './mail-tab-panel'
 import { InboxNotificationDetailV2 } from './inbox-details/inbox-notification-detail'
 import { EnvelopeOpenIcon } from '@phosphor-icons/react'
 
@@ -330,6 +331,7 @@ export function InboxPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const unreadsOnly = mode === 'Unread'
   const gmailView = gmailViewForMode(mode)
+  const isMailMode = mode === 'Mail'
 
   const setSelectedKey = useCallback(
     (key: string, item?: InboxItem | null) => {
@@ -672,6 +674,22 @@ export function InboxPage() {
     )
 
   // -- Mobile
+
+  if (isMailMode) {
+    return (
+      <div className="flex flex-1 flex-col min-h-0">
+        {listHeader}
+        <div className="flex min-h-0 flex-1">
+          <MailTabPanel
+            workspaceId={wsId}
+            search={search}
+            unreadOnly={unreadsOnly}
+            compact={!isDesktop}
+          />
+        </div>
+      </div>
+    )
+  }
 
   if (isMobile) {
     return hasSelection ? (

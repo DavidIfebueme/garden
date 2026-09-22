@@ -9,6 +9,7 @@ import {
   MailboxId,
   type AssignConversationInput,
   type MailActor,
+  type RecordConversationTriageInput,
   type UnassignConversationInput,
   type UpdateConversationStateInput,
 } from '@garden/core/mail'
@@ -317,6 +318,44 @@ export const unassignConversation = Effect.fn(
         })
       }
       return yield* decodeAssignment(assignment)
+    }),
+  )
+})
+
+export const recordConversationTriage = Effect.fn(
+  'MailRepository.recordConversationTriage',
+)(function* (db: GardenDatabase, input: RecordConversationTriageInput) {
+  return yield* inTransaction(db, 'recordConversationTriage', (tx) =>
+    Effect.gen(function* () {
+      const rows = yield* databaseEffect(
+        'recordConversationTriage.update',
+        () =>
+          tx
+            .update(mailConversation)
+            .set({
+              triageQueue: input.queue,
+              triageUrgency: input.urgency,
+              triagedAt: new Date(),
+              quarantined: input.quarantined,
+              quarantineReason: input.reason,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(mailConversation.workspaceId, input.workspaceId),
+                eq(mailConversation.id, input.conversationId),
+              ),
+            )
+            .returning({ id: mailConversation.id }),
+      )
+      if (rows[0] === undefined) {
+        return yield* new MailRepositoryNotFoundError({
+          entity: 'conversation',
+          id: input.conversationId,
+          operation: 'recordConversationTriage',
+          message: 'Conversation was not found for triage.',
+        })
+      }
     }),
   )
 })

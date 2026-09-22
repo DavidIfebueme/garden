@@ -3,6 +3,8 @@ import {
   makeMailRepositoryLayer,
   makeR2MailObjectStoreLayer,
   normalizeCloudflareInbound,
+  triageInboundConversation,
+  type JevConfig,
 } from '@garden/server/mail'
 import { Effect, Layer, Schema } from 'effect'
 import type { AppEnv } from './env'
@@ -59,6 +61,33 @@ export const processCloudflareInboundMail = Effect.fn(
 
       return normalizeCloudflareInbound(message).pipe(
         Effect.flatMap(ingestNormalizedMail),
+        Effect.flatMap((ingested) =>
+          Effect.gen(function* () {
+            if (!ingested.duplicate) {
+              const apiKey = env.JEV_API_KEY
+              const baseUrl = env.JEV_API_BASE_URL
+              const jev: JevConfig | null =
+                apiKey !== undefined &&
+                apiKey !== '' &&
+                baseUrl !== undefined &&
+                baseUrl !== ''
+                  ? { baseUrl, apiKey, model: 'jev-1.13-free' }
+                  : null
+              yield* Effect.forEach(
+                ingested.conversationIds,
+                (conversationId) =>
+                  triageInboundConversation(db, jev, {
+                    workspaceId: ingested.workspaceId,
+                    conversationId,
+                    subject: ingested.subject,
+                    senderAddress: ingested.senderAddress,
+                    textBody: ingested.textBody,
+                  }),
+                { discard: true },
+              )
+            }
+          }),
+        ),
         Effect.provide(dependencies),
         Effect.catchTag('MailRepositoryNotFoundError', () =>
           rejectInboundMessage(message, 'Unknown recipient'),

@@ -533,3 +533,75 @@ export const saveDraft = Effect.fn('MailRepository.saveDraft')(function* (
     }),
   )
 })
+
+export const recordDraftReviewFlag = Effect.fn(
+  'MailRepository.recordDraftReviewFlag',
+)(function* (
+  db: GardenDatabase,
+  input: {
+    readonly workspaceId: WorkspaceId
+    readonly draftId: DraftId
+  },
+) {
+  return yield* inTransaction(db, 'recordDraftReviewFlag', (tx) =>
+    Effect.gen(function* () {
+      const drafts = yield* databaseEffect('recordDraftReviewFlag.find', () =>
+        tx
+          .select({
+            status: mailDraft.status,
+            revision: mailDraft.revision,
+          })
+          .from(mailDraft)
+          .where(
+            and(
+              eq(mailDraft.workspaceId, input.workspaceId),
+              eq(mailDraft.id, input.draftId),
+            ),
+          )
+          .limit(1),
+      )
+      const draft = drafts[0]
+      if (draft === undefined) {
+        return yield* new MailRepositoryNotFoundError({
+          entity: 'draft',
+          id: input.draftId,
+          operation: 'recordDraftReviewFlag',
+          message: 'Draft was not found for review flag.',
+        })
+      }
+      const actor = { actorType: 'system', memberId: null, agentId: null } as const
+      const sequenceRows = yield* databaseEffect(
+        'recordDraftReviewFlag.sequence',
+        () =>
+          tx
+            .select({
+              sequence: sql<number>`coalesce(max(${mailDraftActivity.sequence}), 0) + 1`,
+            })
+            .from(mailDraftActivity)
+            .where(eq(mailDraftActivity.draftId, input.draftId)),
+      )
+      const sequence = sequenceRows[0]?.sequence
+      if (sequence === undefined) {
+        return yield* new MailRepositoryInvariantError({
+          operation: 'recordDraftReviewFlag.sequence',
+          message: 'Draft activity sequence could not be allocated.',
+        })
+      }
+      yield* databaseEffect('recordDraftReviewFlag.insert', () =>
+        tx.insert(mailDraftActivity).values({
+          workspaceId: input.workspaceId,
+          draftId: input.draftId,
+          sequence,
+          revision: draft.revision,
+          actorType: actor.actorType,
+          memberId: actor.memberId,
+          agentId: actor.agentId,
+          action: 'changes_requested',
+          fromStatus: draft.status,
+          toStatus: draft.status,
+          sentMessageId: null,
+        }),
+      )
+    }),
+  )
+})

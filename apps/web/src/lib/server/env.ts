@@ -48,6 +48,8 @@ export type AppEnv = {
   DISCORD_PUBLIC_KEY?: string
   DISCORD_BOT_PERMISSIONS?: string
   RESEND_API_KEY?: string
+  JEV_API_BASE_URL?: string
+  JEV_API_KEY?: string
   CLOUDFLARE_MAIL_API_TOKEN?: string
   CLOUDFLARE_MAIL_API_BASE_URL?: string
   CLOUDFLARE_ACCOUNT_ID?: string

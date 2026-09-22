@@ -2,6 +2,7 @@ import type { GardenDatabase } from '@garden/db'
 import { Layer } from 'effect'
 import {
   assignConversation,
+  recordConversationTriage,
   unassignConversation,
   updateConversationState,
 } from './repository/collaboration.ts'
@@ -12,6 +13,7 @@ import {
 import { MailRepository } from './repository/contracts.ts'
 import {
   createDraft,
+  recordDraftReviewFlag,
   resolveDraftSender,
   saveDraft,
 } from './repository/drafts.ts'
@@ -80,12 +82,14 @@ export const makeMailRepositoryLayer = (
       cancelMailSyncRun: (input) => cancelMailSyncRun(db, input),
       createDraft: (input) => createDraft(db, input),
       saveDraft: (input) => saveDraft(db, input),
+      recordDraftReviewFlag: (input) => recordDraftReviewFlag(db, input),
       transitionDraft: (input) => transitionDraft(db, input),
       prepareDraftDelivery: (input) => prepareDraftDelivery(db, input),
       completeDraftDelivery: (input) => completeDraftDelivery(db, input),
       failDraftDelivery: (input) => failDraftDelivery(db, input),
       recordDeliveryOutcome: (input) => recordDeliveryOutcome(db, input),
       updateConversationState: (input) => updateConversationState(db, input),
+      recordConversationTriage: (input) => recordConversationTriage(db, input),
       assignConversation: (input) => assignConversation(db, input),
       unassignConversation: (input) => unassignConversation(db, input),
     }),

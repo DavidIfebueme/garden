@@ -65,6 +65,23 @@ import {
   withExecutorGmailClient,
 } from './executor-engine/gmail-mail-import-plugin'
 import { executorProgram } from './executor-runtime'
+import {
+  reviewAgentDraft,
+  screenDraftSend,
+  type JevConfig,
+} from '@garden/server/mail'
+import type { AppEnv } from './env'
+
+const jevConfigFromEnv = (env: AppEnv): JevConfig | null => {
+  const baseUrl = env.JEV_API_BASE_URL
+  const apiKey = env.JEV_API_KEY
+  return baseUrl !== undefined &&
+    baseUrl !== '' &&
+    apiKey !== undefined &&
+    apiKey !== ''
+    ? { baseUrl, apiKey, model: 'jev-1.13-free' }
+    : null
+}
 
 const mailAgentLogger = createGardenLogger({
   service: 'garden-staging',
@@ -489,6 +506,12 @@ export async function persistAgentMailDraft(
         toolCall.input,
         toolCall.proposal,
       )
+      yield* reviewAgentDraft(authorized.db, jevConfigFromEnv(context.env), {
+        workspaceId: authorized.input.workspaceId,
+        draftId: draft.id,
+        subject: draft.subject,
+        body: draft.textBody ?? '',
+      }).pipe(Effect.ignore)
       return {
         id: draft.id,
         mailboxId: draft.mailboxId,
@@ -953,6 +976,20 @@ export async function requestMailDraftDelivery(
         })
       }).pipe(Effect.provide(Layer.merge(repositoryLayer, applicationLayer)))
       if (!authorization.startsDelivery) return authorization
+
+      yield* screenDraftSend(
+        authority.db,
+        jevConfigFromEnv(context.env),
+        {
+          workspaceId,
+          draftId: authorization.draft.id,
+          recipients: authorization.draft.recipients.map(
+            (recipient) => recipient.address,
+          ),
+          subject: authorization.draft.subject,
+          body: authorization.draft.textBody ?? '',
+        },
+      ).pipe(Effect.ignore)
 
       const workflowInstanceId = `mail-${authorization.draft.id}-${authorization.draft.revision}`
       const params: MailDeliveryWorkflowParams = {

@@ -55,6 +55,7 @@ import {
   StorageKey,
   UnassignConversationInput,
   UpdateConversationStateInput,
+  RecordConversationTriageInput,
   UtcTimestamp,
   WorkspaceId,
 } from '@garden/core/mail'
@@ -580,6 +581,10 @@ export interface MailRepositoryService {
   readonly saveDraft: (
     input: SaveDraftInput,
   ) => Effect.Effect<DraftSnapshot, MailRepositoryError>
+  readonly recordDraftReviewFlag: (input: {
+    readonly workspaceId: WorkspaceId
+    readonly draftId: DraftId
+  }) => Effect.Effect<void, MailRepositoryError>
   readonly transitionDraft: (
     input: TransitionDraftInput,
   ) => Effect.Effect<DraftSnapshot, MailRepositoryError>
@@ -598,6 +603,9 @@ export interface MailRepositoryService {
   readonly updateConversationState: (
     input: UpdateConversationStateInput,
   ) => Effect.Effect<ConversationActorState, MailRepositoryError>
+  readonly recordConversationTriage: (
+    input: RecordConversationTriageInput,
+  ) => Effect.Effect<void, MailRepositoryError>
   readonly assignConversation: (
     input: AssignConversationInput,
   ) => Effect.Effect<AssignmentSnapshot, MailRepositoryError>

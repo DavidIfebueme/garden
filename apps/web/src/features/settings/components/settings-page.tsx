@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bug, User, Palette, Settings, Users } from 'lucide-react'
+import { Bug, Mail, User, Palette, Settings, Users } from 'lucide-react'
 import {
   Tabs,
   TabsList,
@@ -12,6 +12,7 @@ import { AppearanceTab } from './appearance-tab'
 import { DeveloperTab } from './developer-tab'
 import { WorkspaceTab } from './workspace-tab'
 import { MembersTab } from './members-tab'
+import { MailTab } from './mail-tab'
 
 const accountTabs = [
   { value: 'profile', label: 'Account', icon: User },
@@ -22,6 +23,7 @@ const accountTabs = [
 const workspaceTabs = [
   { value: 'workspace', label: 'General', icon: Settings },
   { value: 'members', label: 'Members', icon: Users },
+  { value: 'mail', label: 'Mail', icon: Mail },
 ]
 
 export interface ExtraSettingsTab {
@@ -113,6 +115,9 @@ export function SettingsPage({
           </TabsContent>
           <TabsContent value="members">
             <MembersTab />
+          </TabsContent>
+          <TabsContent value="mail">
+            <MailTab />
           </TabsContent>
           {extraAccountTabs?.map((tab) => (
             <TabsContent key={tab.value} value={tab.value}>

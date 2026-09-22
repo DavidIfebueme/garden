@@ -26,10 +26,14 @@ const localAddressId = MailAddressId.make(
 const mailboxId = MailboxId.make('01dfb6c5-d1df-492a-a7c7-738a045e5ee7')
 const ingested = IngestedMail.make({
   messageId: MessageId.make('0660b5b4-7d7e-4d91-a423-4b0ab93f6f08'),
+  workspaceId,
   conversationIds: [
     ConversationId.make('980388f8-b356-4fc6-bb9d-414a87350faf'),
   ],
   duplicate: false,
+  subject: 'Portfolio update',
+  senderAddress: EmailAddress.make('alice@example.com'),
+  textBody: 'The update is attached.',
 })
 
 /** Representative event proves SMTP routing remains separate from MIME recipients. */
@@ -112,6 +116,8 @@ const repositoryLayer = (
     failDraftDelivery: unavailable,
     recordDeliveryOutcome: unavailable,
     updateConversationState: unavailable,
+    recordConversationTriage: unavailable,
+    recordDraftReviewFlag: unavailable,
     assignConversation: unavailable,
     unassignConversation: unavailable,
   }

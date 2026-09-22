@@ -104,6 +104,23 @@ export {
 } from './ingress.ts'
 export type { MailIngressError, MailIngressService } from './ingress.ts'
 export {
+  PHISH_QUARANTINE_THRESHOLD,
+  TRIAGE_QUEUES,
+  decideTriageOutcome,
+  triageInboundConversation,
+} from './triage.ts'
+export type { TriageJudgment, TriageOutcome } from './triage.ts'
+export {
+  RISKY_SEND_THRESHOLD,
+  decideAutoSend,
+  decideDraftCompleteness,
+  decideSendRisk,
+  reviewAgentDraft,
+  screenDraftSend,
+} from './review.ts'
+export { judgeMail, JevError } from './jev.ts'
+export type { JevAnswer, JevConfig, JevQuestion } from './jev.ts'
+export {
   MailRepository,
   MailRepositoryAccessDeniedError,
   MailDraftSenderUnavailableError,

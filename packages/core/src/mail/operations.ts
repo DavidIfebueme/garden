@@ -209,8 +209,12 @@ export interface ImportedMailEnvelope extends Schema.Schema.Type<
 
 export const IngestedMail = Schema.Struct({
   messageId: MessageId,
+  workspaceId: WorkspaceId,
   conversationIds: Schema.Array(ConversationId),
   duplicate: Schema.Boolean,
+  subject: Schema.String,
+  senderAddress: EmailAddress,
+  textBody: Schema.String,
 })
 export interface IngestedMail extends Schema.Schema.Type<typeof IngestedMail> {}
 
@@ -465,6 +469,18 @@ export const UpdateConversationStateInput = Schema.Struct({
 })
 export interface UpdateConversationStateInput extends Schema.Schema.Type<
   typeof UpdateConversationStateInput
+> {}
+
+export const RecordConversationTriageInput = Schema.Struct({
+  workspaceId: WorkspaceId,
+  conversationId: ConversationId,
+  queue: Schema.NullOr(Schema.String),
+  urgency: Schema.NullOr(Schema.Number),
+  quarantined: Schema.Boolean,
+  reason: Schema.NullOr(Schema.String),
+})
+export interface RecordConversationTriageInput extends Schema.Schema.Type<
+  typeof RecordConversationTriageInput
 > {}
 
 export const AssignConversationInput = Schema.Struct({

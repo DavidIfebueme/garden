@@ -191,6 +191,7 @@ export const mailMailbox = pgTable(
     kind: text('kind').notNull(),
     origin: text('origin').notNull().default('garden_hosted'),
     status: text('status').notNull().default('active'),
+    autoSendEnabled: boolean('auto_send_enabled').notNull().default(false),
     createdAt: timestamp('created_at', {
       mode: 'date',
       withTimezone: true,
@@ -546,6 +547,14 @@ export const mailConversation = pgTable(
     threadKey: text('thread_key').notNull(),
     subject: text('subject').notNull().default(''),
     normalizedSubject: text('normalized_subject').notNull().default(''),
+    triageQueue: text('triage_queue'),
+    triageUrgency: integer('triage_urgency'),
+    triagedAt: timestamp('triaged_at', {
+      mode: 'date',
+      withTimezone: true,
+    }),
+    quarantined: boolean('quarantined').notNull().default(false),
+    quarantineReason: text('quarantine_reason'),
     lastMessageAt: timestamp('last_message_at', {
       mode: 'date',
       withTimezone: true,

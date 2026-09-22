@@ -1,6 +1,6 @@
 {
-  "id": "8dc7311b-6f5d-4438-83fd-9312aa6a9aad",
-  "prevId": "8af03d44-b486-40b8-bdca-07abb226031c",
+  "id": "114228af-1495-4205-bb90-86ce1dc0f4d3",
+  "prevId": "8dc7311b-6f5d-4438-83fd-9312aa6a9aad",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6828,6 +6828,37 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "triage_queue": {
+          "name": "triage_queue",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "triage_urgency": {
+          "name": "triage_urgency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "triaged_at": {
+          "name": "triaged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quarantined": {
+          "name": "quarantined",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "quarantine_reason": {
+          "name": "quarantine_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "last_message_at": {
           "name": "last_message_at",

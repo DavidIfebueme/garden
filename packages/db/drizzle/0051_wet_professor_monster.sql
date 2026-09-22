@@ -1,0 +1,1 @@
+ALTER TABLE "mail_mailbox" ADD COLUMN "auto_send_enabled" boolean DEFAULT false NOT NULL;

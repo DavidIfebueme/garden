@@ -176,6 +176,8 @@
     "DISCORD_PUBLIC_KEY": "",
     "DISCORD_BOT_PERMISSIONS": "",
     "RESEND_API_KEY": "",
+    "JEV_API_BASE_URL": "",
+    "JEV_API_KEY": "",
   },
   "migrations": [
     {

@@ -3,7 +3,7 @@ import { Input } from '@garden/ui/components/ui/input'
 import { cn } from '@garden/ui/lib/utils'
 import { Search } from 'lucide-react'
 
-export type InboxFilter = 'All' | 'Unread' | 'In draft' | 'Sent'
+export type InboxFilter = 'All' | 'Unread' | 'In draft' | 'Sent' | 'Mail'
 
 type InboxListHeaderV2Props = {
   search: string
@@ -22,11 +22,12 @@ export const InboxListHeaderV2 = ({
   onPrefetchFilter,
   unreadCount,
 }: InboxListHeaderV2Props) => {
-  const filterOptions = ['All', 'Unread', 'In draft', 'Sent'] as const
+  const filterOptions = ['All', 'Unread', 'Mail', 'In draft', 'Sent'] as const
 
   const filterDescriptions: Record<InboxFilter, string> = {
     All: 'All notifications',
     Unread: `${unreadCount} unread notifications`,
+    Mail: 'Garden mail conversations',
     'In draft': 'Gmail drafts',
     Sent: 'Sent Gmail messages',
   }
