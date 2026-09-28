@@ -64,6 +64,7 @@ export class BrainItem extends Schema.Class<BrainItem>('BrainItem')({
   origin: Origin,
   body: Schema.optional(Schema.String),
   scope: Schema.optional(BrainScope),
+  occurredAt: Schema.optional(Schema.DateTimeUtc),
 }) {}
 
 export class NewBrainItem extends Schema.Class<NewBrainItem>('NewBrainItem')({
@@ -79,6 +80,7 @@ export class NewBrainItem extends Schema.Class<NewBrainItem>('NewBrainItem')({
   origin: Origin,
   body: Schema.optional(Schema.String),
   scope: Schema.optional(BrainScope),
+  occurredAt: Schema.optional(Schema.DateTimeUtc),
 }) {}
 
 export class SearchHit extends Schema.Class<SearchHit>('SearchHit')({

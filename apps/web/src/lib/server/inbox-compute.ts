@@ -11,6 +11,7 @@ import {
   sql,
 } from 'drizzle-orm'
 import { getDb, schema, type Db } from '@/lib/server/db'
+import { LIVE_RUN_STATUSES } from '@garden/core/issues/run-sync'
 import { appEnv } from '@/lib/server/env'
 import type {
   InboxItem,
@@ -849,10 +850,41 @@ async function persistInboxSourceItems(args: {
     eq(schema.inboxItem.recipientId, args.userId),
     eq(schema.inboxItem.archived, false),
   )
-  const staleFilter =
-    sourceKeys.length > 0
-      ? and(visibleFilter, notInArray(schema.inboxItem.itemKey, sourceKeys))
-      : visibleFilter
+
+  const existingWaiting = await db
+    .select({ itemKey: schema.inboxItem.itemKey })
+    .from(schema.inboxItem)
+    .where(
+      and(
+        visibleFilter,
+        sql`${schema.inboxItem.itemKey} like ${'waiting_for_input:%'}`,
+      ),
+    )
+  const waitingRunIds = existingWaiting
+    .map((row) => row.itemKey.slice('waiting_for_input:'.length))
+    .filter((id) => id.length > 0)
+  const openWaitingKeys =
+    waitingRunIds.length === 0
+      ? []
+      : (
+          await db
+            .select({ id: schema.issueRun.id })
+            .from(schema.issueRun)
+            .where(
+              and(
+                inArray(schema.issueRun.id, waitingRunIds),
+                inArray(schema.issueRun.status, [...LIVE_RUN_STATUSES]),
+              ),
+            )
+        ).map((row) => `waiting_for_input:${row.id}`)
+
+  const keepKeys = [...sourceKeys, ...openWaitingKeys]
+  const staleFilter = and(
+    visibleFilter,
+    keepKeys.length > 0
+      ? notInArray(schema.inboxItem.itemKey, keepKeys)
+      : undefined,
+  )
 
   await db
     .update(schema.inboxItem)

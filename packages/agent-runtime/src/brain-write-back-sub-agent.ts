@@ -23,6 +23,7 @@ type AgentRuntimeEnv = Cloudflare.Env & {
   ENVIRONMENT?: string
   BRAIN_FILES: R2Bucket
   FILES: R2Bucket
+  HYPERDRIVE: Hyperdrive
   HELIX_URL?: string
   HELIX_API_KEY?: string
   VITE_PUBLIC_POSTHOG_HOST?: string
@@ -84,6 +85,7 @@ export class BrainWriteBackSubAgent extends Think<AgentRuntimeEnv> {
       },
       ai: this.env.AI,
       files: this.env.BRAIN_FILES,
+      databaseUrl: this.env.HYPERDRIVE.connectionString,
       getContext: () => this.getConfig<BrainWriteBackConfig>(),
     })
   }

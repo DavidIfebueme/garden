@@ -596,3 +596,18 @@ it.effect('hides a scoped file from a viewer who cannot see it', () =>
     expect(stranger).toBeNull()
   }),
 )
+
+it.effect('decodes an occurred_at timestamp from a stored row', () =>
+  Effect.gen(function* () {
+    const calls: HelixCall[] = []
+    const row = {
+      ...itemRow(1, 'Dated note'),
+      occurred_at: '2026-03-01T00:00:00.000Z',
+    }
+    const brain = yield* testBrain(() => ({ item: [row] }), calls)
+
+    const item = yield* brain.read(ItemId.make('1'), tenantId)
+    expect(item?.occurredAt).toBeDefined()
+    expect(item?.occurredAt?.pipe(String)).toContain('2026-03-01')
+  }),
+)

@@ -1,4 +1,4 @@
-import { Array as EffectArray, Context, DateTime, Effect, Schema } from 'effect'
+import { Array as EffectArray, Context, DateTime, Effect, Option, Schema } from 'effect'
 import {
   BatchCondition,
   IndexSpec,
@@ -219,6 +219,7 @@ const ItemRow = Schema.Struct({
   body: Schema.optional(Schema.String),
   scope_kind: Schema.optional(Schema.String),
   scope_id: Schema.optional(Schema.String),
+  occurred_at: Schema.optional(Schema.String),
 })
 
 const EdgeRow = Schema.Struct({
@@ -303,6 +304,14 @@ const decodeRow = (row: Row): Effect.Effect<BrainItem, HelixError> =>
     const id = yield* decodeItemId(row)
     const origin = yield* decodeItemOrigin(item.origin)
     const scope = yield* decodeScope(item.scope_kind, item.scope_id)
+    const occurredAt =
+      item.occurred_at === undefined
+        ? undefined
+        : Option.getOrUndefined(
+            Schema.decodeUnknownOption(Schema.DateTimeUtcFromString)(
+              item.occurred_at,
+            ),
+          )
 
     return {
       id,
@@ -325,6 +334,7 @@ const decodeRow = (row: Row): Effect.Effect<BrainItem, HelixError> =>
       origin,
       body: item.body,
       scope,
+      ...(occurredAt === undefined ? {} : { occurredAt }),
     }
   })
 
@@ -446,6 +456,11 @@ const propsOf = (item: NewBrainItem): Record<string, PropertyValueInput> => {
     if (item.scope.kind === 'team') props[PROPS.scopeId] = item.scope.teamId
     if (item.scope.kind === 'user') props[PROPS.scopeId] = item.scope.userId
   }
+  if (item.occurredAt !== undefined) {
+    props[PROPS.occurredAt] = new Date(
+      DateTime.toEpochMillis(item.occurredAt),
+    ).toISOString()
+  }
   if (item.summary !== undefined) props[PROPS.summary] = item.summary
   if (item.r2Key !== undefined) props[PROPS.r2Key] = item.r2Key
   if (item.sizeBytes !== undefined) props[PROPS.sizeBytes] = item.sizeBytes
@@ -497,6 +512,7 @@ const itemProjection = () => [
   PropertyProjection.new('body'),
   PropertyProjection.new(PROPS.scopeKind),
   PropertyProjection.new(PROPS.scopeId),
+  PropertyProjection.new(PROPS.occurredAt),
 ]
 
 const hitProjection = () => [
@@ -1851,7 +1867,9 @@ export const makeBrain = Effect.gen(function* () {
           hits.map((hit) => ({
             item: hit,
             score: hit.score,
-            observedAtMs: DateTime.toEpochMillis(hit.item.origin.at),
+            observedAtMs: DateTime.toEpochMillis(
+              hit.item.occurredAt ?? hit.item.origin.at,
+            ),
           })),
           {
             nowMs,

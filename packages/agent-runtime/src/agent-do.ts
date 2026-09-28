@@ -806,6 +806,26 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     )
   }
 
+  /**
+   * Claims one write-back attempt per run. Durable Object SQL keeps the claim,
+   * so a retried workflow completion cannot file the same run's knowledge twice.
+   */
+  private claimBrainWriteBackRun(runId: string): boolean {
+    this.ctx.storage.sql.exec(
+      `create table if not exists brain_write_back_runs (run_id text primary key, fired_at text not null)`,
+    )
+    const existing = this.ctx.storage.sql
+      .exec(`select run_id from brain_write_back_runs where run_id = ?`, runId)
+      .toArray()
+    if (existing.length > 0) return false
+    this.ctx.storage.sql.exec(
+      `insert into brain_write_back_runs (run_id, fired_at) values (?, ?)`,
+      runId,
+      new Date().toISOString(),
+    )
+    return true
+  }
+
   @callable()
   async startBrainWriteBack(
     input: Omit<BrainWriteBackRunInput, 'agentId'>,
@@ -934,7 +954,8 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     if (
       workspaceId !== null &&
       summary !== '' &&
-      ISSUE_WRITE_BACK_STATUSES.has(result.status)
+      ISSUE_WRITE_BACK_STATUSES.has(result.status) &&
+      this.claimBrainWriteBackRun(input.runId)
     ) {
       const bounded = summary.slice(0, 8000)
       this.ctx.waitUntil(
@@ -1000,7 +1021,8 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     if (
       workspaceId !== null &&
       summary !== '' &&
-      AUTOMATION_WRITE_BACK_STATUSES.has(result.status)
+      AUTOMATION_WRITE_BACK_STATUSES.has(result.status) &&
+      this.claimBrainWriteBackRun(input.runId)
     ) {
       const bounded = summary.slice(0, 8000)
       this.ctx.waitUntil(
