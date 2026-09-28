@@ -184,4 +184,44 @@ layer(BrainTestLive, { excludeTestServices: true })('brain', (it) => {
         }),
       ),
   )
+
+  it.effect.skipIf(skipHelixIntegration)(
+    'keeps a user scoped note out of another viewer results',
+    () =>
+      Effect.gen(function* () {
+        const brain = yield* Brain
+        yield* brain.ensureIndexes()
+        const owner = { teamIds: new Set<string>(), userId: 'owner-user' }
+        const stranger = { teamIds: new Set<string>(), userId: 'other-user' }
+        const added = yield* brain.addText({
+          tenantId: workspaceId,
+          label: 'Private note',
+          body: 'the secret solarpunk roadmap stays with the owner',
+          scope: { kind: 'user', userId: 'owner-user' },
+          actor: { _tag: 'Agent' as const, agentId: 'agent', runId: 'run' },
+        })
+        expect(added.scope).toEqual({ kind: 'user', userId: 'owner-user' })
+
+        const ownerHits = yield* brain.search({
+          tenantId: workspaceId,
+          query: 'secret solarpunk roadmap',
+          k: 5,
+          viewer: owner,
+        })
+        expect(ownerHits.some((hit) => hit.item.id === added.id)).toBe(true)
+
+        const strangerHits = yield* brain.search({
+          tenantId: workspaceId,
+          query: 'secret solarpunk roadmap',
+          k: 5,
+          viewer: stranger,
+        })
+        expect(strangerHits.some((hit) => hit.item.id === added.id)).toBe(false)
+
+        expect(yield* brain.read(added.id, workspaceId, stranger)).toBeNull()
+        expect((yield* brain.read(added.id, workspaceId, owner))?.id).toBe(
+          added.id,
+        )
+      }),
+  )
 })

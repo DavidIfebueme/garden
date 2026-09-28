@@ -505,3 +505,94 @@ it.effect('fails when the embedding service omits a requested vector', () =>
     expect(calls).toHaveLength(0)
   }),
 )
+
+it.effect('hides scoped files from viewers who cannot see them', () =>
+  Effect.gen(function* () {
+    const calls: HelixCall[] = []
+    const brain = yield* testBrain(
+      () => ({
+        files: [
+          itemRow(1, 'Org.txt', 'file'),
+          {
+            ...itemRow(2, 'Mine.txt', 'file'),
+            scope_kind: 'user',
+            scope_id: 'u1',
+          },
+          {
+            ...itemRow(3, 'Team.txt', 'file'),
+            scope_kind: 'team',
+            scope_id: 't1',
+          },
+        ],
+      }),
+      calls,
+    )
+
+    const owner = yield* brain.listFiles({
+      tenantId,
+      viewer: { teamIds: new Set(['t1']), userId: 'u1' },
+    })
+    expect(owner.map((file) => file.label)).toEqual([
+      'Org.txt',
+      'Mine.txt',
+      'Team.txt',
+    ])
+
+    const stranger = yield* brain.listFiles({
+      tenantId,
+      viewer: { teamIds: new Set(), userId: 'u2' },
+    })
+    expect(stranger.map((file) => file.label)).toEqual(['Org.txt'])
+
+    const anonymous = yield* brain.listFiles({ tenantId })
+    expect(anonymous.map((file) => file.label)).toEqual(['Org.txt'])
+  }),
+)
+
+it.effect('hides a scoped item from a viewer who cannot see it', () =>
+  Effect.gen(function* () {
+    const calls: HelixCall[] = []
+    const row = {
+      ...itemRow(1, 'Mine'),
+      scope_kind: 'user',
+      scope_id: 'u1',
+    }
+    const brain = yield* testBrain(() => ({ item: [row] }), calls)
+
+    const owner = yield* brain.read(ItemId.make('1'), tenantId, {
+      teamIds: new Set(),
+      userId: 'u1',
+    })
+    expect(owner?.label).toBe('Mine')
+
+    const stranger = yield* brain.read(ItemId.make('1'), tenantId, {
+      teamIds: new Set(),
+      userId: 'u2',
+    })
+    expect(stranger).toBeNull()
+  }),
+)
+
+it.effect('hides a scoped file from a viewer who cannot see it', () =>
+  Effect.gen(function* () {
+    const calls: HelixCall[] = []
+    const row = {
+      ...itemRow(1, 'Secret.txt', 'file'),
+      scope_kind: 'user',
+      scope_id: 'u1',
+    }
+    const brain = yield* testBrain(() => ({ file: [row] }), calls)
+
+    const owner = yield* brain.readFileItem(ItemId.make('1'), tenantId, {
+      teamIds: new Set(),
+      userId: 'u1',
+    })
+    expect(owner?.label).toBe('Secret.txt')
+
+    const stranger = yield* brain.readFileItem(ItemId.make('1'), tenantId, {
+      teamIds: new Set(),
+      userId: 'u2',
+    })
+    expect(stranger).toBeNull()
+  }),
+)

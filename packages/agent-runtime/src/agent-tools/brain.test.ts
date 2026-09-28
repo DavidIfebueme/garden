@@ -1,4 +1,5 @@
 import { DateTime, Effect } from 'effect'
+import { zodSchema } from 'ai'
 import { describe, expect, it } from 'vitest'
 import { ItemId, Kind } from '@garden/brain/domain'
 import { createBrainTools, type BrainToolOperations } from './brain'
@@ -62,6 +63,7 @@ describe('createBrainTools', () => {
       'brain_search',
     ])
     const result = await execute(tools.add_to_brain, {
+      mode: 'create',
       label: 'Network steward',
       content: 'Alice maintains partner relationships.',
       kind: 'relationship-steward',
@@ -124,6 +126,7 @@ describe('createBrainTools', () => {
     })
 
     const result = await execute(tools.add_to_brain, {
+      mode: 'update',
       itemId: '42',
       kind: 'partner-brief',
       summary: 'Acme partnership brief naming Alice and Atlas.',
@@ -141,5 +144,22 @@ describe('createBrainTools', () => {
       kind: Kind.make('partner-brief'),
       indexed: true,
     })
+  })
+
+  it('exposes every brain tool as an object-typed schema for strict providers', () => {
+    const tools = createBrainTools({
+      env: {},
+      ai: { run: async () => ({ data: [] }) },
+      files: { get: async () => null },
+      getContext: () => null,
+    })
+
+    for (const [name, tool] of Object.entries(tools)) {
+      if (tool === undefined) continue
+      const json = zodSchema(tool.inputSchema as never).jsonSchema as {
+        type?: string
+      }
+      expect(json.type, name).toBe('object')
+    }
   })
 })

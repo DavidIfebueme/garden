@@ -40,6 +40,7 @@ import {
   type GardenAnalyticsEventName,
 } from '@garden/observability/analytics/events'
 import { connectorRegistry } from '@garden/connectors'
+import { latestUserText, loadBrainInjection } from './brain-injection'
 import {
   derivePermissions,
   type AgentPermissions,
@@ -309,6 +310,8 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   })
 
   private currentRunId: string | null = null
+  private currentWorkspaceId: string | null = null
+  private writeBackSummary: string | null = null
   private currentPermissions: AgentPermissions | null = null
   private currentBrowserAllowed = false
   private currentClosureAction: QaSweepClosureAction = 'report-only'
@@ -491,6 +494,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       loadedResult.value.automation,
     )
     this.applyClosureControls(loadedResult.value.run)
+    this.currentWorkspaceId = loadedResult.value.run.workspaceId
     this.currentLogContext = {
       userId: loadedResult.value.agent.ownerUserId,
       workspaceId: loadedResult.value.run.workspaceId,
@@ -540,6 +544,40 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       },
     )
 
+    const brainContext = (
+      await Result.tryPromise({
+        try: () =>
+          loadBrainInjection({
+            env: {
+              ...(this.env.HELIX_URL === undefined
+                ? {}
+                : { HELIX_URL: this.env.HELIX_URL }),
+              ...(this.env.HELIX_API_KEY === undefined
+                ? {}
+                : { HELIX_API_KEY: this.env.HELIX_API_KEY }),
+            },
+            ai: this.env.AI,
+            files: this.env.BRAIN_FILES,
+            workspaceId: loadedResult.value.run.workspaceId,
+            viewer: { teamIds: new Set<string>(), userId: undefined },
+            query: latestUserText(ctx.messages),
+            log: (event) =>
+              console.info('[brain-injection]', {
+                ...event,
+                surface: 'automation_run',
+              }),
+          }),
+        catch: (cause) =>
+          cause instanceof Error ? cause.message : String(cause),
+      })
+    ).match({
+      ok: (injection) => injection.text,
+      err: (error) => {
+        console.warn('[agent-runtime] brain injection failed', { error })
+        return ''
+      },
+    })
+
     return {
       model: createAgentModel({
         ai: this.env.AI,
@@ -561,7 +599,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       maxSteps: this.maxSteps,
       sendReasoning: true,
       stopWhen: AUTOMATION_RUN_TERMINAL_TOOL_STOP_CONDITIONS,
-      system: `${ctx.system}\n\n${loadedResult.value.contextBlock}`,
+      system: `${ctx.system}\n\n${[loadedResult.value.contextBlock, brainContext].filter((part) => part.trim() !== '').join('\n\n')}`,
       tools: stableMcpTools,
       activeTools: mcpController.activeToolKeysWithoutRawMcp({
         assembledTools: ctx.tools,
@@ -701,6 +739,10 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   override async onChatResponse(result: ChatResponseResult) {
     const runId = this.currentRunId
     if (!runId) return
+
+    if (result.status === 'completed') {
+      this.writeBackSummary = extractMessageText(result.message)
+    }
 
     automationRunLogger.info('automation_run.turn.finished', {
       ...this.currentLogContext,
@@ -860,7 +902,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   async completeWorkflowTurn(input: {
     runId: string
     submissionId: string
-  }): Promise<{ status: string }> {
+  }): Promise<{ status: string; workspaceId: string | null; summary: string }> {
     const inspectionResult = await Result.tryPromise({
       try: async () => await this.inspectSubmission(input.submissionId),
       catch: (cause) => cause,
@@ -923,7 +965,13 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       await this.forceCloseFailed(input.runId, statusResult.error.message)
       throw new Error(statusResult.error.message)
     }
-    return { status: statusResult.value }
+    const summary = this.writeBackSummary ?? ''
+    this.writeBackSummary = null
+    return {
+      status: statusResult.value,
+      workspaceId: this.currentWorkspaceId,
+      summary,
+    }
   }
 
   async requestCancel(input: { runId: string }): Promise<void> {
@@ -2144,4 +2192,20 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   private async ensureProxyMcpConnectionsForTurn() {
     return await this.mcpConnectionPreparer.ensureForTurn('automation-turn')
   }
+}
+
+const extractMessageText = (message: UIMessage | undefined): string => {
+  if (message === undefined) return ''
+  const parts = Array.isArray(message.parts) ? message.parts : []
+  return parts
+    .filter(
+      (part): part is { type: 'text'; text: string } =>
+        typeof part === 'object' &&
+        part !== null &&
+        (part as { type?: unknown }).type === 'text' &&
+        typeof (part as { text?: unknown }).text === 'string',
+    )
+    .map((part) => part.text)
+    .join('\n')
+    .trim()
 }
