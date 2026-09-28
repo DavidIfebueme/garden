@@ -18,6 +18,7 @@ const typeLabels: Record<InboxItemType, string> = {
   new_comment: 'New comment',
   mentioned: 'Mentioned',
   review_requested: 'Approval needed',
+  brain_proposal: 'Knowledge to review',
   waiting_for_input: 'Question waiting',
   wp_review: 'Ready for review',
   task_completed: 'Task completed',

@@ -432,6 +432,7 @@ async function computeInboxSourceItems(args: {
     connectorApprovalRows,
     agentProposalRows,
     pendingWorkProducts,
+    pendingBrainProposals,
     pausedRuns,
     failedRuns,
     succeededRuns,
@@ -530,6 +531,17 @@ async function computeInboxSourceItems(args: {
         ),
       )
       .orderBy(desc(schema.issueWorkProduct.updatedAt))
+      .limit(100),
+    db
+      .select()
+      .from(schema.brainWriteProposal)
+      .where(
+        and(
+          eq(schema.brainWriteProposal.workspaceId, workspaceId),
+          eq(schema.brainWriteProposal.status, 'pending'),
+        ),
+      )
+      .orderBy(desc(schema.brainWriteProposal.createdAt))
       .limit(100),
     db
       .select()
@@ -736,6 +748,27 @@ async function computeInboxSourceItems(args: {
     if (!issue) continue
     if (isTerminalIssue(issue)) continue
     sources.push(buildWorkProductReviewSource(wp, issue))
+  }
+
+  for (const proposal of pendingBrainProposals) {
+    sources.push({
+      key: `brain_proposal:${proposal.id}`,
+      type: 'brain_proposal',
+      severity: 'action_required',
+      issueId: null,
+      title: `Review knowledge: ${proposal.claim.slice(0, 60)}`,
+      body: proposal.claim,
+      issueStatus: null,
+      actorType: 'agent',
+      actorId: null,
+      activityAt: proposal.createdAt ?? new Date(),
+      details: {
+        proposal_id: proposal.id,
+        run_id: proposal.runId,
+        kind: proposal.kind,
+        confidence: String(proposal.confidence),
+      },
+    })
   }
 
   for (const run of pausedRuns) {

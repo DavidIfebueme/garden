@@ -12,6 +12,7 @@ export type InboxItemType =
   | 'new_comment'
   | 'mentioned'
   | 'review_requested'
+  | 'brain_proposal'
   | 'waiting_for_input'
   | 'wp_review'
   | 'task_completed'

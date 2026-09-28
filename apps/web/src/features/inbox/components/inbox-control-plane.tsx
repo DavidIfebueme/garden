@@ -7,6 +7,7 @@ import type {
   IssueWorkProduct,
 } from '@garden/core/types'
 import { api } from '@/lib/api'
+import { Button } from '@garden/ui/components/ui/button'
 import {
   issueActiveRunOptions,
   issueDetailOptions,
@@ -148,6 +149,42 @@ function useWorkProductReviewMutation(issueId: string | null) {
   })
 }
 
+function BrainProposalInboxAction({ item }: { item: InboxItem }) {
+  const invalidate = useInboxActionInvalidation(item.issue_id)
+  const proposalId = item.details?.proposal_id
+  const resolveMutation = useMutation({
+    mutationFn: (action: 'approve' | 'reject') =>
+      api.resolveBrainProposal({ id: proposalId ?? '', action }),
+    onSuccess: invalidate,
+    onError: () => toast.error('Failed to update knowledge proposal'),
+  })
+
+  if (!proposalId) return null
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-card px-3 py-3">
+      <p className="whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={() => resolveMutation.mutate('approve')}
+          disabled={resolveMutation.isPending}
+        >
+          Approve
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => resolveMutation.mutate('reject')}
+          disabled={resolveMutation.isPending}
+        >
+          Reject
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function WorkProductInboxAction({
   workProduct,
   connectorId,
@@ -273,6 +310,10 @@ export function InboxControlPlane({ item }: { item: InboxItem }) {
           connectorId={connectorId}
           reviewMutation={reviewMutation}
         />
+      )}
+
+      {item.type === 'brain_proposal' && (
+        <BrainProposalInboxAction item={item} />
       )}
 
       {(item.type === 'task_failed' || item.type === 'agent_blocked') &&
