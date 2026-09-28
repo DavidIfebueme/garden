@@ -349,6 +349,7 @@ export async function upsertConnectorNeededInbox(args: {
   connectorLabel: string
   reason: string
   runId: string
+  agentId?: string | null
 }): Promise<void> {
   const issue = await loadIssue(args.db, args.workspaceId, args.issueId)
   if (!issue || issue.status === 'done' || issue.status === 'cancelled') return
@@ -367,6 +368,7 @@ export async function upsertConnectorNeededInbox(args: {
         title: `Connect ${args.connectorLabel} to continue`,
         body: truncate(args.reason),
         actorType: 'agent',
+        actorId: args.agentId ?? null,
         details: {
           ...issueDetails(issue),
           kind: 'connector_needed',

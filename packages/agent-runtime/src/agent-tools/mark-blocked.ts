@@ -113,6 +113,7 @@ export function createMarkBlockedTool(context: IssueRunToolContext) {
               connectorLabel: connector.label,
               reason,
               runId: run.runId,
+              agentId: run.agentId,
             }),
           catch: (cause) => dbError('write connector needed inbox', cause),
         })
