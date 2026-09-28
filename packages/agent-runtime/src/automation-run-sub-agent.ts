@@ -965,13 +965,14 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       catch: (cause) => cause,
     })
     const messages = messagesResult.isOk() ? messagesResult.value : []
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((message) => message.role === 'assistant')
+    const assistantTexts = messages
+      .filter((message) => message.role === 'assistant')
+      .map((message) => extractMessageText(message))
+      .filter((text) => text !== '')
     return {
       status: statusResult.value,
       workspaceId: this.currentWorkspaceId,
-      summary: extractMessageText(lastAssistant),
+      summary: assistantTexts.slice(-3).join('\n\n'),
     }
   }
 

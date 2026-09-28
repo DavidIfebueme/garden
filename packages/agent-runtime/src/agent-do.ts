@@ -951,6 +951,12 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     })
     const workspaceId = result.workspaceId
     const summary = result.summary.trim()
+    agentRuntimeLogger.info('agent_do.brain_write_back.trigger_check', {
+      runId: input.runId,
+      status: result.status,
+      summaryLength: summary.length,
+      hasWorkspace: workspaceId !== null,
+    })
     if (
       workspaceId !== null &&
       summary !== '' &&
@@ -1018,6 +1024,12 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     const result = await automationAgent.completeWorkflowTurn(input)
     const workspaceId = result.workspaceId
     const summary = result.summary.trim()
+    agentRuntimeLogger.info('agent_do.brain_write_back.trigger_check', {
+      runId: input.runId,
+      status: result.status,
+      summaryLength: summary.length,
+      hasWorkspace: workspaceId !== null,
+    })
     if (
       workspaceId !== null &&
       summary !== '' &&
