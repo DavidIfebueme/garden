@@ -954,19 +954,14 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
       await this.forceCloseFailed(input.runId, statusResult.error.message)
       throw new Error(statusResult.error.message)
     }
-    const messagesResult = await Result.tryPromise({
-      try: async () => await this.getMessages(),
-      catch: (cause) => cause,
-    })
-    const messages = messagesResult.isOk() ? messagesResult.value : []
-    const assistantTexts = messages
-      .filter((message) => message.role === 'assistant')
-      .map((message) => extractMessageText(message))
-      .filter((text) => text !== '')
+    const runStateResult = await this.loadRunState(input.runId)
+    const summaryResult = await this.readRunSummary(input.runId)
     return {
       status: statusResult.value,
-      workspaceId: this.currentRunState?.workspaceId ?? null,
-      summary: assistantTexts.slice(-3).join('\n\n'),
+      workspaceId: runStateResult.isOk()
+        ? runStateResult.value.workspaceId
+        : null,
+      summary: summaryResult.isOk() ? summaryResult.value : '',
     }
   }
 
@@ -1358,6 +1353,45 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
         return row?.status ?? 'unknown'
       },
       catch: (cause) => dbError('load issue run status', cause),
+    })
+    if (result.isErr()) return Result.err(result.error)
+    return Result.ok(result.value)
+  }
+
+  private async readRunSummary(
+    runId: string,
+  ): Promise<ResultValue<string, IssueRunSubAgentError>> {
+    const result = await Result.tryPromise({
+      try: async () => {
+        const db = this.getDb()
+        const products = await db
+          .select({
+            title: schema.issueWorkProduct.title,
+            body: schema.issueWorkProduct.body,
+          })
+          .from(schema.issueWorkProduct)
+          .where(eq(schema.issueWorkProduct.runId, runId))
+          .orderBy(desc(schema.issueWorkProduct.createdAt))
+          .limit(3)
+        const productText = products
+          .map((product) =>
+            [product.title, product.body]
+              .filter(
+                (part): part is string => part !== null && part.trim() !== '',
+              )
+              .join('\n'),
+          )
+          .join('\n\n')
+          .trim()
+        if (productText !== '') return productText
+        const [run] = await db
+          .select({ error: schema.issueRun.error })
+          .from(schema.issueRun)
+          .where(eq(schema.issueRun.id, runId))
+          .limit(1)
+        return (run?.error ?? '').trim()
+      },
+      catch: (cause) => dbError('read issue run summary', cause),
     })
     if (result.isErr()) return Result.err(result.error)
     return Result.ok(result.value)
@@ -2487,20 +2521,4 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
   private async ensureProxyMcpConnectionsForTurn() {
     return await this.mcpConnectionPreparer.ensureForTurn('issue-turn')
   }
-}
-
-const extractMessageText = (message: UIMessage | undefined): string => {
-  if (message === undefined) return ''
-  const parts = Array.isArray(message.parts) ? message.parts : []
-  return parts
-    .filter(
-      (part): part is { type: 'text'; text: string } =>
-        typeof part === 'object' &&
-        part !== null &&
-        (part as { type?: unknown }).type === 'text' &&
-        typeof (part as { text?: unknown }).text === 'string',
-    )
-    .map((part) => part.text)
-    .join('\n')
-    .trim()
 }

@@ -310,7 +310,6 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   })
 
   private currentRunId: string | null = null
-  private currentWorkspaceId: string | null = null
   private currentPermissions: AgentPermissions | null = null
   private currentBrowserAllowed = false
   private currentClosureAction: QaSweepClosureAction = 'report-only'
@@ -493,7 +492,6 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       loadedResult.value.automation,
     )
     this.applyClosureControls(loadedResult.value.run)
-    this.currentWorkspaceId = loadedResult.value.run.workspaceId
     this.currentLogContext = {
       userId: loadedResult.value.agent.ownerUserId,
       workspaceId: loadedResult.value.run.workspaceId,
@@ -960,19 +958,13 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       await this.forceCloseFailed(input.runId, statusResult.error.message)
       throw new Error(statusResult.error.message)
     }
-    const messagesResult = await Result.tryPromise({
-      try: async () => await this.getMessages(),
-      catch: (cause) => cause,
-    })
-    const messages = messagesResult.isOk() ? messagesResult.value : []
-    const assistantTexts = messages
-      .filter((message) => message.role === 'assistant')
-      .map((message) => extractMessageText(message))
-      .filter((text) => text !== '')
+    const summaryResult = await this.readRunSummary(input.runId)
     return {
       status: statusResult.value,
-      workspaceId: this.currentWorkspaceId,
-      summary: assistantTexts.slice(-3).join('\n\n'),
+      workspaceId: summaryResult.isOk()
+        ? summaryResult.value.workspaceId
+        : null,
+      summary: summaryResult.isOk() ? summaryResult.value.summary : '',
     }
   }
 
@@ -1377,6 +1369,45 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
         return row?.status ?? 'unknown'
       },
       catch: (cause) => dbError('load automation run status', cause),
+    })
+    if (result.isErr()) return Result.err(result.error)
+    return Result.ok(result.value)
+  }
+
+  private async readRunSummary(
+    runId: string,
+  ): Promise<
+    ResultValue<
+      { workspaceId: string | null; summary: string },
+      AutomationRunSubAgentError
+    >
+  > {
+    const result = await Result.tryPromise({
+      try: async () => {
+        const [row] = await this.getDb()
+          .select({
+            workspaceId: schema.automationRun.workspaceId,
+            resultJson: schema.automationRun.resultJson,
+            error: schema.automationRun.error,
+          })
+          .from(schema.automationRun)
+          .where(eq(schema.automationRun.id, runId))
+          .limit(1)
+        if (!row) return { workspaceId: null, summary: '' }
+        const output = objectOrNull(row.resultJson)?.output
+        const rawSummary =
+          typeof output === 'string'
+            ? output
+            : output !== undefined
+              ? JSON.stringify(output)
+              : ''
+        const summary = rawSummary.trim()
+        return {
+          workspaceId: row.workspaceId,
+          summary: summary !== '' ? summary : (row.error ?? '').trim(),
+        }
+      },
+      catch: (cause) => dbError('read automation run summary', cause),
     })
     if (result.isErr()) return Result.err(result.error)
     return Result.ok(result.value)
@@ -2194,20 +2225,4 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   private async ensureProxyMcpConnectionsForTurn() {
     return await this.mcpConnectionPreparer.ensureForTurn('automation-turn')
   }
-}
-
-const extractMessageText = (message: UIMessage | undefined): string => {
-  if (message === undefined) return ''
-  const parts = Array.isArray(message.parts) ? message.parts : []
-  return parts
-    .filter(
-      (part): part is { type: 'text'; text: string } =>
-        typeof part === 'object' &&
-        part !== null &&
-        (part as { type?: unknown }).type === 'text' &&
-        typeof (part as { text?: unknown }).text === 'string',
-    )
-    .map((part) => part.text)
-    .join('\n')
-    .trim()
 }
