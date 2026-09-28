@@ -709,15 +709,9 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
     }
   }
 
-  private writeBackSummary: string | null = null
-
   override async onChatResponse(result: ChatResponseResult) {
     const runId = this.currentRunId
     if (!runId) return
-
-    if (result.status === 'completed') {
-      this.writeBackSummary = extractMessageText(result.message)
-    }
 
     const run = this.currentRunState
     if (run) {
@@ -960,12 +954,18 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
       await this.forceCloseFailed(input.runId, statusResult.error.message)
       throw new Error(statusResult.error.message)
     }
-    const summary = this.writeBackSummary ?? ''
-    this.writeBackSummary = null
+    const messagesResult = await Result.tryPromise({
+      try: async () => await this.getMessages(),
+      catch: (cause) => cause,
+    })
+    const messages = messagesResult.isOk() ? messagesResult.value : []
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((message) => message.role === 'assistant')
     return {
       status: statusResult.value,
       workspaceId: this.currentRunState?.workspaceId ?? null,
-      summary,
+      summary: extractMessageText(lastAssistant),
     }
   }
 

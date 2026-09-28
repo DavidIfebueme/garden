@@ -311,7 +311,6 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
 
   private currentRunId: string | null = null
   private currentWorkspaceId: string | null = null
-  private writeBackSummary: string | null = null
   private currentPermissions: AgentPermissions | null = null
   private currentBrowserAllowed = false
   private currentClosureAction: QaSweepClosureAction = 'report-only'
@@ -740,10 +739,6 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
     const runId = this.currentRunId
     if (!runId) return
 
-    if (result.status === 'completed') {
-      this.writeBackSummary = extractMessageText(result.message)
-    }
-
     automationRunLogger.info('automation_run.turn.finished', {
       ...this.currentLogContext,
       status: result.status,
@@ -965,12 +960,18 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       await this.forceCloseFailed(input.runId, statusResult.error.message)
       throw new Error(statusResult.error.message)
     }
-    const summary = this.writeBackSummary ?? ''
-    this.writeBackSummary = null
+    const messagesResult = await Result.tryPromise({
+      try: async () => await this.getMessages(),
+      catch: (cause) => cause,
+    })
+    const messages = messagesResult.isOk() ? messagesResult.value : []
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((message) => message.role === 'assistant')
     return {
       status: statusResult.value,
       workspaceId: this.currentWorkspaceId,
-      summary,
+      summary: extractMessageText(lastAssistant),
     }
   }
 

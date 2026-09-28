@@ -2476,6 +2476,9 @@ function IssueRunSurface({
       queryKey: issueKeys.detail(issue.workspace_id, issue.id),
     })
     queryClient.invalidateQueries({
+      queryKey: issueKeys.workProducts(issue.id),
+    })
+    queryClient.invalidateQueries({
       queryKey: issueKeys.list(issue.workspace_id),
     })
     queryClient.invalidateQueries({

@@ -12,6 +12,7 @@ import {
   issueActiveRunOptions,
   issueDetailOptions,
   issueKeys,
+  issueWorkProductsOptions,
 } from '@/lib/issues/queries'
 import { inboxKeys } from '@/lib/inbox/queries'
 import { useWorkspaceId } from '@garden/app-state/hooks'
@@ -282,9 +283,13 @@ export function InboxControlPlane({ item }: { item: InboxItem }) {
     enabled: Boolean(issueId),
   })
 
+  const { data: issueWorkProducts } = useQuery({
+    ...issueWorkProductsOptions(issueId ?? ''),
+    enabled: Boolean(issueId),
+  })
   const events = data?.events ?? []
   const run = data?.run ?? null
-  const workProducts = data?.work_products ?? []
+  const workProducts = issueWorkProducts ?? []
   const question = useMemo(() => pendingQuestionFromEvents(events), [events])
   const approval = useMemo(() => pendingApprovalFromEvents(events), [events])
   const selectedWorkProduct = workProductForItem(item, workProducts)
