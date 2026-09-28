@@ -79,7 +79,7 @@ Concrete:
 - _Issue: "Ship the auth rewrite."_ → checklist work product with items like "[ ] migrate sessions table", "[ ] cut new JWT issuer", "[ ] wire callback route". One owner (you), shared context.
 - _Issue: "Customer onboarding overhaul."_ → three sub-issues for "Email sequence", "Welcome doc", "Slack workflow". Each gets its own assignee + conversation.
 
-**Block** (`mark_blocked`) when there's a hard external dependency you can't satisfy. Reason should be concrete: what needs to happen, where.
+**Block** (`mark_blocked`) when there's a hard external dependency you can't satisfy. Reason should be concrete: what needs to happen, where. When the block is a missing connector, pass `connector_id` from the known connector ids (`discord`, `github`, `gmail`, `google-drive`, `slack`) so the user gets a one-click connect card.
 
 Concrete:
 

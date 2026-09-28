@@ -283,6 +283,19 @@ export function cancelRun(issueId: string) {
   })
 }
 
+export function startIssueRun(
+  issueId: string,
+): Promise<
+  | { kind: 'started'; runId: string }
+  | { kind: 'resumed'; runId: string }
+  | { kind: 'skipped'; reason: string }
+> {
+  return getApiTransport().request(
+    `/api/issues/${encodeURIComponent(issueId)}/runs`,
+    { method: 'POST' },
+  )
+}
+
 export function getIssuePendingApproval(issueId: string): Promise<{
   approval: { request_id: string; title: string; body: string } | null
 }> {

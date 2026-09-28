@@ -24,6 +24,7 @@ const typeLabels: Record<InboxItemType, string> = {
   task_completed: 'Task completed',
   task_failed: 'Task failed',
   agent_blocked: 'Agent blocked',
+  connector_needed: 'Connector needed',
   agent_completed: 'Agent completed',
   reaction_added: 'Reacted',
 }

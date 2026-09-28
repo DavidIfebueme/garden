@@ -8,6 +8,7 @@ import {
   MessageCircle,
   MessageCircleQuestion,
   MessageSquare,
+  Plug,
   ShieldAlert,
   UserPlus,
   XCircle,
@@ -157,6 +158,18 @@ function previewFor(item: InboxItem): Preview {
         body: bodyParagraph(item.body) ?? (
           <p className="text-sm text-muted-foreground">
             Work paused. Garden needs a decision or a dependency cleared.
+          </p>
+        ),
+      }
+    case 'connector_needed':
+      return {
+        tone: 'action',
+        Icon: Plug,
+        label: 'Connector needed',
+        cta: 'Connect connector',
+        body: bodyParagraph(item.body) ?? (
+          <p className="text-sm text-muted-foreground">
+            Connect a connector to continue.
           </p>
         ),
       }

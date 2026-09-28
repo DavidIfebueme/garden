@@ -1,12 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { Option } from 'effect'
 import type { StructuredQuestion } from '@garden/app-state/chat'
 import type {
   InboxItem,
   IssueRunEvent,
   IssueWorkProduct,
 } from '@garden/core/types'
+import { getConnectorById } from '@garden/connectors'
 import { api } from '@/lib/api'
+import { executorOAuthStartUrl } from '@/lib/api/executor'
+import { connectionListOptions } from '@/lib/workspace/queries'
 import { Button } from '@garden/ui/components/ui/button'
 import {
   issueActiveRunOptions,
@@ -194,6 +199,101 @@ function BrainProposalInboxAction({ item }: { item: InboxItem }) {
   )
 }
 
+function ConnectorNeededInboxAction({ item }: { item: InboxItem }) {
+  const wsId = useWorkspaceId()
+  const navigate = useNavigate()
+  const invalidate = useInboxActionInvalidation(item.issue_id)
+  const connectorId = item.details?.connector_id ?? ''
+  const connectorLabel = item.details?.connector_label ?? connectorId
+  const connector = getConnectorById(connectorId)
+  const [awaiting, setAwaiting] = useState(false)
+  const { data: connections } = useQuery({
+    ...connectionListOptions(wsId),
+    enabled: awaiting,
+    refetchInterval: awaiting ? 1500 : false,
+  })
+  const connected = Boolean(
+    connections?.integrations.some(
+      (integration) =>
+        Option.getOrNull(integration.gardenConnectorId) === connectorId &&
+        integration.status === 'connected',
+    ),
+  )
+
+  const resumeMutation = useMutation({
+    mutationFn: async () => {
+      if (!item.issue_id) return
+      await api.startIssueRun(item.issue_id)
+      await api.archiveInbox(item.id)
+    },
+    onSuccess: invalidate,
+    onError: () => toast.error('Failed to resume issue'),
+  })
+
+  const dismissMutation = useMutation({
+    mutationFn: () => api.archiveInbox(item.id),
+    onSuccess: invalidate,
+    onError: () => toast.error('Failed to dismiss'),
+  })
+
+  const connect = () => {
+    if (!connector) return
+    if (!connector.executorSlug) {
+      navigate({ to: '/connectors' })
+      return
+    }
+    const popup = window.open(
+      executorOAuthStartUrl(connector.executorSlug, 'user'),
+      'connector-oauth',
+      'popup=yes,width=620,height=760',
+    )
+    if (!popup) {
+      toast.error('Allow popups to connect this connector')
+      return
+    }
+    setAwaiting(true)
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-card px-3 py-3">
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-foreground">{connectorLabel}</p>
+        <p className="whitespace-pre-wrap text-sm text-foreground">
+          {item.body}
+        </p>
+      </div>
+      {awaiting && !connected && (
+        <p className="text-sm text-muted-foreground">
+          Waiting for authorization...
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        {connected ? (
+          <Button
+            size="sm"
+            onClick={() => resumeMutation.mutate()}
+            disabled={resumeMutation.isPending}
+          >
+            Resume issue
+          </Button>
+        ) : (
+          <Button size="sm" onClick={connect} disabled={!connector || awaiting}>
+            Connect {connectorLabel}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => dismissMutation.mutate()}
+          disabled={dismissMutation.isPending}
+        >
+          Dismiss
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function WorkProductInboxAction({
   workProduct,
   connectorId,
@@ -327,6 +427,10 @@ export function InboxControlPlane({ item }: { item: InboxItem }) {
 
       {item.type === 'brain_proposal' && (
         <BrainProposalInboxAction item={item} />
+      )}
+
+      {item.type === 'connector_needed' && (
+        <ConnectorNeededInboxAction item={item} />
       )}
 
       {(item.type === 'task_failed' || item.type === 'agent_blocked') &&
