@@ -134,6 +134,14 @@ function useInboxActionInvalidation(issueId: string | null) {
         queryKey: issueKeys.timeline(issueId),
         exact: true,
       })
+      queryClient.invalidateQueries({
+        queryKey: issueKeys.workProducts(issueId),
+        exact: true,
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['issue-pending-approval', issueId],
+        exact: true,
+      })
     }
   }
 }

@@ -2470,7 +2470,6 @@ function IssueRunSurface({
   const latestSeq = events.at(-1)?.seq ?? 0
   const latestRunStatus = run?.status ?? 'idle'
   useEffect(() => {
-    if (!run) return
     queryClient.invalidateQueries({ queryKey: issueKeys.timeline(issue.id) })
     queryClient.invalidateQueries({
       queryKey: issueKeys.detail(issue.workspace_id, issue.id),
@@ -2483,6 +2482,9 @@ function IssueRunSurface({
     })
     queryClient.invalidateQueries({
       queryKey: inboxKeys.list(issue.workspace_id),
+    })
+    queryClient.invalidateQueries({
+      queryKey: ['issue-pending-approval', issue.id],
     })
   }, [
     issue.id,
