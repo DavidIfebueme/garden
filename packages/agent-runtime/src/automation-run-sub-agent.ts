@@ -444,7 +444,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
         getContext: () => {
           const ctx = this.currentLogContext
           if (ctx === null) return null
-          const { workspaceId, agentId, runId } = ctx
+          const { workspaceId, agentId, runId, userId } = ctx
           if (
             typeof workspaceId !== 'string' ||
             typeof agentId !== 'string' ||
@@ -456,6 +456,9 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
             workspaceId,
             agentId,
             runId,
+            ...(typeof userId === 'string' && userId !== ''
+              ? { userId }
+              : {}),
           }
         },
       }),
@@ -556,7 +559,10 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
             ai: this.env.AI,
             files: this.env.BRAIN_FILES,
             workspaceId: loadedResult.value.run.workspaceId,
-            viewer: { teamIds: new Set<string>(), userId: undefined },
+            viewer: {
+              teamIds: new Set<string>(),
+              userId: loadedResult.value.agent.ownerUserId,
+            },
             query: latestUserText(ctx.messages),
             log: (event) =>
               console.info('[brain-injection]', {
@@ -895,7 +901,12 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
   async completeWorkflowTurn(input: {
     runId: string
     submissionId: string
-  }): Promise<{ status: string; workspaceId: string | null; summary: string }> {
+  }): Promise<{
+    status: string
+    workspaceId: string | null
+    ownerUserId: string | null
+    summary: string
+  }> {
     const inspectionResult = await Result.tryPromise({
       try: async () => await this.inspectSubmission(input.submissionId),
       catch: (cause) => cause,
@@ -963,6 +974,9 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
       status: statusResult.value,
       workspaceId: summaryResult.isOk()
         ? summaryResult.value.workspaceId
+        : null,
+      ownerUserId: summaryResult.isOk()
+        ? summaryResult.value.ownerUserId
         : null,
       summary: summaryResult.isOk() ? summaryResult.value.summary : '',
     }
@@ -1378,7 +1392,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
     runId: string,
   ): Promise<
     ResultValue<
-      { workspaceId: string | null; summary: string },
+      { workspaceId: string | null; ownerUserId: string | null; summary: string },
       AutomationRunSubAgentError
     >
   > {
@@ -1387,13 +1401,18 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
         const [row] = await this.getDb()
           .select({
             workspaceId: schema.automationRun.workspaceId,
+            ownerUserId: schema.agent.ownerUserId,
             resultJson: schema.automationRun.resultJson,
             error: schema.automationRun.error,
           })
           .from(schema.automationRun)
+          .innerJoin(
+            schema.agent,
+            eq(schema.agent.id, schema.automationRun.agentId),
+          )
           .where(eq(schema.automationRun.id, runId))
           .limit(1)
-        if (!row) return { workspaceId: null, summary: '' }
+        if (!row) return { workspaceId: null, ownerUserId: null, summary: '' }
         const output = objectOrNull(row.resultJson)?.output
         const rawSummary =
           typeof output === 'string'
@@ -1404,6 +1423,7 @@ export class AutomationRunSubAgent extends Think<AgentRuntimeEnv> {
         const summary = rawSummary.trim()
         return {
           workspaceId: row.workspaceId,
+          ownerUserId: row.ownerUserId,
           summary: summary !== '' ? summary : (row.error ?? '').trim(),
         }
       },

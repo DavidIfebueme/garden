@@ -2,6 +2,7 @@ import { tool, type ToolSet } from 'ai'
 import { z } from 'zod'
 import { Context, Effect, Layer, Schema } from 'effect'
 import { ItemId, Kind, WorkspaceId } from '@garden/brain/domain'
+import { orgScope, userScope } from '@garden/brain/domain/scope'
 import { Brain } from '@garden/brain/services/brain'
 import type { BrainShape } from '@garden/brain/services/brain'
 import { makeWorkerBrainLive } from '@garden/brain/services/worker'
@@ -12,6 +13,7 @@ export type BrainToolContext = {
   readonly workspaceId: string
   readonly agentId: string
   readonly runId: string
+  readonly userId?: string
 }
 
 export type BrainToolOperations = Pick<
@@ -87,6 +89,12 @@ const addToBrainInputSchema = z
       .optional()
       .describe(
         'One-line summary. Optional on create, required when mode is "update".',
+      ),
+    scope: z
+      .enum(['org', 'user'])
+      .optional()
+      .describe(
+        'Who this knowledge belongs to. Use "user" for facts about a person or their preferences; everything else stays "org".',
       ),
   })
   .strict()
@@ -361,6 +369,7 @@ const makeBrainToolsService = (
       tenantId: WorkspaceId.make(ctx.workspaceId),
       query: input.query,
       k: input.k,
+      viewer: { teamIds: new Set<string>(), userId: ctx.userId },
     })
   })
 
@@ -389,6 +398,15 @@ const makeBrainToolsService = (
         message: 'mode "create" needs label and content.',
       })
     }
+    if (input.scope === 'user' && ctx.userId === undefined) {
+      return yield* new BrainToolInputError({
+        message: 'scope "user" needs a user context.',
+      })
+    }
+    const scope =
+      input.scope === 'user' && ctx.userId !== undefined
+        ? userScope(ctx.userId)
+        : orgScope()
     yield* service.ensureIndexes()
     return yield* service.addText({
       tenantId: WorkspaceId.make(ctx.workspaceId),
@@ -396,6 +414,7 @@ const makeBrainToolsService = (
       body: input.content,
       ...(input.kind === undefined ? {} : { kind: Kind.make(input.kind) }),
       ...(input.summary === undefined ? {} : { summary: input.summary }),
+      scope,
       actor: actorFrom(ctx),
     })
   })
@@ -435,6 +454,7 @@ const makeBrainToolsService = (
       tenantId: WorkspaceId.make(ctx.workspaceId),
       itemId: ItemId.make(input.itemId),
       ...(input.depth === undefined ? {} : { depth: input.depth }),
+      viewer: { teamIds: new Set<string>(), userId: ctx.userId },
     })
   })
 
@@ -535,7 +555,7 @@ export function createBrainTools(deps: BrainToolDependencies): ToolSet {
 
     add_to_brain: tool({
       description:
-        'Persist durable knowledge in the workspace’s Org Brain. Use mode "create" with label and content to add a note, or mode "update" with itemId, kind, and summary to restructure an existing item. Kind is free text you choose, not an enum. Updates preserve body content and embeddings.',
+        'Persist durable knowledge in the workspace’s Org Brain. Use mode "create" with label and content to add a note, or mode "update" with itemId, kind, and summary to restructure an existing item. Kind is free text you choose, not an enum. Updates preserve body content and embeddings. Use scope "user" for facts about a person or their preferences; everything else stays "org".',
       inputSchema: addToBrainInputSchema,
       execute: (input) => runService((service) => service.add(input)),
     }),

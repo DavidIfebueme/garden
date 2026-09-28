@@ -4,6 +4,7 @@ export type WriteCandidate = {
   readonly kind: string
   readonly confidence: number
   readonly sensitive: boolean
+  readonly scope: 'org' | 'user'
   readonly duplicateOf?: string
 }
 
@@ -17,12 +18,12 @@ export type WriteDecision =
   | {
       readonly action: 'review'
       readonly candidate: WriteCandidate
-      readonly reason: 'sensitive' | 'low_confidence'
+      readonly reason: 'sensitive' | 'low_confidence' | 'user_scope'
     }
   | {
       readonly action: 'skip'
       readonly candidate: WriteCandidate
-      readonly reason: 'blank_claim' | 'invalid_confidence'
+      readonly reason: 'blank_claim' | 'invalid_confidence' | 'invalid_scope'
     }
 
 export type WriteBackPolicy = {
@@ -42,6 +43,12 @@ export const decideWriteBack = (
     }
     if (candidate.confidence < 0 || candidate.confidence > 1) {
       return { action: 'skip', candidate, reason: 'invalid_confidence' }
+    }
+    if (candidate.scope !== 'org' && candidate.scope !== 'user') {
+      return { action: 'skip', candidate, reason: 'invalid_scope' }
+    }
+    if (candidate.scope === 'user') {
+      return { action: 'review', candidate, reason: 'user_scope' }
     }
     const duplicateOf = candidate.duplicateOf?.trim()
     if (duplicateOf !== undefined && duplicateOf !== '') {

@@ -224,4 +224,30 @@ layer(BrainTestLive, { excludeTestServices: true })('brain', (it) => {
         )
       }),
   )
+
+  it.effect.skipIf(skipHelixIntegration)(
+    'shows an org note to every viewer',
+    () =>
+      Effect.gen(function* () {
+        const brain = yield* Brain
+        yield* brain.ensureIndexes()
+        const added = yield* brain.addText({
+          tenantId: workspaceId,
+          label: 'Shared note',
+          body: 'the quixotic harbor manifest belongs to the whole org',
+          actor: { _tag: 'Agent' as const, agentId: 'agent', runId: 'run' },
+        })
+        expect(added.scope).toEqual({ kind: 'org' })
+
+        for (const userId of ['owner-user', 'other-user', undefined] as const) {
+          const hits = yield* brain.search({
+            tenantId: workspaceId,
+            query: 'quixotic harbor manifest',
+            k: 5,
+            viewer: { teamIds: new Set<string>(), userId },
+          })
+          expect(hits.some((hit) => hit.item.id === added.id)).toBe(true)
+        }
+      }),
+  )
 })

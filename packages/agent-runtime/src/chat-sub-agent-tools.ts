@@ -1806,6 +1806,7 @@ export function createChatSubAgentTools({
             workspaceId: threadResult.value.workspaceId,
             agentId: threadResult.value.agentId,
             runId: threadResult.value.threadId,
+            userId: threadResult.value.ownerUserId,
           }
         }),
     }),

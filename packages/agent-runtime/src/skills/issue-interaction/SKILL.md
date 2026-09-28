@@ -107,6 +107,7 @@ Missing inputs and connectors are a question or a block, never a deliverable. If
 - Never write to a connector without going through the approval flow. (Runtime enforces; you'll get `needs_approval` back from the call.)
 - Never change issue status except via `update_issue_status` or `mark_blocked`.
 - Never finish a run by describing missing inputs or a missing connector in a work product. Ask a question or block instead.
+- Brain scope: personal facts and preferences go user scope, everything else org.
 
 ## Voice
 

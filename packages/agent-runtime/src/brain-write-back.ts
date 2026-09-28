@@ -2,7 +2,7 @@ import { tool, type ToolSet } from 'ai'
 import { z } from 'zod'
 import { Effect } from 'effect'
 import { Kind, WorkspaceId } from '@garden/brain/domain'
-import { orgScope } from '@garden/brain/domain/scope'
+import { orgScope, userScope } from '@garden/brain/domain/scope'
 import { Brain } from '@garden/brain/services/brain'
 import { makeWorkerBrainLive } from '@garden/brain/services/worker'
 import {
@@ -29,6 +29,7 @@ export type BrainWriteBackRunInput = {
   readonly runId: string
   readonly workspaceId: string
   readonly runKind: BrainWriteBackRunKind
+  readonly ownerUserId: string | null
   readonly summary: string
 }
 
@@ -43,7 +44,8 @@ export const BRAIN_WRITE_BACK_SYSTEM_PROMPT = [
   'Never propose task status, task mechanics, intermediate tool output, or a restatement of what the run was asked to do.',
   'Search the brain first with brain_search. If the knowledge already exists, do not propose a duplicate.',
   'Propose each durable item once with propose_brain_item, giving the claim in one or two sentences, a short free-text kind, a confidence between 0 and 1, and whether the claim is sensitive or private.',
-  'Do not invent scope; the harness attaches scope. After at most three proposals, finish with one line saying what you proposed, or that you proposed nothing.',
+  'Suggest scope per proposal: org unless the knowledge is about a person or their preferences, which is user scope.',
+  'After at most three proposals, finish with one line saying what you proposed, or that you proposed nothing.',
 ].join('\n')
 
 export function createBrainWriteBackMessage(
@@ -63,6 +65,7 @@ export function brainWriteBackToolContext(
     workspaceId: input.workspaceId,
     agentId: input.agentId,
     runId: `brain-write-back:${input.runKind}:${input.runId}`,
+    ...(input.ownerUserId === null ? {} : { userId: input.ownerUserId }),
   }
 }
 
@@ -99,6 +102,12 @@ const proposeInputSchema = z
     sensitive: z
       .boolean()
       .describe('True when the claim is private or sensitive.'),
+    scope: z
+      .enum(['org', 'user'])
+      .optional()
+      .describe(
+        'Who this knowledge belongs to. Use "user" for facts about a person or their preferences; "org" is the default.',
+      ),
   })
   .strict()
 
@@ -143,7 +152,12 @@ export function createBrainWriteBackTools(
         kind: input.kind,
         confidence: input.confidence,
         sensitive: input.sensitive,
+        scope: input.scope ?? 'org',
       }
+      const resolvedScope =
+        candidate.scope === 'user' && context.userId !== undefined
+          ? userScope(context.userId)
+          : orgScope()
       const [decision] = decideWriteBack([candidate], {
         directWriteConfidence: BRAIN_WRITE_BACK_DIRECT_WRITE_CONFIDENCE,
       })
@@ -168,7 +182,7 @@ export function createBrainWriteBackTools(
               label: input.claim.slice(0, 80),
               body: input.claim,
               kind: Kind.make(input.kind),
-              scope: orgScope(),
+              scope: resolvedScope,
               actor: {
                 _tag: 'Agent',
                 agentId: context.agentId,
@@ -192,7 +206,7 @@ export function createBrainWriteBackTools(
           claim: input.claim,
           kind: input.kind,
           confidence: input.confidence,
-          scope: { kind: 'org' },
+          scope: resolvedScope,
           status: 'pending',
         })
         return { ok: true, action: 'proposed', reason: decision.reason }

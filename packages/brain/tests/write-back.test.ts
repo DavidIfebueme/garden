@@ -12,6 +12,7 @@ const candidate = (
   kind: 'decision',
   confidence: 0.9,
   sensitive: false,
+  scope: 'org',
   ...overrides,
 })
 
@@ -81,5 +82,29 @@ describe('decideWriteBack', () => {
       reason: 'invalid_confidence',
     })
     expect(decisions[1]?.action).toBe('write')
+  })
+
+  it('routes user scope to review even when confident', () => {
+    const [decision] = decideWriteBack(
+      [candidate({ scope: 'user', confidence: 1 })],
+      { directWriteConfidence: 0.75 },
+    )
+    expect(decision).toMatchObject({ action: 'review', reason: 'user_scope' })
+  })
+
+  it('routes user scope to review when low confidence', () => {
+    const [decision] = decideWriteBack(
+      [candidate({ scope: 'user', confidence: 0.1 })],
+      { directWriteConfidence: 0.75 },
+    )
+    expect(decision).toMatchObject({ action: 'review', reason: 'user_scope' })
+  })
+
+  it('skips an invalid scope value', () => {
+    const [decision] = decideWriteBack(
+      [candidate({ scope: 'team' as unknown as 'org' })],
+      { directWriteConfidence: 0.75 },
+    )
+    expect(decision).toMatchObject({ action: 'skip', reason: 'invalid_scope' })
   })
 })

@@ -404,6 +404,7 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
               workspaceId: run.workspaceId,
               agentId: run.agentId,
               runId: run.runId,
+              userId: run.agentOwnerUserId,
             }
           },
         },
@@ -496,7 +497,10 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
             ai: this.env.AI,
             files: this.env.BRAIN_FILES,
             workspaceId: loadedResult.value.runState.workspaceId,
-            viewer: { teamIds: new Set<string>(), userId: undefined },
+            viewer: {
+              teamIds: new Set<string>(),
+              userId: loadedResult.value.runState.agentOwnerUserId,
+            },
             query: latestUserText(ctx.messages),
             log: (event) =>
               console.info('[brain-injection]', {
@@ -891,7 +895,12 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
   async completeWorkflowTurn(input: {
     runId: string
     submissionId: string
-  }): Promise<{ status: string; workspaceId: string | null; summary: string }> {
+  }): Promise<{
+    status: string
+    workspaceId: string | null
+    ownerUserId: string | null
+    summary: string
+  }> {
     const inspectionResult = await Result.tryPromise({
       try: async () => await this.inspectSubmission(input.submissionId),
       catch: (cause) => cause,
@@ -960,6 +969,9 @@ export class IssueRunSubAgent extends Think<AgentRuntimeEnv> {
       status: statusResult.value,
       workspaceId: runStateResult.isOk()
         ? runStateResult.value.workspaceId
+        : null,
+      ownerUserId: runStateResult.isOk()
+        ? runStateResult.value.agentOwnerUserId
         : null,
       summary: summaryResult.isOk() ? summaryResult.value : '',
     }
