@@ -1,6 +1,7 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
@@ -2489,7 +2490,15 @@ function IssueRunSurface({
     run,
   ])
   const pendingQuestion = pendingQuestionFromEvents(events)
-  const pendingApprovalPreview = pendingApprovalFromEvents(events)
+  const pendingApprovalQuery = useQuery({
+    queryKey: ['issue-pending-approval', issue.id],
+    queryFn: () => api.getIssuePendingApproval(issue.id),
+    enabled: run?.status === 'waiting_for_approval',
+  })
+  const pendingApprovalPreview =
+    pendingApprovalQuery.data?.approval ?? pendingApprovalFromEvents(events)
+  const approvalRequestId =
+    pendingApprovalQuery.data?.approval?.request_id ?? null
   const plan = latestPlanFromEvents(
     persistedRunEvents.length > 0 ? persistedRunEvents : events,
   )
@@ -2505,6 +2514,22 @@ function IssueRunSurface({
       queryClient.invalidateQueries({ queryKey: issueKeys.timeline(issue.id) })
     },
     onError: () => toast.error('Failed to stop run'),
+  })
+  const resolveApprovalMutation = useMutation({
+    mutationFn: (vars: { id: string; approved: boolean }) =>
+      api.resolvePermissionRequest(vars),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['issue-pending-approval', issue.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: issueKeys.activeRun(issue.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: inboxKeys.list(issue.workspace_id),
+      })
+    },
+    onError: () => toast.error('Failed to resolve approval'),
   })
 
   const pulseFocus =
@@ -2542,9 +2567,22 @@ function IssueRunSurface({
           pulseFocus={pulseFocus}
           debugMode={debugMode}
           onStop={() => cancelMutation.mutate()}
-          onApprove={() => {}}
-          onDeny={() => {}}
-          onEditApprove={() => {}}
+          onApprove={() => {
+            if (approvalRequestId !== null) {
+              resolveApprovalMutation.mutate({
+                id: approvalRequestId,
+                approved: true,
+              })
+            }
+          }}
+          onDeny={() => {
+            if (approvalRequestId !== null) {
+              resolveApprovalMutation.mutate({
+                id: approvalRequestId,
+                approved: false,
+              })
+            }
+          }}
           onAnswerQuestion={onAnswerQuestion}
           answering={answeringQuestion}
         />

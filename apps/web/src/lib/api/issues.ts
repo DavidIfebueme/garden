@@ -283,6 +283,12 @@ export function cancelRun(issueId: string) {
   })
 }
 
+export function getIssuePendingApproval(issueId: string): Promise<{
+  approval: { request_id: string; title: string; body: string } | null
+}> {
+  return getApiTransport().request(`/api/issues/${issueId}/pending-approval`)
+}
+
 export function getIssueUsage(issueId: string): Promise<IssueUsageSummary> {
   return getApiTransport().request(`/api/issues/${issueId}/usage`)
 }

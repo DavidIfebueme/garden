@@ -99,6 +99,7 @@ import { Route as ApiIssuesIdSubscribeRouteImport } from './routes/api/issues/$i
 import { Route as ApiIssuesIdSourceBindingsRouteImport } from './routes/api/issues/$id/source-bindings'
 import { Route as ApiIssuesIdRunsRouteImport } from './routes/api/issues/$id/runs'
 import { Route as ApiIssuesIdReactionsRouteImport } from './routes/api/issues/$id/reactions'
+import { Route as ApiIssuesIdPendingApprovalRouteImport } from './routes/api/issues/$id/pending-approval'
 import { Route as ApiIssuesIdEventsRouteImport } from './routes/api/issues/$id/events'
 import { Route as ApiIssuesIdCommentsRouteImport } from './routes/api/issues/$id/comments'
 import { Route as ApiIssuesIdCancelRouteImport } from './routes/api/issues/$id/cancel'
@@ -607,6 +608,12 @@ const ApiIssuesIdReactionsRoute = ApiIssuesIdReactionsRouteImport.update({
   path: '/reactions',
   getParentRoute: () => ApiIssuesIdRoute,
 } as any)
+const ApiIssuesIdPendingApprovalRoute =
+  ApiIssuesIdPendingApprovalRouteImport.update({
+    id: '/pending-approval',
+    path: '/pending-approval',
+    getParentRoute: () => ApiIssuesIdRoute,
+  } as any)
 const ApiIssuesIdEventsRoute = ApiIssuesIdEventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -936,6 +943,7 @@ export interface FileRoutesByFullPath {
   '/api/issues/$id/cancel': typeof ApiIssuesIdCancelRoute
   '/api/issues/$id/comments': typeof ApiIssuesIdCommentsRoute
   '/api/issues/$id/events': typeof ApiIssuesIdEventsRoute
+  '/api/issues/$id/pending-approval': typeof ApiIssuesIdPendingApprovalRoute
   '/api/issues/$id/reactions': typeof ApiIssuesIdReactionsRoute
   '/api/issues/$id/runs': typeof ApiIssuesIdRunsRoute
   '/api/issues/$id/source-bindings': typeof ApiIssuesIdSourceBindingsRouteWithChildren
@@ -1064,6 +1072,7 @@ export interface FileRoutesByTo {
   '/api/issues/$id/cancel': typeof ApiIssuesIdCancelRoute
   '/api/issues/$id/comments': typeof ApiIssuesIdCommentsRoute
   '/api/issues/$id/events': typeof ApiIssuesIdEventsRoute
+  '/api/issues/$id/pending-approval': typeof ApiIssuesIdPendingApprovalRoute
   '/api/issues/$id/reactions': typeof ApiIssuesIdReactionsRoute
   '/api/issues/$id/runs': typeof ApiIssuesIdRunsRoute
   '/api/issues/$id/source-bindings': typeof ApiIssuesIdSourceBindingsRouteWithChildren
@@ -1199,6 +1208,7 @@ export interface FileRoutesById {
   '/api/issues/$id/cancel': typeof ApiIssuesIdCancelRoute
   '/api/issues/$id/comments': typeof ApiIssuesIdCommentsRoute
   '/api/issues/$id/events': typeof ApiIssuesIdEventsRoute
+  '/api/issues/$id/pending-approval': typeof ApiIssuesIdPendingApprovalRoute
   '/api/issues/$id/reactions': typeof ApiIssuesIdReactionsRoute
   '/api/issues/$id/runs': typeof ApiIssuesIdRunsRoute
   '/api/issues/$id/source-bindings': typeof ApiIssuesIdSourceBindingsRouteWithChildren
@@ -1333,6 +1343,7 @@ export interface FileRouteTypes {
     | '/api/issues/$id/cancel'
     | '/api/issues/$id/comments'
     | '/api/issues/$id/events'
+    | '/api/issues/$id/pending-approval'
     | '/api/issues/$id/reactions'
     | '/api/issues/$id/runs'
     | '/api/issues/$id/source-bindings'
@@ -1461,6 +1472,7 @@ export interface FileRouteTypes {
     | '/api/issues/$id/cancel'
     | '/api/issues/$id/comments'
     | '/api/issues/$id/events'
+    | '/api/issues/$id/pending-approval'
     | '/api/issues/$id/reactions'
     | '/api/issues/$id/runs'
     | '/api/issues/$id/source-bindings'
@@ -1595,6 +1607,7 @@ export interface FileRouteTypes {
     | '/api/issues/$id/cancel'
     | '/api/issues/$id/comments'
     | '/api/issues/$id/events'
+    | '/api/issues/$id/pending-approval'
     | '/api/issues/$id/reactions'
     | '/api/issues/$id/runs'
     | '/api/issues/$id/source-bindings'
@@ -2314,6 +2327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIssuesIdReactionsRouteImport
       parentRoute: typeof ApiIssuesIdRoute
     }
+    '/api/issues/$id/pending-approval': {
+      id: '/api/issues/$id/pending-approval'
+      path: '/pending-approval'
+      fullPath: '/api/issues/$id/pending-approval'
+      preLoaderRoute: typeof ApiIssuesIdPendingApprovalRouteImport
+      parentRoute: typeof ApiIssuesIdRoute
+    }
     '/api/issues/$id/events': {
       id: '/api/issues/$id/events'
       path: '/events'
@@ -2886,6 +2906,7 @@ interface ApiIssuesIdRouteChildren {
   ApiIssuesIdCancelRoute: typeof ApiIssuesIdCancelRoute
   ApiIssuesIdCommentsRoute: typeof ApiIssuesIdCommentsRoute
   ApiIssuesIdEventsRoute: typeof ApiIssuesIdEventsRoute
+  ApiIssuesIdPendingApprovalRoute: typeof ApiIssuesIdPendingApprovalRoute
   ApiIssuesIdReactionsRoute: typeof ApiIssuesIdReactionsRoute
   ApiIssuesIdRunsRoute: typeof ApiIssuesIdRunsRoute
   ApiIssuesIdSourceBindingsRoute: typeof ApiIssuesIdSourceBindingsRouteWithChildren
@@ -2902,6 +2923,7 @@ const ApiIssuesIdRouteChildren: ApiIssuesIdRouteChildren = {
   ApiIssuesIdCancelRoute: ApiIssuesIdCancelRoute,
   ApiIssuesIdCommentsRoute: ApiIssuesIdCommentsRoute,
   ApiIssuesIdEventsRoute: ApiIssuesIdEventsRoute,
+  ApiIssuesIdPendingApprovalRoute: ApiIssuesIdPendingApprovalRoute,
   ApiIssuesIdReactionsRoute: ApiIssuesIdReactionsRoute,
   ApiIssuesIdRunsRoute: ApiIssuesIdRunsRoute,
   ApiIssuesIdSourceBindingsRoute: ApiIssuesIdSourceBindingsRouteWithChildren,
