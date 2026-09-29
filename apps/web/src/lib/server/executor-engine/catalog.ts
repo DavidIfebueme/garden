@@ -553,7 +553,6 @@ const publicRegistryEntry = (
     .slice(1)
     .map(catalogCandidateSource)
     .filter((source) => source !== firstSource)
-  const sources = [firstSource, ...new Set(remainingSources)]
   return ExecutorRegistryEntry.makeOption({
     providerId: provider.providerId,
     name: provider.name,
@@ -561,7 +560,7 @@ const publicRegistryEntry = (
     icon: provider.icon,
     domain: provider.domain,
     categories: provider.categories,
-    sources,
+    sources: [firstSource, ...new Set(remainingSources)],
   })
 }
 
