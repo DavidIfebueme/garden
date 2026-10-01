@@ -576,11 +576,17 @@ async function approveWorkProduct(args: {
             work_product_id: workProduct.id,
           },
         })
-        if (issue.status === 'in_review') {
-          await tx
-            .update(schema.issue)
-            .set({ status: 'done', updatedAt: now })
-            .where(eq(schema.issue.id, issue.id))
+        const [moved] = await tx
+          .update(schema.issue)
+          .set({ status: 'done', updatedAt: now })
+          .where(
+            and(
+              eq(schema.issue.id, issue.id),
+              eq(schema.issue.status, 'in_review'),
+            ),
+          )
+          .returning({ id: schema.issue.id })
+        if (moved) {
           await tx.insert(schema.issueRunEvent).values({
             id: crypto.randomUUID(),
             workspaceId: workProduct.workspaceId,

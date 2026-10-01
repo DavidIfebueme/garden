@@ -68,15 +68,6 @@ export const resolveBrainProposal = async ({
     return json({ error: 'Proposal not found' }, 404)
   }
 
-  if (row.status !== 'pending') {
-    await archiveForUser({
-      db,
-      workspaceId: workspaceContext.workspaceId,
-      proposalId: row.id,
-    })
-    return json({ ok: true, status: row.status })
-  }
-
   if (
     row.scope.kind === 'user' &&
     row.scope.userId !== workspaceContext.session.user.id
@@ -84,20 +75,55 @@ export const resolveBrainProposal = async ({
     return json({ error: 'Proposal not found' }, 404)
   }
 
-  if (bodyResult.value.action === 'approve') {
-    const env = appEnv as AppEnv & {
-      HELIX_URL?: string
-      HELIX_API_KEY?: string
-    }
-    if (env.HELIX_URL === undefined) {
-      return json({ error: 'Brain is not configured' }, 503)
-    }
-    const layer = makeWebBrainLive({
-      baseUrl: env.HELIX_URL,
-      apiKey: env.HELIX_API_KEY,
-      ai: env.AI,
-      files: env.BRAIN_FILES,
+  const action = bodyResult.value.action
+  const env = appEnv as AppEnv & {
+    HELIX_URL?: string
+    HELIX_API_KEY?: string
+  }
+  const approveLayer =
+    action === 'approve' && env.HELIX_URL !== undefined
+      ? makeWebBrainLive({
+          baseUrl: env.HELIX_URL,
+          apiKey: env.HELIX_API_KEY,
+          ai: env.AI,
+          files: env.BRAIN_FILES,
+        })
+      : null
+  if (action === 'approve' && approveLayer === null) {
+    return json({ error: 'Brain is not configured' }, 503)
+  }
+
+  const status = action === 'approve' ? 'approved' : 'rejected'
+  const [claimed] = await db
+    .update(schema.brainWriteProposal)
+    .set({
+      status,
+      decidedBy: workspaceContext.session.user.id,
+      decidedAt: new Date(),
     })
+    .where(
+      and(
+        eq(schema.brainWriteProposal.id, row.id),
+        eq(schema.brainWriteProposal.status, 'pending'),
+      ),
+    )
+    .returning({ id: schema.brainWriteProposal.id })
+
+  if (claimed === undefined) {
+    await archiveForUser({
+      db,
+      workspaceId: workspaceContext.workspaceId,
+      proposalId: row.id,
+    })
+    const [current] = await db
+      .select({ status: schema.brainWriteProposal.status })
+      .from(schema.brainWriteProposal)
+      .where(eq(schema.brainWriteProposal.id, row.id))
+      .limit(1)
+    return json({ ok: true, status: current?.status ?? row.status })
+  }
+
+  if (approveLayer !== null) {
     const writeResult = await Effect.runPromise(
       Effect.result(
         Effect.flatMap(Brain, (brain) =>
@@ -113,23 +139,18 @@ export const resolveBrainProposal = async ({
               runId: row.runId,
             },
           }),
-        ).pipe(Effect.provide(layer)),
+        ).pipe(Effect.provide(approveLayer)),
       ),
     )
     if (EffectResult.isFailure(writeResult)) {
+      await db
+        .update(schema.brainWriteProposal)
+        .set({ status: 'pending', decidedBy: null, decidedAt: null })
+        .where(eq(schema.brainWriteProposal.id, row.id))
       return json({ error: 'Could not write to the brain' }, 502)
     }
   }
 
-  const status = bodyResult.value.action === 'approve' ? 'approved' : 'rejected'
-  await db
-    .update(schema.brainWriteProposal)
-    .set({
-      status,
-      decidedBy: workspaceContext.session.user.id,
-      decidedAt: new Date(),
-    })
-    .where(eq(schema.brainWriteProposal.id, row.id))
   await archiveForUser({
     db,
     workspaceId: workspaceContext.workspaceId,

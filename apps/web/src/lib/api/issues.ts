@@ -297,7 +297,12 @@ export function startIssueRun(
 }
 
 export function getIssuePendingApproval(issueId: string): Promise<{
-  approval: { request_id: string; title: string; body: string } | null
+  approval: {
+    request_id: string
+    title: string
+    body: string
+    targetLabel?: string
+  } | null
 }> {
   return getApiTransport().request(`/api/issues/${issueId}/pending-approval`)
 }

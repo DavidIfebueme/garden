@@ -2569,6 +2569,7 @@ function IssueRunSurface({
           lastEventSummary={latestEventSummary(events)}
           pendingQuestion={pendingQuestion}
           pendingApprovalPreview={pendingApprovalPreview}
+          approvalDisabled={approvalRequestId === null}
           pulseFocus={pulseFocus}
           debugMode={debugMode}
           onStop={() => cancelMutation.mutate()}

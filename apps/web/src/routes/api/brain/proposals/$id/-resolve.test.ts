@@ -75,20 +75,43 @@ const proposalRow = () => ({
   status: 'pending',
 })
 
-function fakeDb(row: ReturnType<typeof proposalRow>) {
+function fakeDb(
+  row: ReturnType<typeof proposalRow>,
+  options: {
+    claimedRows?: Array<{ id: string }>
+    currentStatus?: string
+  } = {},
+) {
   const updates: Array<Record<string, unknown>> = []
+  const claimedRows = options.claimedRows ?? [{ id: row.id }]
+  let selectCalls = 0
   const db = {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
-          limit: vi.fn(async () => [row]),
+          limit: vi.fn(async () => {
+            selectCalls += 1
+            if (selectCalls === 1) return [row]
+            return [
+              {
+                status:
+                  options.currentStatus === undefined
+                    ? row.status
+                    : options.currentStatus,
+              },
+            ]
+          }),
         })),
       })),
     })),
     update: vi.fn(() => ({
       set: vi.fn((payload: Record<string, unknown>) => {
         updates.push(payload)
-        return { where: vi.fn(async () => {}) }
+        return {
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => claimedRows),
+          })),
+        }
       }),
     })),
   }
@@ -169,5 +192,23 @@ describe('resolveBrainProposal user scope', () => {
     expect(mockAddText).not.toHaveBeenCalled()
     expect(updates).toHaveLength(0)
     expect(mockArchiveInboxItemsByKey).not.toHaveBeenCalled()
+  })
+
+  it('does not write to the brain when a concurrent approve already claimed the row', async () => {
+    const { db, updates } = fakeDb(proposalRow(), {
+      claimedRows: [],
+      currentStatus: 'approved',
+    })
+
+    const response = await postResolve({ db, userId: ownerId })
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      status: 'approved',
+    })
+    expect(mockAddText).not.toHaveBeenCalled()
+    expect(mockArchiveInboxItemsByKey).toHaveBeenCalledOnce()
+    expect(updates).toMatchObject([{ status: 'approved' }])
   })
 })

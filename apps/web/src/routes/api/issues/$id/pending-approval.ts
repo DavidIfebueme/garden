@@ -5,6 +5,37 @@ import type { AppRequestContext } from '@/lib/server/context'
 import { json, requireWorkspaceContext } from '@/lib/server/control-plane'
 import { schema } from '@/lib/server/db'
 
+const PREVIEW_TEXT_KEYS = ['body', 'message', 'content', 'text', 'comment']
+
+function previewText(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  for (const key of PREVIEW_TEXT_KEYS) {
+    const candidate = record[key]
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate
+    }
+  }
+  return null
+}
+
+function previewTarget(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+  const record = value as Record<string, unknown>
+  const owner = record.owner
+  const repo = record.repo
+  const issueNumber = record.issue_number
+  if (
+    typeof owner === 'string' &&
+    typeof repo === 'string' &&
+    (typeof issueNumber === 'number' || typeof issueNumber === 'string')
+  ) {
+    return `github.com/${owner}/${repo}#${issueNumber}`
+  }
+  return undefined
+}
+
 export const getIssuePendingApproval = async ({
   context,
   params,
@@ -37,6 +68,8 @@ export const getIssuePendingApproval = async ({
     .select({
       id: schema.permissionRequest.id,
       context: schema.permissionRequest.context,
+      kind: schema.permissionRequest.kind,
+      argsJson: schema.permissionRequest.argsJson,
     })
     .from(schema.permissionRequest)
     .where(
@@ -52,11 +85,13 @@ export const getIssuePendingApproval = async ({
     return json({ approval: null })
   }
 
+  const targetLabel = previewTarget(request.argsJson)
   return json({
     approval: {
       request_id: request.id,
       title: request.context ?? 'Approval needed',
-      body: '',
+      body: previewText(request.argsJson) ?? request.context ?? '',
+      ...(targetLabel ? { targetLabel } : {}),
     },
   })
 }
