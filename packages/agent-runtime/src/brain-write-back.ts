@@ -178,7 +178,7 @@ export function createBrainWriteBackTools(
           ai: dependencies.ai,
           files: dependencies.files,
         })
-        await Effect.runPromise(
+        const written = await Effect.runPromise(
           Effect.flatMap(Brain, (brain) =>
             brain.addText({
               tenantId: WorkspaceId.make(context.workspaceId),
@@ -194,9 +194,20 @@ export function createBrainWriteBackTools(
             }),
           ).pipe(
             Effect.provide(layer),
-            Effect.catch(() => Effect.succeed(null)),
+            Effect.match({
+              onFailure: (error) => {
+                console.warn('[brain-write-back] direct write failed', {
+                  error,
+                })
+                return false
+              },
+              onSuccess: () => true,
+            }),
           ),
         )
+        if (!written) {
+          return { ok: false, error: 'Brain write failed.' }
+        }
         return { ok: true, action: 'written' }
       }
 

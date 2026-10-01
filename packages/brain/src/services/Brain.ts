@@ -1,4 +1,11 @@
-import { Array as EffectArray, Context, DateTime, Effect, Option, Schema } from 'effect'
+import {
+  Array as EffectArray,
+  Context,
+  DateTime,
+  Effect,
+  Option,
+  Schema,
+} from 'effect'
 import {
   BatchCondition,
   IndexSpec,
@@ -1859,12 +1866,13 @@ export const makeBrain = Effect.gen(function* () {
               concurrency: 'unbounded',
             }),
         )
-        const hits = fuse(lists, k).filter((hit) =>
-          visibleTo(hit.item, viewer ?? noViewer),
+        const visibleLists = lists.map((list) =>
+          list.filter((hit) => visibleTo(hit.item, viewer ?? noViewer)),
         )
+        const fused = fuse(visibleLists, SEARCH_FETCH_K)
         const nowMs = DateTime.toEpochMillis(yield* DateTime.now)
         const reranked = rerankByFreshness(
-          hits.map((hit) => ({
+          fused.map((hit) => ({
             item: hit,
             score: hit.score,
             observedAtMs: DateTime.toEpochMillis(
@@ -1881,18 +1889,19 @@ export const makeBrain = Effect.gen(function* () {
           freshness: entry.freshness,
           rankScore: entry.rankScore,
         }))
+        const hits = reranked.slice(0, k)
         yield* Effect.logDebug('Brain.search.completed').pipe(
           Effect.annotateLogs({
             query,
-            hitCount: reranked.length,
-            topHits: reranked.slice(0, 5).map((hit) => ({
+            hitCount: hits.length,
+            topHits: hits.slice(0, 5).map((hit) => ({
               itemId: hit.item.id,
               fusedScore: hit.score,
               rankScore: hit.rankScore,
             })),
           }),
         )
-        return reranked
+        return hits
       }),
     linkSections: (fileId, sectionIds, tenantId) =>
       Effect.gen(function* () {

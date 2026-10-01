@@ -250,4 +250,46 @@ layer(BrainTestLive, { excludeTestServices: true })('brain', (it) => {
         }
       }),
   )
+
+  it.effect.skipIf(skipHelixIntegration)(
+    'returns k visible notes when a higher-ranked invisible note matches',
+    () =>
+      Effect.gen(function* () {
+        const brain = yield* Brain
+        yield* brain.ensureIndexes()
+        const token = `zephyrous-quokka-${crypto.randomUUID()}`
+        const stranger = { teamIds: new Set<string>(), userId: 'other-user' }
+
+        const hidden = yield* brain.addText({
+          tenantId: workspaceId,
+          label: 'Private protocol',
+          body: `the ${token} protocol ${token} ${token} ${token} ${token}`,
+          scope: { kind: 'user', userId: 'owner-user' },
+          actor: { _tag: 'Agent' as const, agentId: 'agent', runId: 'run' },
+        })
+        for (let index = 0; index < 5; index += 1) {
+          yield* brain.addText({
+            tenantId: workspaceId,
+            label: `Shared protocol ${index}`,
+            body: `quarterly planning notes and travel receipts while mentioning the ${token} protocol once`,
+            actor: { _tag: 'Agent' as const, agentId: 'agent', runId: 'run' },
+          })
+        }
+
+        const strangerHits = yield* brain.search({
+          tenantId: workspaceId,
+          query: `the ${token} protocol`,
+          k: 5,
+          viewer: stranger,
+        })
+
+        expect(strangerHits).toHaveLength(5)
+        expect(strangerHits.some((hit) => hit.item.id === hidden.id)).toBe(
+          false,
+        )
+        expect(
+          strangerHits.every((hit) => hit.item.scope?.kind !== 'user'),
+        ).toBe(true)
+      }),
+  )
 })

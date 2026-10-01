@@ -89,7 +89,10 @@ export async function loadBrainInjection(args: {
     ),
   )
 
-  const topScore = hits.reduce((max, hit) => Math.max(max, hit.score), 0)
+  const topScore = hits.reduce(
+    (max, hit) => Math.max(max, hit.rankScore ?? hit.score),
+    0,
+  )
   if (hits.length === 0 || topScore < INJECTION_MIN_TOP) {
     args.log?.({
       event: 'brain.injection.empty',
@@ -114,7 +117,7 @@ export async function loadBrainInjection(args: {
           ? {}
           : { observedAt: observedAtOf(hit) }),
       },
-      score: hit.score,
+      score: hit.rankScore ?? hit.score,
     })),
     maxAnchors: 0,
     maxItems: INJECTION_K,
