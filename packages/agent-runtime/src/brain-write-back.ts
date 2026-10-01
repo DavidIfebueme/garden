@@ -154,6 +154,9 @@ export function createBrainWriteBackTools(
         sensitive: input.sensitive,
         scope: input.scope ?? 'org',
       }
+      if (candidate.scope === 'user' && context.userId === undefined) {
+        return { ok: true, action: 'skipped' }
+      }
       const resolvedScope =
         candidate.scope === 'user' && context.userId !== undefined
           ? userScope(context.userId)

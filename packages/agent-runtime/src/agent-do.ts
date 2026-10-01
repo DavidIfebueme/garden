@@ -826,7 +826,6 @@ export class AgentDO extends Agent<AgentRuntimeEnv> {
     return true
   }
 
-  @callable()
   async startBrainWriteBack(
     input: Omit<BrainWriteBackRunInput, 'agentId'>,
   ): Promise<{ ok: true; status: 'completed' }> {

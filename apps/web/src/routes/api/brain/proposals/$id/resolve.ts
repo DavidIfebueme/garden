@@ -3,7 +3,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { Kind, WorkspaceId } from '@garden/brain/domain'
-import { orgScope } from '@garden/brain/domain/scope'
 import { Brain } from '@garden/brain/services/brain'
 import { makeWebBrainLive } from '@garden/brain/services/web'
 import { archiveInboxItemsByKey } from '@garden/db/inbox'
@@ -78,6 +77,13 @@ export const resolveBrainProposal = async ({
     return json({ ok: true, status: row.status })
   }
 
+  if (
+    row.scope.kind === 'user' &&
+    row.scope.userId !== workspaceContext.session.user.id
+  ) {
+    return json({ error: 'Proposal not found' }, 404)
+  }
+
   if (bodyResult.value.action === 'approve') {
     const env = appEnv as AppEnv & {
       HELIX_URL?: string
@@ -100,7 +106,7 @@ export const resolveBrainProposal = async ({
             label: row.claim.slice(0, 80),
             body: row.claim,
             kind: Kind.make(row.kind),
-            scope: orgScope(),
+            scope: row.scope,
             actor: {
               _tag: 'Agent',
               agentId: 'brain-write-back',
