@@ -351,6 +351,13 @@
       "when": 1790575836767,
       "tag": "0049_tense_human_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791202181654,
+      "tag": "0050_wet_lord_hawal",
+      "breakpoints": true
     }
   ]
 }
