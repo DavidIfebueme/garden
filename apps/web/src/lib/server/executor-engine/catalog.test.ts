@@ -9,6 +9,8 @@ import {
   type CatalogCandidate,
 } from './catalog'
 import { IntegrationsShCatalogEntry } from './integrations-sh'
+import { resolveInstallTarget } from './install'
+import { IntegrationsShDomainSurface } from './integrations-sh'
 
 const discoveredSlack = IntegrationsShCatalogEntry.make({
   id: 'mcp/slack',
@@ -105,6 +107,47 @@ describe('Executor server-owned preset catalog', () => {
   ])
 
   afterEach(() => vi.unstubAllGlobals())
+
+  it('offers Decide as a featured MCP provider with its documented endpoint', async () => {
+    const decide = listServerOwnedExecutorProviders().find(
+      (provider) => String(provider.installSlug) === 'decide',
+    )
+
+    expect(decide).toEqual(
+      expect.objectContaining({
+        name: 'Decide',
+        domain: 'trydecide.ai',
+        featured: true,
+        candidates: [
+          expect.objectContaining({
+            kind: 'preset',
+            protocol: 'mcp',
+            presetId: 'decide',
+          }),
+        ],
+      }),
+    )
+    expect(decide).toBeDefined()
+    if (decide === undefined) return
+
+    const target = resolveInstallTarget(
+      decide.candidates[0],
+      IntegrationsShDomainSurface.make({
+        domain: 'trydecide.ai',
+        surfaces: [],
+      }),
+    )
+    expect(Option.getOrNull(target)).toEqual({
+      kind: 'mcp',
+      endpoint: 'https://api.trydecide.ai/mcp',
+      transport: 'streamable-http',
+    })
+
+    const featured = await Effect.runPromise(getFeaturedExecutorCatalog())
+    expect(featured.entries).toContainEqual(
+      expect.objectContaining({ installSlug: 'decide', name: 'Decide' }),
+    )
+  })
 
   it('projects Executor presets instead of the hand-written Google subset', () => {
     expect(
