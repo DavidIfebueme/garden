@@ -28,6 +28,7 @@ import { memberListOptions } from '@/lib/workspace/queries'
 import { allTeamIssuesOptions, teamListOptions } from '../queries'
 import { teamIssueViewStore } from '../view-store'
 import { StatusIcon } from '@/features/issues/components/status-icon'
+import { TeamMembersLoadError } from './team-route-error'
 import { TeamSummaryCard } from './team-summary-card'
 import { ViewModeToggle } from './team-tab-toolbar'
 import { hashColor, teamColor } from './team-tokens'
@@ -50,7 +51,12 @@ export function TeamWorkPage() {
   > | null>(null)
   const updateIssueMutation = useUpdateIssue()
 
-  const { data: members } = useQuery(memberListOptions(wsId))
+  const {
+    data: members,
+    isPending: membersPending,
+    isError: membersError,
+    refetch: refetchMembers,
+  } = useQuery(memberListOptions(wsId))
   const { data: projectList = [] } = useQuery(projectListOptions(wsId))
   const [{ data: allIssues }, { data: teams }] = useSuspenseQueries({
     queries: [allTeamIssuesOptions(wsId), teamListOptions(wsId)],
@@ -153,9 +159,14 @@ export function TeamWorkPage() {
     [updateIssueMutation],
   )
 
-  if (!members) {
+  if (membersPending) {
     return (
       <div className="flex-1 p-6 text-sm text-text-secondary">Loading…</div>
+    )
+  }
+  if (membersError || !members) {
+    return (
+      <TeamMembersLoadError onRetry={() => void refetchMembers()} />
     )
   }
   if (!isAdmin) {

@@ -18,6 +18,7 @@ import { useSettingsDialogStore } from '@/features/settings'
 import { memberListOptions } from '@/lib/workspace/queries'
 import { teamListOptions, teamMemberListOptions } from '../queries'
 import { CreateTeamDialog } from './create-team-dialog'
+import { TeamMembersLoadError } from './team-route-error'
 import { TeamMemberView } from './team-member-view'
 import { TeamSummaryCard } from './team-summary-card'
 import {
@@ -134,7 +135,12 @@ export function TeamOverview() {
     select: (data) => data,
   })
   const teams = teamsResponse.teams
-  const { data: members } = useQuery(memberListOptions(wsId))
+  const {
+    data: members,
+    isPending: membersPending,
+    isError: membersError,
+    refetch: refetchMembers,
+  } = useQuery(memberListOptions(wsId))
   const { data: transferMembers } = useQuery({
     ...teamMemberListOptions(wsId, transferTeam?.id ?? ''),
     enabled: Boolean(transferTeam),
@@ -146,10 +152,16 @@ export function TeamOverview() {
 
   // Members get the design's combined Team view (selector + Issues/Tasks)
   // instead of the admin overview grid. Wait for the role query so admins
-  // never flash the member surface.
-  if (!members) {
+  // never flash the member surface. Distinguish pending vs error — failing
+  // the members query used to leave `data` undefined and spin forever (#153).
+  if (membersPending) {
     return (
       <div className="flex-1 p-6 text-sm text-text-secondary">Loading…</div>
+    )
+  }
+  if (membersError || !members) {
+    return (
+      <TeamMembersLoadError onRetry={() => void refetchMembers()} />
     )
   }
   if (!canManage) return <TeamMemberView />

@@ -251,6 +251,67 @@ describe('teams UI', () => {
     expect(toast.custom).toHaveBeenCalled()
   })
 
+  it('shows an error with retry when the members query fails on overview', async () => {
+    apiMocks.listTeams.mockResolvedValue({ teams: [], total: 0 })
+    apiMocks.listMembers
+      .mockRejectedValueOnce(new Error('members unavailable'))
+      .mockResolvedValueOnce([
+        {
+          id: 'm-1',
+          workspace_id: 'ws-1',
+          user_id: 'user-1',
+          role: 'owner',
+          name: 'Owner',
+          email: 'owner@test.com',
+          avatar_url: null,
+        },
+      ])
+
+    renderWithQuery(<TeamOverview />)
+
+    expect(
+      await screen.findByText("Couldn't load members"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('No Teams yet')).toBeInTheDocument()
+    expect(apiMocks.listMembers).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows an error with retry when the members query fails on Teams › Issues', async () => {
+    apiMocks.listTeams.mockResolvedValue({
+      teams: [makeTeam()],
+      total: 1,
+    })
+    apiMocks.listMembers
+      .mockRejectedValueOnce(new Error('members unavailable'))
+      .mockResolvedValueOnce([
+        {
+          id: 'm-1',
+          workspace_id: 'ws-1',
+          user_id: 'user-1',
+          role: 'owner',
+          name: 'Owner',
+          email: 'owner@test.com',
+          avatar_url: null,
+        },
+      ])
+
+    renderWithQuery(<TeamWorkPage />)
+
+    expect(
+      await screen.findByText("Couldn't load members"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Todo')).toBeInTheDocument()
+    expect(apiMocks.listMembers).toHaveBeenCalledTimes(2)
+  })
+
   it('shows members the combined Team view without admin controls', async () => {
     apiMocks.listTeams.mockResolvedValue({
       teams: [makeTeam({ can_manage: false, can_transfer_owner: false })],

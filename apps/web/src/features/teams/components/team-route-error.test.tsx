@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { ApiError } from '@/lib/api/errors'
-import { TeamRouteError } from './team-route-error'
+import { TeamMembersLoadError, TeamRouteError } from './team-route-error'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to?: string }) => (
@@ -33,5 +33,17 @@ describe('TeamRouteError', () => {
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+})
+
+describe('TeamMembersLoadError', () => {
+  it('renders retry instead of a stuck loading state', () => {
+    const onRetry = vi.fn()
+    render(<TeamMembersLoadError onRetry={onRetry} />)
+
+    expect(screen.getByText("Couldn't load members")).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 })
