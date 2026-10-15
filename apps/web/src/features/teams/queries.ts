@@ -71,13 +71,19 @@ export function teamIssueListOptions(wsId: string, teamId: string) {
  * Every Team issue visible to the caller, across Teams. Used by the admin
  * Teams › Issues / Teams › Tasks pages; the `'all'` key sits under the team
  * issue prefix so existing issue mutations invalidate it.
+ *
+ * Uses has_team=true so the server filters team_id IS NOT NULL — previously
+ * this fetched every workspace issue and discarded non-team rows client-side.
  */
 export function allTeamIssuesOptions(wsId: string) {
   return queryOptions({
     queryKey: [...teamKeys.issues(wsId, 'all')],
     queryFn: async () => {
-      const response = await api.listIssues({ workspace_id: wsId })
-      return response.issues.filter((issue) => issue.team_id !== null)
+      const response = await api.listIssues({
+        workspace_id: wsId,
+        has_team: true,
+      })
+      return response.issues
     },
     staleTime: 15_000,
     placeholderData: (previous: Issue[] | undefined) => previous,

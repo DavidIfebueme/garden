@@ -42,6 +42,15 @@ export const reactionBodySchema = z
 
 export const issuesListSearchSchema = z.object({
   team_id: uuidSchema.optional(),
+  /**
+   * When true, only issues with a non-null team_id. Lets Teams › Issues ask
+   * the server for team-scoped rows instead of fetching every workspace issue
+   * and filtering client-side (issue #153).
+   */
+  has_team: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   status: issueStatusSchema.optional(),
   priority: issuePrioritySchema.optional(),
   assignee_id: uuidSchema.optional(),

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import { createFileRoute } from '@tanstack/react-router'
 import { requireAppRequestContext } from '@/lib/server/context'
 import { schema } from '@/lib/server/db'
@@ -55,6 +55,7 @@ export const Route = createFileRoute('/api/issues')({
           assignee_id: assigneeId,
           assignee_ids: assigneeIds,
           creator_id: creatorId,
+          has_team: hasTeam,
           limit,
           offset,
           open_only: openOnly = false,
@@ -72,6 +73,10 @@ export const Route = createFileRoute('/api/issues')({
           }),
         ]
         if (teamId) conditions.push(eq(schema.issue.teamId, teamId))
+        // has_team filters team-assigned vs workspace-only issues in SQL so
+        // cross-team lists never scan/return the full workspace issue set.
+        if (hasTeam === true) conditions.push(isNotNull(schema.issue.teamId))
+        if (hasTeam === false) conditions.push(isNull(schema.issue.teamId))
         if (status) conditions.push(eq(schema.issue.status, status))
         if (priority) conditions.push(eq(schema.issue.priority, priority))
         if (assigneeId) conditions.push(eq(schema.issue.assigneeId, assigneeId))
