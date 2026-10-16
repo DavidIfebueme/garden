@@ -64,9 +64,24 @@ export const gardenOpenApiPresets: readonly IntegrationPreset[] = [
   ...gardenOpenApiCustomPresets,
 ]
 
-export const gardenMcpPresets: readonly McpRemotePreset[] = mcpPresets
-  .filter(isRemoteMcpPreset)
-  .filter((preset) => !disabledMcpPresetIds.has(preset.id))
+/** Adds Decide to the SDK catalog so users can connect through Executor's MCP
+ * OAuth discovery and dynamic registration, rather than manage API keys.
+ * Endpoint and OAuth support: https://www.trydecide.ai/docs/mcp and
+ * https://chat.trydecide.ai/.well-known/oauth-authorization-server. */
+export const gardenMcpPresets: readonly McpRemotePreset[] = [
+  ...mcpPresets
+    .filter(isRemoteMcpPreset)
+    .filter((preset) => !disabledMcpPresetIds.has(preset.id)),
+  {
+    id: 'decide',
+    name: 'Decide',
+    summary:
+      'Analyze data, build charts and reports, and read generated files. Follow-up analyses reuse the same session. Uses credits from your Decide account.',
+    url: 'https://www.trydecide.ai/docs/mcp',
+    endpoint: 'https://api.trydecide.ai/mcp',
+    featured: true,
+  },
+]
 
 export const gardenGraphqlPresets: readonly GraphqlPreset[] =
   graphqlPresets.filter((preset) => !disabledGraphqlPresetIds.has(preset.id))

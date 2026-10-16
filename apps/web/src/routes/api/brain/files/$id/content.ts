@@ -23,6 +23,7 @@ const CONTENT_TYPES: Record<FileFormat, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv; charset=utf-8',
 }
 
 /** Returns fixed response metadata from the validated file extension. */
@@ -37,7 +38,11 @@ function responseMetadataFor(filename: string): {
 
   return {
     contentType: CONTENT_TYPES[format],
-    inlineSafe: format === 'text' || format === 'markdown' || format === 'pdf',
+    inlineSafe:
+      format === 'text' ||
+      format === 'markdown' ||
+      format === 'csv' ||
+      format === 'pdf',
   }
 }
 
