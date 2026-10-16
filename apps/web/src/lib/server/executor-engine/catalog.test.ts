@@ -8,9 +8,11 @@ import {
   providerSourceInstallSlug,
   type CatalogCandidate,
 } from './catalog'
-import { IntegrationsShCatalogEntry } from './integrations-sh'
+import {
+  IntegrationsShCatalogEntry,
+  IntegrationsShDomainSurface,
+} from './integrations-sh'
 import { resolveInstallTarget } from './install'
-import { IntegrationsShDomainSurface } from './integrations-sh'
 
 const discoveredSlack = IntegrationsShCatalogEntry.make({
   id: 'mcp/slack',
@@ -134,6 +136,8 @@ describe('Executor server-owned preset catalog', () => {
       decide.candidates[0],
       IntegrationsShDomainSurface.make({
         domain: 'trydecide.ai',
+        description: Option.none(),
+        summary: Option.none(),
         surfaces: [],
       }),
     )
@@ -145,7 +149,10 @@ describe('Executor server-owned preset catalog', () => {
 
     const featured = await Effect.runPromise(getFeaturedExecutorCatalog())
     expect(featured.entries).toContainEqual(
-      expect.objectContaining({ installSlug: 'decide', name: 'Decide' }),
+      expect.objectContaining({
+        providerId: 'executor:decide',
+        name: 'Decide',
+      }),
     )
   })
 
