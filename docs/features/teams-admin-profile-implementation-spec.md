@@ -1,7 +1,7 @@
 # Teams admin profile implementation spec
 
-**Status:** implementation proposal for `dev`  
-**Date:** 2026-10-16  
+**Status:** implementation proposal for `dev`
+**Date:** 2026-10-16
 **Audience:** frontend, backend, infrastructure, and QA engineers
 
 ## 1. Purpose
