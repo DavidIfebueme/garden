@@ -643,6 +643,24 @@ describe('POST /api/brain/files', () => {
     expect(hits[0].item.label).toBe('helixdb.pdf')
   })
 
+  it('uploads and indexes CSV files', async () => {
+    const csv = 'region,revenue\nNorth,15300\nSouth,12900\n'
+    const { response, deferred } = await upload({
+      filename: 'sales.csv',
+      type: 'text/csv',
+      bytes: new TextEncoder().encode(csv),
+    })
+
+    expect(response.status, await response.clone().text()).toBe(201)
+    await Promise.all(deferred)
+
+    const { item } = (await response.json()) as {
+      item: { name: string; status: string }
+    }
+    expect(item.name).toBe('sales.csv')
+    expect(item.status).toBe('processing')
+  })
+
   it('rejects unsupported file types', async () => {
     const { response } = await upload({
       filename: 'movie.mp4',
@@ -993,6 +1011,15 @@ describe('GET /api/brain/files/$id/content', () => {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     )
     expect(response.headers.get('Content-Disposition')).toContain('attachment')
+  })
+
+  it('serves CSV content inline with the CSV media type', async () => {
+    storeBrainFile({ indexed: true, label: 'sales.csv' })
+
+    const { response } = await getFileContent()
+
+    expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8')
+    expect(response.headers.get('Content-Disposition')).toBe('inline')
   })
 
   it('does not read content from another workspace', async () => {

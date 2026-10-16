@@ -220,6 +220,7 @@ describe('BrainFilesPage', () => {
     ['report.pdf', 'PDF file'],
     ['brief.docx', 'DOC file'],
     ['budget.xlsx', 'XLS file'],
+    ['sales.csv', 'CSV file'],
     ['notes.txt', 'TXT file'],
     ['readme.md', 'MD file'],
   ])('shows the %s type icon on its recent file card', async (name, label) => {
@@ -230,6 +231,14 @@ describe('BrainFilesPage', () => {
     expect(
       within(recentList).getAllByRole('img', { name: label }).length,
     ).toBeGreaterThan(0)
+  })
+
+  it('allows CSV files in the upload picker', () => {
+    renderFilesPage()
+
+    expect(
+      screen.getByLabelText('Choose a document to upload'),
+    ).toHaveAttribute('accept', expect.stringContaining('.csv'))
   })
 
   it('shows the two most recent files beside the dropzone', async () => {
@@ -436,6 +445,33 @@ describe('BrainFilesPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('previews CSV content as text', async () => {
+    const user = userEvent.setup()
+    mockGetBrainFileText.mockResolvedValueOnce(
+      'region,revenue\nNorth,15300\nSouth,12900',
+    )
+
+    renderFilesPage([
+      {
+        id: 'stored-csv-1',
+        name: 'sales.csv',
+        status: 'ready',
+      },
+    ])
+
+    await user.click(
+      await within(await recentFilesRegion()).findByRole('button', {
+        name: 'Preview sales.csv',
+      }),
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(
+      await within(dialog).findByText(/region,revenue/),
+    ).toBeInTheDocument()
+    expect(mockGetBrainFileText).toHaveBeenCalledWith('stored-csv-1')
   })
 
   it('shows a loading state while file preview content loads', async () => {

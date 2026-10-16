@@ -27,7 +27,11 @@ function previewKind(filename: string): PreviewKind {
   if (normalizedName.endsWith('.pdf')) return 'pdf'
   if (normalizedName.endsWith('.docx')) return 'docx'
   if (normalizedName.endsWith('.xlsx')) return 'xlsx'
-  if (normalizedName.endsWith('.md') || normalizedName.endsWith('.txt'))
+  if (
+    normalizedName.endsWith('.csv') ||
+    normalizedName.endsWith('.md') ||
+    normalizedName.endsWith('.txt')
+  )
     return 'text'
 
   return 'unavailable'
@@ -116,7 +120,7 @@ function DocxFilePreview({ fileId }: { fileId: string }) {
 
 /**
  * Shows a workspace file through the authenticated Brain content route.
- * PDF, DOCX, XLSX, TXT, and MD files render inline. Other supported files keep
+ * PDF, DOCX, XLSX, CSV, TXT, and MD files render inline. Other supported files keep
  * a clear download path when Garden cannot render them in the browser.
  *
  * Chrome follows the Penpot "View a File / Doc" modal (1235px): 24px title
