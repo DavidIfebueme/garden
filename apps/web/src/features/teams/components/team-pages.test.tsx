@@ -251,6 +251,67 @@ describe('teams UI', () => {
     expect(toast.custom).toHaveBeenCalled()
   })
 
+  it('shows an error with retry when the members query fails on overview', async () => {
+    apiMocks.listTeams.mockResolvedValue({ teams: [], total: 0 })
+    apiMocks.listMembers
+      .mockRejectedValueOnce(new Error('members unavailable'))
+      .mockResolvedValueOnce([
+        {
+          id: 'm-1',
+          workspace_id: 'ws-1',
+          user_id: 'user-1',
+          role: 'owner',
+          name: 'Owner',
+          email: 'owner@test.com',
+          avatar_url: null,
+        },
+      ])
+
+    renderWithQuery(<TeamOverview />)
+
+    expect(
+      await screen.findByText("Couldn't load members"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('No Teams yet')).toBeInTheDocument()
+    expect(apiMocks.listMembers).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows an error with retry when the members query fails on Teams › Issues', async () => {
+    apiMocks.listTeams.mockResolvedValue({
+      teams: [makeTeam()],
+      total: 1,
+    })
+    apiMocks.listMembers
+      .mockRejectedValueOnce(new Error('members unavailable'))
+      .mockResolvedValueOnce([
+        {
+          id: 'm-1',
+          workspace_id: 'ws-1',
+          user_id: 'user-1',
+          role: 'owner',
+          name: 'Owner',
+          email: 'owner@test.com',
+          avatar_url: null,
+        },
+      ])
+
+    renderWithQuery(<TeamWorkPage />)
+
+    expect(
+      await screen.findByText("Couldn't load members"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Todo')).toBeInTheDocument()
+    expect(apiMocks.listMembers).toHaveBeenCalledTimes(2)
+  })
+
   it('shows members the combined Team view without admin controls', async () => {
     apiMocks.listTeams.mockResolvedValue({
       teams: [makeTeam({ can_manage: false, can_transfer_owner: false })],
@@ -599,13 +660,13 @@ describe('teams UI', () => {
       ],
       total: 2,
     })
+    // Mock the has_team=true server response: non-team issues never arrive.
     apiMocks.listIssues.mockResolvedValue({
       issues: [
         { id: 'issue-1', team_id: 'team-1', status: 'todo' },
         { id: 'issue-2', team_id: 'team-2', status: 'in_progress' },
-        { id: 'issue-3', team_id: null, status: 'todo' },
       ],
-      total: 3,
+      total: 2,
     })
 
     teamIssueViewStore.setState({ viewMode: 'board' })
@@ -614,12 +675,14 @@ describe('teams UI', () => {
     expect(await screen.findByText('Todo')).toBeInTheDocument()
     expect(screen.getByText('Engineering')).toBeInTheDocument()
     expect(screen.getByText('Finance')).toBeInTheDocument()
+    expect(apiMocks.listIssues).toHaveBeenCalledWith(
+      expect.objectContaining({ has_team: true }),
+    )
 
-    // All view: every team-scoped issue, unscoped ones excluded.
+    // All view: every team-scoped issue from the filtered API response.
     const board = await screen.findByTestId('team-board')
     expect(board).toHaveTextContent('issue-1')
     expect(board).toHaveTextContent('issue-2')
-    expect(board).not.toHaveTextContent('issue-3')
 
     // Filtering to one Team narrows the board.
     fireEvent.click(screen.getByText('Finance'))

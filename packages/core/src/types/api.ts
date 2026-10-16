@@ -42,6 +42,8 @@ export interface ListIssuesParams {
   offset?: number
   workspace_id?: string
   team_id?: string
+  /** When true, only issues with a non-null team_id. */
+  has_team?: boolean
   status?: IssueStatus
   priority?: IssuePriority
   assignee_id?: string

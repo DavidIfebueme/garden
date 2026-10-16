@@ -143,6 +143,46 @@ describe('team issue access (integration)', () => {
     )
   })
 
+  /**
+   * has_team=true must push team_id IS NOT NULL into SQL so cross-team lists
+   * never return workspace-only issues (issue #153). Without this filter the
+   * Teams › Issues surface fetched every workspace row and discarded
+   * non-team ones client-side.
+   */
+  it('lists only team issues when has_team=true', async () => {
+    const {
+      fixture,
+      assignedIssueId,
+      otherTeamIssueId,
+      workspaceIssueId,
+    } = await seedScenario()
+
+    const request = new Request(
+      'https://garden.test/api/issues?has_team=true',
+      { headers: { 'X-Workspace-ID': fixture.workspaceId } },
+    )
+    const response = await handlerFor(IssuesRoute, 'GET')(
+      invocation(
+        makeContext({
+          testDb,
+          userId: fixture.ownerId,
+          role: 'owner',
+          request,
+        }),
+        request,
+        {},
+        '/api/issues',
+      ),
+    )
+    const body = (await response.json()) as {
+      issues: Array<{ id: string; team_id: string | null }>
+    }
+    const ids = body.issues.map((issue) => issue.id).sort()
+    expect(ids).toEqual([assignedIssueId, otherTeamIssueId].sort())
+    expect(ids).not.toContain(workspaceIssueId)
+    expect(body.issues.every((issue) => issue.team_id !== null)).toBe(true)
+  })
+
   it('hides unassigned Team issues from workspace-wide lists', async () => {
     const { fixture, teamId, assignedIssueId, workspaceIssueId } =
       await seedScenario()
